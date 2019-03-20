@@ -24,7 +24,6 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 			  struct extent_buffer *dst,
 			  struct extent_buffer *src, int empty);
 static int balance_node_right(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info,
 			      struct extent_buffer *dst_buf,
 			      struct extent_buffer *src_buf);
 static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
@@ -1979,7 +1978,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			btrfs_handle_fs_error(fs_info, ret, NULL);
 			goto enospc;
 		}
-		wret = balance_node_right(trans, fs_info, mid, left);
+		wret = balance_node_right(trans, mid, left);
 		if (wret < 0) {
 			ret = wret;
 			goto enospc;
@@ -2151,8 +2150,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 			if (ret)
 				wret = 1;
 			else {
-				wret = balance_node_right(trans, fs_info,
-							  right, mid);
+				wret = balance_node_right(trans, right, mid);
 			}
 		}
 		if (wret < 0)
@@ -3283,10 +3281,10 @@ static int push_node_left(struct btrfs_trans_handle *trans,
  * this will  only push up to 1/2 the contents of the left node over
  */
 static int balance_node_right(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info,
 			      struct extent_buffer *dst,
 			      struct extent_buffer *src)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int push_items = 0;
 	int max_push;
 	int src_nritems;
