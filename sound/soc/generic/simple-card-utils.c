@@ -49,9 +49,6 @@ void asoc_simple_card_parse_convert(struct device *dev,
 	/* channels transfer */
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-channels");
 	of_property_read_u32(np, prop, &data->convert_channels);
-
-	dev_dbg(dev, "convert_rate     %d\n", data->convert_rate);
-	dev_dbg(dev, "convert_channels %d\n", data->convert_channels);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_convert);
 
@@ -93,8 +90,6 @@ int asoc_simple_card_parse_daifmt(struct device *dev,
 
 	*retfmt = daifmt;
 
-	dev_dbg(dev, "format : %04x\n", daifmt);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_daifmt);
@@ -116,8 +111,6 @@ int asoc_simple_card_set_dailink_name(struct device *dev,
 
 		dai_link->name		= name;
 		dai_link->stream_name	= name;
-
-		dev_dbg(dev, "name : %s\n", name);
 	}
 
 	return ret;
@@ -145,8 +138,6 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 
 	if (!card->name && card->dai_link)
 		card->name = card->dai_link->name;
-
-	dev_dbg(card->dev, "Card Name: %s\n", card->name ? card->name : "");
 
 	return 0;
 }
@@ -210,9 +201,6 @@ int asoc_simple_card_parse_clk(struct device *dev,
 
 	if (of_property_read_bool(node, "system-clock-direction-out"))
 		simple_dai->clk_direction = SND_SOC_CLOCK_OUT;
-
-	dev_dbg(dev, "%s : sysclk = %d, direction %d\n", dai_name,
-		simple_dai->sysclk, simple_dai->clk_direction);
 
 	return 0;
 }

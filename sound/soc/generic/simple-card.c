@@ -813,6 +813,8 @@ static int simple_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, priv);
 
+	asoc_simple_debug_info(priv);
+
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0)
 		goto err;
