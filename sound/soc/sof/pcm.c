@@ -25,8 +25,7 @@ static int create_page_table(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct snd_dma_buffer *dmab = snd_pcm_get_dma_buf(substream);
 	int stream = substream->stream;
@@ -47,8 +46,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_pcm_params pcm;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
@@ -83,7 +81,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* number of pages should be rounded up */
-	pcm.params.buffer.pages = DIV_ROUND_UP(runtime->dma_bytes, PAGE_SIZE);
+	pcm.params.buffer.pages = PFN_UP(runtime->dma_bytes);
 
 	/* set IPC PCM parameters */
 	pcm.hdr.size = sizeof(pcm);
@@ -181,8 +179,7 @@ static int sof_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
@@ -215,9 +212,9 @@ static int sof_restore_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_sof_pcm *spcm,
 				 struct snd_sof_dev *sdev)
 {
-	snd_pcm_uframes_t host = 0;
+	snd_pcm_uframes_t host;
 	u64 host_posn;
-	int ret = 0;
+	int ret;
 
 	/* resume stream */
 	host_posn = spcm->stream[substream->stream].posn.host_posn;
@@ -247,12 +244,11 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
-	int ret = 0;
+	int ret;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -338,10 +334,8 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 
 	/* send IPC to the DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
-				 sizeof(stream), &reply, sizeof(reply));
-
-	return ret;
+	return sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
+				  sizeof(stream), &reply, sizeof(reply));
 }
 
 static snd_pcm_uframes_t sof_pcm_pointer(struct snd_pcm_substream *substream)
@@ -349,8 +343,7 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	snd_pcm_uframes_t host = 0, dai = 0;
 
@@ -384,8 +377,7 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct snd_soc_tplg_stream_caps *caps;
 	int ret;
@@ -471,8 +463,7 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	int err;
 
@@ -527,8 +518,7 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct snd_pcm *pcm = rtd->pcm;
 	struct snd_soc_tplg_stream_caps *caps;
@@ -590,8 +580,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_dai *dai =
 		snd_sof_find_dai(sdev, (char *)rtd->dai_link->name);
 
@@ -670,8 +659,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 
 static int sof_pcm_probe(struct snd_soc_component *component)
 {
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *tplg_filename;
 	int ret;
