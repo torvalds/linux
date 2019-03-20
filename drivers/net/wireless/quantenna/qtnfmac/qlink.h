@@ -582,6 +582,7 @@ enum qlink_user_reg_hint_type {
  *	of &enum qlink_user_reg_hint_type.
  * @num_channels: number of &struct qlink_tlv_channel in a variable portion of a
  *	payload.
+ * @dfs_region: one of &enum qlink_dfs_regions.
  * @info: variable portion of regulatory notifier callback.
  */
 struct qlink_cmd_reg_notify {
@@ -590,7 +591,8 @@ struct qlink_cmd_reg_notify {
 	u8 initiator;
 	u8 user_reg_hint_type;
 	u8 num_channels;
-	u8 rsvd[3];
+	u8 dfs_region;
+	u8 rsvd[2];
 	u8 info[0];
 } __packed;
 
@@ -800,7 +802,7 @@ enum qlink_dfs_regions {
  * @alpha2: country code ID firmware is configured to.
  * @n_reg_rules: number of regulatory rules TLVs in variable portion of the
  *	message.
- * @dfs_region: regulatory DFS region, one of @enum qlink_dfs_region.
+ * @dfs_region: regulatory DFS region, one of &enum qlink_dfs_regions.
  * @var_info: variable-length WMAC info data.
  */
 struct qlink_resp_get_mac_info {

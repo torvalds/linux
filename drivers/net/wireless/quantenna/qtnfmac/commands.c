@@ -2376,6 +2376,21 @@ int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req)
 		break;
 	}
 
+	switch (req->dfs_region) {
+	case NL80211_DFS_FCC:
+		cmd->dfs_region = QLINK_DFS_FCC;
+		break;
+	case NL80211_DFS_ETSI:
+		cmd->dfs_region = QLINK_DFS_ETSI;
+		break;
+	case NL80211_DFS_JP:
+		cmd->dfs_region = QLINK_DFS_JP;
+		break;
+	default:
+		cmd->dfs_region = QLINK_DFS_UNSET;
+		break;
+	}
+
 	cmd->num_channels = 0;
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
