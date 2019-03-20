@@ -18,6 +18,7 @@
 	#size-cells = <2>;
 
 	aliases {
+		crypto = &crypto;
 		fman0 = &fman0;
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;

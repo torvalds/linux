@@ -15,7 +15,6 @@
 	model = "LS1043A RDB Board";
 
 	aliases {
-		crypto = &crypto;
 		serial0 = &duart0;
 		serial1 = &duart1;
 		serial2 = &duart2;
