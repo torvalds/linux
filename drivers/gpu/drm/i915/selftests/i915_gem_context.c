@@ -1620,8 +1620,8 @@ static int mock_context_barrier(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 
 	ctx = mock_context(i915, "mock");
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
+	if (!ctx) {
+		err = -ENOMEM;
 		goto unlock;
 	}
 
