@@ -231,7 +231,7 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 		 *    x = (pfn[i+1] << 4) | (pfn[i] & 0xf)
 		 * 4. put x at offset (current location + 2) in LE byte order
 		 * 5. increment current location by 5 bytes, increment i by 2
-		 * 6. continue to (1)
+		 * 6. continue to (2)
 		 */
 		if (i & 1)
 			put_unaligned_le32((pg_table[0] & 0xf) | pfn << 4,
