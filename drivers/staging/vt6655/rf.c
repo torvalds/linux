@@ -828,11 +828,8 @@ bool RFbSetPower(
  *
  */
 
-bool RFbRawSetPower(
-	struct vnt_private *priv,
-	unsigned char byPwr,
-	unsigned int rate
-)
+bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
+		    unsigned int rate)
 {
 	bool ret = true;
 	unsigned long dwMax7230Pwr = 0;
