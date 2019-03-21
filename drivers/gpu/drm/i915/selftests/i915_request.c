@@ -619,13 +619,11 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	}
 
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_chipset_flush(i915);
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
+	i915_gem_chipset_flush(i915);
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
@@ -777,10 +775,6 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
-	err = i915_gem_object_set_to_wc_domain(obj, true);
-	if (err)
-		goto err;
-
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
@@ -799,9 +793,11 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 		*cmd++ = lower_32_bits(vma->node.start);
 	}
 	*cmd++ = MI_BATCH_BUFFER_END; /* terminate early in case of error */
-	i915_gem_chipset_flush(i915);
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
+
+	i915_gem_chipset_flush(i915);
 
 	return vma;
 

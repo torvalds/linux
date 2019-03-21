@@ -1018,11 +1018,8 @@ static int live_preempt_smoke(void *arg)
 	for (n = 0; n < PAGE_SIZE / sizeof(*cs) - 1; n++)
 		cs[n] = MI_ARB_CHECK;
 	cs[n] = MI_BATCH_BUFFER_END;
+	i915_gem_object_flush_map(smoke.batch);
 	i915_gem_object_unpin_map(smoke.batch);
-
-	err = i915_gem_object_set_to_gtt_domain(smoke.batch, false);
-	if (err)
-		goto err_batch;
 
 	for (n = 0; n < smoke.ncontext; n++) {
 		smoke.contexts[n] = kernel_context(smoke.i915);

@@ -1248,6 +1248,30 @@ static void execlists_context_destroy(struct kref *kref)
 	intel_context_free(ce);
 }
 
+static int __context_pin(struct i915_vma *vma)
+{
+	unsigned int flags;
+	int err;
+
+	flags = PIN_GLOBAL | PIN_HIGH;
+	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+
+	err = i915_vma_pin(vma, 0, 0, flags);
+	if (err)
+		return err;
+
+	vma->obj->pin_global++;
+	vma->obj->mm.dirty = true;
+
+	return 0;
+}
+
+static void __context_unpin(struct i915_vma *vma)
+{
+	vma->obj->pin_global--;
+	__i915_vma_unpin(vma);
+}
+
 static void execlists_context_unpin(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine;
@@ -1276,31 +1300,8 @@ static void execlists_context_unpin(struct intel_context *ce)
 
 	intel_ring_unpin(ce->ring);
 
-	ce->state->obj->pin_global--;
 	i915_gem_object_unpin_map(ce->state->obj);
-	i915_vma_unpin(ce->state);
-}
-
-static int __context_pin(struct i915_vma *vma)
-{
-	unsigned int flags;
-	int err;
-
-	/*
-	 * Clear this page out of any CPU caches for coherent swap-in/out.
-	 * We only want to do this on the first bind so that we do not stall
-	 * on an active context (which by nature is already on the GPU).
-	 */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		err = i915_gem_object_set_to_wc_domain(vma->obj, true);
-		if (err)
-			return err;
-	}
-
-	flags = PIN_GLOBAL | PIN_HIGH;
-	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
-
-	return i915_vma_pin(vma, 0, 0, flags);
+	__context_unpin(ce->state);
 }
 
 static void
@@ -1361,7 +1362,6 @@ __execlists_context_pin(struct intel_context *ce,
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	__execlists_update_reg_state(ce, engine);
 
-	ce->state->obj->pin_global++;
 	return 0;
 
 unpin_ring:
@@ -1369,7 +1369,7 @@ unpin_ring:
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
 unpin_vma:
-	__i915_vma_unpin(ce->state);
+	__context_unpin(ce->state);
 err:
 	return ret;
 }
@@ -2751,19 +2751,12 @@ populate_lr_context(struct intel_context *ce,
 	u32 *regs;
 	int ret;
 
-	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Could not set to CPU domain\n");
-		return ret;
-	}
-
 	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
 		return ret;
 	}
-	ctx_obj->mm.dirty = true;
 
 	if (engine->default_state) {
 		/*
@@ -2798,7 +2791,11 @@ populate_lr_context(struct intel_context *ce,
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
 
+	ret = 0;
 err_unpin_ctx:
+	__i915_gem_object_flush_map(ctx_obj,
+				    LRC_HEADER_PAGES * PAGE_SIZE,
+				    engine->context_size);
 	i915_gem_object_unpin_map(ctx_obj);
 	return ret;
 }

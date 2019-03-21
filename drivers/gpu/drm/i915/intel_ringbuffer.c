@@ -1195,15 +1195,6 @@ int intel_ring_pin(struct intel_ring *ring)
 	else
 		flags |= PIN_HIGH;
 
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		if (flags & PIN_MAPPABLE || map == I915_MAP_WC)
-			ret = i915_gem_object_set_to_gtt_domain(vma->obj, true);
-		else
-			ret = i915_gem_object_set_to_cpu_domain(vma->obj, true);
-		if (unlikely(ret))
-			goto unpin_timeline;
-	}
-
 	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (unlikely(ret))
 		goto unpin_timeline;
@@ -1392,17 +1383,6 @@ static int __context_pin(struct intel_context *ce)
 	if (!vma)
 		return 0;
 
-	/*
-	 * Clear this page out of any CPU caches for coherent swap-in/out.
-	 * We only want to do this on the first bind so that we do not stall
-	 * on an active context (which by nature is already on the GPU).
-	 */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
-		if (err)
-			return err;
-	}
-
 	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
 		return err;
@@ -1412,6 +1392,7 @@ static int __context_pin(struct intel_context *ce)
 	 * it cannot reclaim the object until we release it.
 	 */
 	vma->obj->pin_global++;
+	vma->obj->mm.dirty = true;
 
 	return 0;
 }
@@ -1446,6 +1427,24 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
+	/*
+	 * Try to make the context utilize L3 as well as LLC.
+	 *
+	 * On VLV we don't have L3 controls in the PTEs so we
+	 * shouldn't touch the cache level, especially as that
+	 * would make the object snooped which might have a
+	 * negative performance impact.
+	 *
+	 * Snooping is required on non-llc platforms in execlist
+	 * mode, but since all GGTT accesses use PAT entry 0 we
+	 * get snooping anyway regardless of cache_level.
+	 *
+	 * This is only applicable for Ivy Bridge devices since
+	 * later platforms don't have L3 control bits in the PTE.
+	 */
+	if (IS_IVYBRIDGE(i915))
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_L3_LLC);
+
 	if (engine->default_state) {
 		void *defaults, *vaddr;
 
@@ -1463,29 +1462,10 @@ alloc_context_vma(struct intel_engine_cs *engine)
 		}
 
 		memcpy(vaddr, defaults, engine->context_size);
-
 		i915_gem_object_unpin_map(engine->default_state);
-		i915_gem_object_unpin_map(obj);
-	}
 
-	/*
-	 * Try to make the context utilize L3 as well as LLC.
-	 *
-	 * On VLV we don't have L3 controls in the PTEs so we
-	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
-	 * negative performance impact.
-	 *
-	 * Snooping is required on non-llc platforms in execlist
-	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
-	 *
-	 * This is only applicable for Ivy Bridge devices since
-	 * later platforms don't have L3 control bits in the PTE.
-	 */
-	if (IS_IVYBRIDGE(i915)) {
-		/* Ignore any error, regard it as a simple optimisation */
-		i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
+		i915_gem_object_flush_map(obj);
+		i915_gem_object_unpin_map(obj);
 	}
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);

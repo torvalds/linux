@@ -2965,6 +2965,14 @@ i915_coherent_map_type(struct drm_i915_private *i915)
 void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 					   enum i915_map_type type);
 
+void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
+				 unsigned long offset,
+				 unsigned long size);
+static inline void i915_gem_object_flush_map(struct drm_i915_gem_object *obj)
+{
+	__i915_gem_object_flush_map(obj, 0, obj->base.size);
+}
+
 /**
  * i915_gem_object_unpin_map - releases an earlier mapping
  * @obj: the object to unmap

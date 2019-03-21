@@ -528,9 +528,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		return PTR_ERR(obj);
 	}
 
-	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-	if (ret)
-		goto err;
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 
 	vma = i915_vma_instance(obj, &engine->i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {

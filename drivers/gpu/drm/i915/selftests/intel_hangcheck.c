@@ -70,7 +70,7 @@ static int hang_init(struct hang *h, struct drm_i915_private *i915)
 		goto err_hws;
 	}
 
-	i915_gem_object_set_cache_level(h->hws, I915_CACHE_LLC);
+	i915_gem_object_set_cache_coherency(h->hws, I915_CACHE_LLC);
 	vaddr = i915_gem_object_pin_map(h->hws, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);

@@ -1713,6 +1713,9 @@ static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
  * 2 - Recognise WC as a separate cache domain so that we can flush the
  *     delayed writes via GTT before performing direct access via WC.
  *
+ * 3 - Remove implicit set-domain(GTT) and synchronisation on initial
+ *     pagefault; swapin remains transparent.
+ *
  * Restrictions:
  *
  *  * snoopable objects cannot be accessed via the GTT. It can cause machine
@@ -1740,7 +1743,7 @@ static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
  */
 int i915_gem_mmap_gtt_version(void)
 {
-	return 2;
+	return 3;
 }
 
 static inline struct i915_ggtt_view
@@ -1808,17 +1811,6 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
-	/* Try to flush the object off the GPU first without holding the lock.
-	 * Upon acquiring the lock, we will perform our sanity checks and then
-	 * repeat the flush holding the lock in the normal manner to catch cases
-	 * where we are gazumped.
-	 */
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE,
-				   MAX_SCHEDULE_TIMEOUT);
-	if (ret)
-		goto err;
-
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
 		goto err;
@@ -1873,10 +1865,6 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		ret = PTR_ERR(vma);
 		goto err_unlock;
 	}
-
-	ret = i915_gem_object_set_to_gtt_domain(obj, write);
-	if (ret)
-		goto err_unpin;
 
 	ret = i915_vma_pin_fence(vma);
 	if (ret)
@@ -2534,6 +2522,14 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->mm.lock);
 
+	/* Make the pages coherent with the GPU (flushing any swapin). */
+	if (obj->cache_dirty) {
+		obj->write_domain = 0;
+		if (i915_gem_object_has_struct_page(obj))
+			drm_clflush_sg(pages);
+		obj->cache_dirty = false;
+	}
+
 	obj->mm.get_page.sg_pos = pages->sgl;
 	obj->mm.get_page.sg_idx = 0;
 
@@ -2733,6 +2729,33 @@ err_unpin:
 err_unlock:
 	ptr = ERR_PTR(ret);
 	goto out_unlock;
+}
+
+void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
+				 unsigned long offset,
+				 unsigned long size)
+{
+	enum i915_map_type has_type;
+	void *ptr;
+
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	GEM_BUG_ON(range_overflows_t(typeof(obj->base.size),
+				     offset, size, obj->base.size));
+
+	obj->mm.dirty = true;
+
+	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE)
+		return;
+
+	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
+	if (has_type == I915_MAP_WC)
+		return;
+
+	drm_clflush_virt_range(ptr + offset, size);
+	if (size == obj->base.size) {
+		obj->write_domain &= ~I915_GEM_DOMAIN_CPU;
+		obj->cache_dirty = false;
+	}
 }
 
 static int
@@ -4692,6 +4715,8 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto err_active;
 
 		engine->default_state = i915_gem_object_get(state->obj);
+		i915_gem_object_set_cache_coherency(engine->default_state,
+						    I915_CACHE_LLC);
 
 		/* Check we can acquire the image of the context state */
 		vaddr = i915_gem_object_pin_map(engine->default_state,

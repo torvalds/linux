@@ -90,6 +90,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 		goto err_obj;
 	}
 	memset(cs, 0xc5, PAGE_SIZE);
+	i915_gem_object_flush_map(result);
 	i915_gem_object_unpin_map(result);
 
 	vma = i915_vma_instance(result, &engine->i915->ggtt.vm, NULL);
@@ -358,6 +359,7 @@ static struct i915_vma *create_scratch(struct i915_gem_context *ctx)
 		goto err_obj;
 	}
 	memset(ptr, 0xc5, PAGE_SIZE);
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
@@ -551,6 +553,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 
 		*cs++ = MI_BATCH_BUFFER_END;
 
+		i915_gem_object_flush_map(batch->obj);
 		i915_gem_object_unpin_map(batch->obj);
 		i915_gem_chipset_flush(ctx->i915);
 

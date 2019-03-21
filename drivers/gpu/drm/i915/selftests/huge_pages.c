@@ -908,10 +908,6 @@ gpu_write_dw(struct i915_vma *vma, u64 offset, u32 val)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	err = i915_gem_object_set_to_wc_domain(obj, true);
-	if (err)
-		goto err;
-
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
@@ -1584,6 +1580,7 @@ static int igt_tmpfs_fallback(void *arg)
 	}
 	*vaddr = 0xdeadbeaf;
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
 	vma = i915_vma_instance(obj, vm, NULL);

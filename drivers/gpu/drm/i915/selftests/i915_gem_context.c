@@ -220,6 +220,7 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 		offset += PAGE_SIZE;
 	}
 	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	err = i915_gem_object_set_to_gtt_domain(obj, false);
@@ -604,11 +605,8 @@ static struct i915_vma *rpcs_query_batch(struct i915_vma *vma)
 	*cmd++ = upper_32_bits(vma->node.start);
 	*cmd = MI_BATCH_BUFFER_END;
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
-
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
 
 	vma = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -1202,11 +1200,8 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	}
 	*cmd++ = value;
 	*cmd = MI_BATCH_BUFFER_END;
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
-
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
 
 	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -1299,11 +1294,9 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		*cmd++ = result;
 	}
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_object_unpin_map(obj);
 
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
+	i915_gem_object_flush_map(obj);
+	i915_gem_object_unpin_map(obj);
 
 	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
 	if (IS_ERR(vma)) {

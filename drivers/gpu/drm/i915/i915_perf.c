@@ -1509,9 +1509,7 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 		goto unlock;
 	}
 
-	ret = i915_gem_object_set_cache_level(bo, I915_CACHE_LLC);
-	if (ret)
-		goto err_unref;
+	i915_gem_object_set_cache_coherency(bo, I915_CACHE_LLC);
 
 	/* PreHSW required 512K alignment, HSW requires 16M */
 	vma = i915_gem_object_ggtt_pin(bo, NULL, 0, SZ_16M, 0);

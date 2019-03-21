@@ -107,6 +107,7 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 }
 
