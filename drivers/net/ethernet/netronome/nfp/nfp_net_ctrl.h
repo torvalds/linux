@@ -104,8 +104,6 @@
 #define   NFP_NET_CFG_CTRL_RINGPRIO	  (0x1 << 19) /* Ring priorities */
 #define   NFP_NET_CFG_CTRL_MSIXAUTO	  (0x1 << 20) /* MSI-X auto-masking */
 #define   NFP_NET_CFG_CTRL_TXRWB	  (0x1 << 21) /* Write-back of TX ring*/
-#define   NFP_NET_CFG_CTRL_L2SWITCH	  (0x1 << 22) /* L2 Switch */
-#define   NFP_NET_CFG_CTRL_L2SWITCH_LOCAL (0x1 << 23) /* Switch to local */
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
 #define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
@@ -130,7 +128,6 @@
 #define   NFP_NET_CFG_UPDATE_TXRPRIO	  (0x1 <<  3) /* TX Ring prio change */
 #define   NFP_NET_CFG_UPDATE_RXRPRIO	  (0x1 <<  4) /* RX Ring prio change */
 #define   NFP_NET_CFG_UPDATE_MSIX	  (0x1 <<  5) /* MSI-X change */
-#define   NFP_NET_CFG_UPDATE_L2SWITCH	  (0x1 <<  6) /* Switch changes */
 #define   NFP_NET_CFG_UPDATE_RESET	  (0x1 <<  7) /* Update due to FLR */
 #define   NFP_NET_CFG_UPDATE_IRQMOD	  (0x1 <<  8) /* IRQ mod change */
 #define   NFP_NET_CFG_UPDATE_VXLAN	  (0x1 <<  9) /* VXLAN port change */
