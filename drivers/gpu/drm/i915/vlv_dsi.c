@@ -1658,7 +1658,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *scan, *fixed_mode = NULL;
+	struct drm_display_mode *fixed_mode;
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
@@ -1769,22 +1769,13 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	mutex_lock(&dev->mode_config.mutex);
-	intel_dsi_vbt_get_modes(intel_dsi);
-	list_for_each_entry(scan, &connector->probed_modes, head) {
-		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
-			fixed_mode = drm_mode_duplicate(dev, scan);
-			break;
-		}
-	}
+	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (!fixed_mode) {
 		DRM_DEBUG_KMS("no fixed mode\n");
 		goto err;
 	}
-
-	connector->display_info.width_mm = fixed_mode->width_mm;
-	connector->display_info.height_mm = fixed_mode->height_mm;
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
