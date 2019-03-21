@@ -1191,8 +1191,6 @@ static int rcu_boost_kthread(void *arg)
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 	__releases(rnp->lock)
 {
-	struct task_struct *t;
-
 	raw_lockdep_assert_held_rcu_node(rnp);
 	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -1206,9 +1204,8 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 		if (rnp->exp_tasks == NULL)
 			rnp->boost_tasks = rnp->gp_tasks;
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-		t = rnp->boost_kthread_task;
-		if (t)
-			rcu_wake_cond(t, rnp->boost_kthread_status);
+		rcu_wake_cond(rnp->boost_kthread_task,
+			      rnp->boost_kthread_status);
 	} else {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
