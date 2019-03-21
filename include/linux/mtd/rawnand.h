@@ -1168,9 +1168,9 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
  * @name: a human-readable name of the NAND chip
  * @dev_id: the device ID (the second byte of the full chip ID array)
  * @mfr_id: manufecturer ID part of the full chip ID array (refers the same
- *          memory address as @id[0])
+ *          memory address as ``id[0]``)
  * @dev_id: device ID part of the full chip ID array (refers the same memory
- *          address as @id[1])
+ *          address as ``id[1]``)
  * @id: full device ID array
  * @pagesize: size of the NAND page in bytes; if 0, then the real page size (as
  *            well as the eraseblock size) is determined from the extended NAND
