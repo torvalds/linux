@@ -615,14 +615,33 @@ static int live_chain_preempt(void *arg)
 		struct i915_sched_attr attr = {
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
 		};
-		int count, i;
+		struct i915_request *rq;
+		int ring_size, count, i;
 
 		if (!intel_engine_has_preemption(engine))
 			continue;
 
-		for_each_prime_number_from(count, 1, 32) { /* must fit ring! */
-			struct i915_request *rq;
+		rq = igt_spinner_create_request(&lo.spin,
+						lo.ctx, engine,
+						MI_ARB_CHECK);
+		if (IS_ERR(rq))
+			goto err_wedged;
+		i915_request_add(rq);
 
+		ring_size = rq->wa_tail - rq->head;
+		if (ring_size < 0)
+			ring_size += rq->ring->size;
+		ring_size = rq->ring->size / ring_size;
+		pr_debug("%s(%s): Using maximum of %d requests\n",
+			 __func__, engine->name, ring_size);
+
+		igt_spinner_end(&lo.spin);
+		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 2) < 0) {
+			pr_err("Timed out waiting to flush %s\n", engine->name);
+			goto err_wedged;
+		}
+
+		for_each_prime_number_from(count, 1, ring_size) {
 			rq = igt_spinner_create_request(&hi.spin,
 							hi.ctx, engine,
 							MI_ARB_CHECK);
@@ -664,6 +683,21 @@ static int live_chain_preempt(void *arg)
 				goto err_wedged;
 			}
 			igt_spinner_end(&lo.spin);
+
+			rq = i915_request_alloc(engine, lo.ctx);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+			if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+				struct drm_printer p =
+					drm_info_printer(i915->drm.dev);
+
+				pr_err("Failed to flush low priority chain of %d requests\n",
+				       count);
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
+				goto err_wedged;
+			}
 		}
 	}
 
