@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/platform_data/x86/apple.h>
 
 #include "tb.h"
 #include "tb_regs.h"
@@ -989,9 +988,6 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 {
 	struct tb_cm *tcm;
 	struct tb *tb;
-
-	if (!x86_apple_machine)
-		return NULL;
 
 	tb = tb_domain_alloc(nhi, sizeof(*tcm));
 	if (!tb)

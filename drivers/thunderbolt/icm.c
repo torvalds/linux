@@ -11,6 +11,7 @@
 
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/x86/apple.h>
@@ -42,6 +43,10 @@
 #define ICM_TIMEOUT			5000	/* ms */
 #define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
+
+static bool start_icm;
+module_param(start_icm, bool, 0444);
+MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: false)");
 
 /**
  * struct icm - Internal connection manager private data
@@ -348,6 +353,14 @@ static void icm_veto_end(struct tb *tb)
 		pm_runtime_mark_last_busy(&tb->dev);
 		pm_runtime_put_autosuspend(&tb->dev);
 	}
+}
+
+static bool icm_firmware_running(const struct tb_nhi *nhi)
+{
+	u32 val;
+
+	val = ioread32(nhi->iobase + REG_FW_STS);
+	return !!(val & REG_FW_STS_ICM_EN);
 }
 
 static bool icm_fr_is_supported(struct tb *tb)
@@ -1381,9 +1394,12 @@ static bool icm_ar_is_supported(struct tb *tb)
 	/*
 	 * Starting from Alpine Ridge we can use ICM on Apple machines
 	 * as well. We just need to reset and re-enable it first.
+	 * However, only start it if explicitly asked by the user.
 	 */
-	if (!x86_apple_machine)
+	if (icm_firmware_running(tb->nhi))
 		return true;
+	if (!start_icm)
+		return false;
 
 	/*
 	 * Find the upstream PCIe port in case we need to do reset
@@ -1736,8 +1752,7 @@ static int icm_firmware_start(struct tb *tb, struct tb_nhi *nhi)
 	u32 val;
 
 	/* Check if the ICM firmware is already running */
-	val = ioread32(nhi->iobase + REG_FW_STS);
-	if (val & REG_FW_STS_ICM_EN)
+	if (icm_firmware_running(nhi))
 		return 0;
 
 	dev_dbg(&nhi->pdev->dev, "starting ICM firmware\n");
@@ -2244,7 +2259,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 
 	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
 	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
-		icm->is_supported = icm_ar_is_supported;
+		icm->is_supported = icm_fr_is_supported;
 		icm->driver_ready = icm_icl_driver_ready;
 		icm->set_uuid = icm_icl_set_uuid;
 		icm->device_connected = icm_icl_device_connected;
