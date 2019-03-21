@@ -31,8 +31,7 @@ static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 				  u8 req_type, u16 val, u16 offset,
 				  void *buf, size_t len)
 {
-	struct usb_interface *intf = to_usb_interface(dev->dev);
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *udev = to_usb_device(dev->dev);
 	unsigned int pipe;
 	int i, ret;
 
@@ -247,8 +246,7 @@ mt76u_rd_rp(struct mt76_dev *dev, u32 base,
 
 static bool mt76u_check_sg(struct mt76_dev *dev)
 {
-	struct usb_interface *intf = to_usb_interface(dev->dev);
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *udev = to_usb_device(dev->dev);
 
 	return (!disable_usb_sg && udev->bus->sg_tablesize > 0 &&
 		(udev->bus->no_sg_constraint ||
@@ -341,7 +339,6 @@ mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf)
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 
 	buf->len = SKB_WITH_OVERHEAD(q->buf_size);
-	buf->dev = dev;
 
 	buf->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!buf->urb)
@@ -379,8 +376,7 @@ mt76u_fill_bulk_urb(struct mt76_dev *dev, int dir, int index,
 		    struct mt76u_buf *buf, usb_complete_t complete_fn,
 		    void *context)
 {
-	struct usb_interface *intf = to_usb_interface(dev->dev);
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *udev = to_usb_device(dev->dev);
 	u8 *data = buf->urb->num_sgs ? NULL : buf->buf;
 	unsigned int pipe;
 
@@ -694,8 +690,8 @@ static void mt76u_tx_status_data(struct work_struct *work)
 
 static void mt76u_complete_tx(struct urb *urb)
 {
+	struct mt76_dev *dev = dev_get_drvdata(&urb->dev->dev);
 	struct mt76u_buf *buf = urb->context;
-	struct mt76_dev *dev = buf->dev;
 
 	if (mt76u_urb_error(urb))
 		dev_err(dev->dev, "tx urb failed: %d\n", urb->status);
@@ -806,7 +802,6 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 		q->ndesc = MT_NUM_TX_ENTRIES;
 		for (j = 0; j < q->ndesc; j++) {
 			buf = &q->entry[j].ubuf;
-			buf->dev = dev;
 
 			buf->urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (!buf->urb)

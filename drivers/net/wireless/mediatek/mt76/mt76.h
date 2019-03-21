@@ -90,7 +90,6 @@ struct mt76_tx_info {
 };
 
 struct mt76u_buf {
-	struct mt76_dev *dev;
 	struct urb *urb;
 	size_t len;
 	void *buf;
@@ -765,8 +764,7 @@ static inline int
 mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
 	       int timeout)
 {
-	struct usb_interface *intf = to_usb_interface(dev->dev);
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *udev = to_usb_device(dev->dev);
 	struct mt76_usb *usb = &dev->usb;
 	unsigned int pipe;
 

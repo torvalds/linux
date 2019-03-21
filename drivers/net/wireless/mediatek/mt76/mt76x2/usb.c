@@ -49,7 +49,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	struct mt76_dev *mdev;
 	int err;
 
-	mdev = mt76_alloc_device(&intf->dev, sizeof(*dev), &mt76x2u_ops,
+	mdev = mt76_alloc_device(&udev->dev, sizeof(*dev), &mt76x2u_ops,
 				 &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
@@ -58,6 +58,8 @@ static int mt76x2u_probe(struct usb_interface *intf,
 
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
+
+	usb_set_intfdata(intf, dev);
 
 	mt76x02u_init_mcu(mdev);
 	err = mt76u_init(mdev, intf);
