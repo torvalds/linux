@@ -21,6 +21,22 @@ enum mtu3_vbus_id_state {
 	MTU3_VBUS_VALID,
 };
 
+static char *mailbox_state_string(enum mtu3_vbus_id_state state)
+{
+	switch (state) {
+	case MTU3_ID_FLOAT:
+		return "ID_FLOAT";
+	case MTU3_ID_GROUND:
+		return "ID_GROUND";
+	case MTU3_VBUS_OFF:
+		return "VBUS_OFF";
+	case MTU3_VBUS_VALID:
+		return "VBUS_VALID";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static void toggle_opstate(struct ssusb_mtk *ssusb)
 {
 	if (!ssusb->otg_switch.is_u3_drd) {
@@ -140,8 +156,8 @@ static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
 		container_of(otg_sx, struct ssusb_mtk, otg_switch);
 	struct mtu3 *mtu = ssusb->u3d;
 
-	dev_dbg(ssusb->dev, "mailbox state(%d)\n", status);
-	mtu3_dbg_trace(ssusb->dev, "mailbox %d", status);
+	dev_dbg(ssusb->dev, "mailbox %s\n", mailbox_state_string(status));
+	mtu3_dbg_trace(ssusb->dev, "mailbox %s", mailbox_state_string(status));
 
 	switch (status) {
 	case MTU3_ID_GROUND:
