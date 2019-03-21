@@ -539,13 +539,13 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 
 	if (!enable) {
 		info.disable_features = (struct ta_ras_disable_features_input) {
-			.block_id =  head->block,
-			.error_type = head->type,
+			.block_id =  amdgpu_ras_block_to_ta(head->block),
+			.error_type = amdgpu_ras_error_to_ta(head->type),
 		};
 	} else {
 		info.enable_features = (struct ta_ras_enable_features_input) {
-			.block_id =  head->block,
-			.error_type = head->type,
+			.block_id =  amdgpu_ras_block_to_ta(head->block),
+			.error_type = amdgpu_ras_error_to_ta(head->type),
 		};
 	}
 
@@ -645,8 +645,8 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
 	struct ta_ras_trigger_error_input block_info = {
-		.block_id = info->head.block,
-		.inject_error_type = info->head.type,
+		.block_id =  amdgpu_ras_block_to_ta(info->head.block),
+		.inject_error_type = amdgpu_ras_error_to_ta(info->head.type),
 		.sub_block_index = info->head.sub_block_index,
 		.address = info->address,
 		.value = info->value,

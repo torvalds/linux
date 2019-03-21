@@ -197,6 +197,62 @@ static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev,
 	return 0;
 }
 
+static inline enum ta_ras_block
+amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
+	switch (block) {
+	case AMDGPU_RAS_BLOCK__UMC:
+		return TA_RAS_BLOCK__UMC;
+	case AMDGPU_RAS_BLOCK__SDMA:
+		return TA_RAS_BLOCK__SDMA;
+	case AMDGPU_RAS_BLOCK__GFX:
+		return TA_RAS_BLOCK__GFX;
+	case AMDGPU_RAS_BLOCK__MMHUB:
+		return TA_RAS_BLOCK__MMHUB;
+	case AMDGPU_RAS_BLOCK__ATHUB:
+		return TA_RAS_BLOCK__ATHUB;
+	case AMDGPU_RAS_BLOCK__PCIE_BIF:
+		return TA_RAS_BLOCK__PCIE_BIF;
+	case AMDGPU_RAS_BLOCK__HDP:
+		return TA_RAS_BLOCK__HDP;
+	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
+		return TA_RAS_BLOCK__XGMI_WAFL;
+	case AMDGPU_RAS_BLOCK__DF:
+		return TA_RAS_BLOCK__DF;
+	case AMDGPU_RAS_BLOCK__SMN:
+		return TA_RAS_BLOCK__SMN;
+	case AMDGPU_RAS_BLOCK__SEM:
+		return TA_RAS_BLOCK__SEM;
+	case AMDGPU_RAS_BLOCK__MP0:
+		return TA_RAS_BLOCK__MP0;
+	case AMDGPU_RAS_BLOCK__MP1:
+		return TA_RAS_BLOCK__MP1;
+	case AMDGPU_RAS_BLOCK__FUSE:
+		return TA_RAS_BLOCK__FUSE;
+	default:
+		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
+		return TA_RAS_BLOCK__UMC;
+	}
+}
+
+static inline enum ta_ras_error_type
+amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
+	switch (error) {
+	case AMDGPU_RAS_ERROR__NONE:
+		return TA_RAS_ERROR__NONE;
+	case AMDGPU_RAS_ERROR__PARITY:
+		return TA_RAS_ERROR__PARITY;
+	case AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE:
+		return TA_RAS_ERROR__SINGLE_CORRECTABLE;
+	case AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE:
+		return TA_RAS_ERROR__MULTI_UNCORRECTABLE;
+	case AMDGPU_RAS_ERROR__POISON:
+		return TA_RAS_ERROR__POISON;
+	default:
+		WARN_ONCE(1, "RAS ERROR: unexpected error type %d\n", error);
+		return TA_RAS_ERROR__NONE;
+	}
+}
+
 /* called in ip_init and ip_fini */
 int amdgpu_ras_init(struct amdgpu_device *adev);
 void amdgpu_ras_post_init(struct amdgpu_device *adev);
