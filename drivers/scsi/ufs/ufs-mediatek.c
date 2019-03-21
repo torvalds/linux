@@ -355,7 +355,6 @@ static struct platform_driver ufs_mtk_pltform = {
 	.shutdown   = ufshcd_pltfrm_shutdown,
 	.driver = {
 		.name   = "ufshcd-mtk",
-		.owner  = THIS_MODULE,
 		.pm     = &ufs_mtk_pm_ops,
 		.of_match_table = ufs_mtk_of_match,
 	},
