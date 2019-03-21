@@ -93,7 +93,6 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_buff_alloc_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_blks) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_pkts) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_page_reuse) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_reuse) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_full) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_empty) },
@@ -176,7 +175,6 @@ static void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 		s->rx_buff_alloc_err += rq_stats->buff_alloc_err;
 		s->rx_cqe_compress_blks += rq_stats->cqe_compress_blks;
 		s->rx_cqe_compress_pkts += rq_stats->cqe_compress_pkts;
-		s->rx_page_reuse  += rq_stats->page_reuse;
 		s->rx_cache_reuse += rq_stats->cache_reuse;
 		s->rx_cache_full  += rq_stats->cache_full;
 		s->rx_cache_empty += rq_stats->cache_empty;
@@ -1220,7 +1218,6 @@ static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, buff_alloc_err) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, page_reuse) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_reuse) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_full) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_empty) },
