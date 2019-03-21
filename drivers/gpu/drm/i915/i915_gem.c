@@ -1484,17 +1484,37 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if ((write_domain | read_domains) & I915_GEM_GPU_DOMAINS)
 		return -EINVAL;
 
-	/* Having something in the write domain implies it's in the read
+	/*
+	 * Having something in the write domain implies it's in the read
 	 * domain, and only that read domain.  Enforce that in the request.
 	 */
-	if (write_domain != 0 && read_domains != write_domain)
+	if (write_domain && read_domains != write_domain)
 		return -EINVAL;
+
+	if (!read_domains)
+		return 0;
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
 
-	/* Try to flush the object off the GPU without holding the lock.
+	/*
+	 * Already in the desired write domain? Nothing for us to do!
+	 *
+	 * We apply a little bit of cunning here to catch a broader set of
+	 * no-ops. If obj->write_domain is set, we must be in the same
+	 * obj->read_domains, and only that domain. Therefore, if that
+	 * obj->write_domain matches the request read_domains, we are
+	 * already in the same read/write domain and can skip the operation,
+	 * without having to further check the requested write_domain.
+	 */
+	if (READ_ONCE(obj->write_domain) == read_domains) {
+		err = 0;
+		goto out;
+	}
+
+	/*
+	 * Try to flush the object off the GPU without holding the lock.
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
 	 */
