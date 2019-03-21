@@ -22,6 +22,7 @@
 #include <linux/iopoll.h>
 
 #include "mtu3.h"
+#include "mtu3_trace.h"
 
 #define QMU_CHECKSUM_LEN	16
 
@@ -275,6 +276,7 @@ static int mtu3_prepare_tx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	gpd->dw0_info |= cpu_to_le32(GPD_FLAGS_IOC | GPD_FLAGS_HWO);
 
 	mreq->gpd = gpd;
+	trace_mtu3_prepare_gpd(mep, gpd);
 
 	return 0;
 }
@@ -307,6 +309,7 @@ static int mtu3_prepare_rx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	gpd->dw0_info |= cpu_to_le32(GPD_FLAGS_IOC | GPD_FLAGS_HWO);
 
 	mreq->gpd = gpd;
+	trace_mtu3_prepare_gpd(mep, gpd);
 
 	return 0;
 }
@@ -431,6 +434,7 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 	}
 
 	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, mreq);
+	trace_mtu3_zlp_exp_gpd(mep, gpd_current);
 
 	mtu3_clrbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_DMAREQEN);
 
@@ -486,6 +490,7 @@ static void qmu_done_tx(struct mtu3 *mtu, u8 epnum)
 
 		request = &mreq->request;
 		request->actual = GPD_DATA_LEN(mtu, le32_to_cpu(gpd->dw3_info));
+		trace_mtu3_complete_gpd(mep, gpd);
 		mtu3_req_complete(mep, request, 0);
 
 		gpd = advance_deq_gpd(ring);
@@ -524,6 +529,7 @@ static void qmu_done_rx(struct mtu3 *mtu, u8 epnum)
 		req = &mreq->request;
 
 		req->actual = GPD_DATA_LEN(mtu, le32_to_cpu(gpd->dw3_info));
+		trace_mtu3_complete_gpd(mep, gpd);
 		mtu3_req_complete(mep, req, 0);
 
 		gpd = advance_deq_gpd(ring);
@@ -601,6 +607,7 @@ irqreturn_t mtu3_qmu_isr(struct mtu3 *mtu)
 	dev_dbg(mtu->dev, "=== QMUdone[tx=%x, rx=%x] QMUexp[%x] ===\n",
 		(qmu_done_status & 0xFFFF), qmu_done_status >> 16,
 		qmu_status);
+	trace_mtu3_qmu_isr(qmu_done_status, qmu_status);
 
 	if (qmu_done_status)
 		qmu_done_isr(mtu, qmu_done_status);

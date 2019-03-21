@@ -39,4 +39,12 @@ static inline void ssusb_debugfs_remove_root(struct ssusb_mtk *ssusb) {}
 
 #endif /* CONFIG_DEBUG_FS */
 
+#if IS_ENABLED(CONFIG_TRACING)
+void mtu3_dbg_trace(struct device *dev, const char *fmt, ...);
+
+#else
+static inline void mtu3_dbg_trace(struct device *dev, const char *fmt, ...) {}
+
+#endif /* CONFIG_TRACING */
+
 #endif /* __MTU3_DEBUG_H__ */

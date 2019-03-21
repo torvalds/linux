@@ -17,6 +17,7 @@
 
 #include "mtu3.h"
 #include "mtu3_debug.h"
+#include "mtu3_trace.h"
 
 static int ep_fifo_alloc(struct mtu3_ep *mep, u32 seg_size)
 {
@@ -656,6 +657,8 @@ static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
 		break;
 	}
 	dev_dbg(mtu->dev, "%s: %s\n", __func__, usb_speed_string(udev_speed));
+	mtu3_dbg_trace(mtu->dev, "link speed %s",
+		       usb_speed_string(udev_speed));
 
 	mtu->g.speed = udev_speed;
 	mtu->g.ep0->maxpacket = maxpkt;
@@ -678,6 +681,7 @@ static irqreturn_t mtu3_u3_ltssm_isr(struct mtu3 *mtu)
 	ltssm &= mtu3_readl(mbase, U3D_LTSSM_INTR_ENABLE);
 	mtu3_writel(mbase, U3D_LTSSM_INTR, ltssm); /* W1C */
 	dev_dbg(mtu->dev, "=== LTSSM[%x] ===\n", ltssm);
+	trace_mtu3_u3_ltssm_isr(ltssm);
 
 	if (ltssm & (HOT_RST_INTR | WARM_RST_INTR))
 		mtu3_gadget_reset(mtu);
@@ -708,6 +712,7 @@ static irqreturn_t mtu3_u2_common_isr(struct mtu3 *mtu)
 	u2comm &= mtu3_readl(mbase, U3D_COMMON_USB_INTR_ENABLE);
 	mtu3_writel(mbase, U3D_COMMON_USB_INTR, u2comm); /* W1C */
 	dev_dbg(mtu->dev, "=== U2COMM[%x] ===\n", u2comm);
+	trace_mtu3_u2_common_isr(u2comm);
 
 	if (u2comm & SUSPEND_INTR)
 		mtu3_gadget_suspend(mtu);

@@ -141,6 +141,7 @@ static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
 	struct mtu3 *mtu = ssusb->u3d;
 
 	dev_dbg(ssusb->dev, "mailbox state(%d)\n", status);
+	mtu3_dbg_trace(ssusb->dev, "mailbox %d", status);
 
 	switch (status) {
 	case MTU3_ID_GROUND:
