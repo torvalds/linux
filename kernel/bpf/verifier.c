@@ -6078,15 +6078,17 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 	}
 	/* Propagate read liveness of registers... */
 	BUILD_BUG_ON(BPF_REG_FP + 1 != MAX_BPF_REG);
-	/* We don't need to worry about FP liveness because it's read-only */
-	for (i = 0; i < BPF_REG_FP; i++) {
-		if (vparent->frame[vparent->curframe]->regs[i].live & REG_LIVE_READ)
-			continue;
-		if (vstate->frame[vstate->curframe]->regs[i].live & REG_LIVE_READ) {
-			err = mark_reg_read(env, &vstate->frame[vstate->curframe]->regs[i],
-					    &vparent->frame[vstate->curframe]->regs[i]);
-			if (err)
-				return err;
+	for (frame = 0; frame <= vstate->curframe; frame++) {
+		/* We don't need to worry about FP liveness, it's read-only */
+		for (i = frame < vstate->curframe ? BPF_REG_6 : 0; i < BPF_REG_FP; i++) {
+			if (vparent->frame[frame]->regs[i].live & REG_LIVE_READ)
+				continue;
+			if (vstate->frame[frame]->regs[i].live & REG_LIVE_READ) {
+				err = mark_reg_read(env, &vstate->frame[frame]->regs[i],
+						    &vparent->frame[frame]->regs[i]);
+				if (err)
+					return err;
+			}
 		}
 	}
 
