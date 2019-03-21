@@ -1146,7 +1146,7 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 			continue;
 
 		if (context->stream_status[i].plane_count > 2)
-			return false;
+			return DC_FAIL_UNSUPPORTED_1;
 
 		for (j = 0; j < context->stream_status[i].plane_count; j++) {
 			struct dc_plane_state *plane =
