@@ -101,7 +101,7 @@ int tipc_bclink_reset_stats(struct net *net);
 u32 tipc_bcast_get_broadcast_mode(struct net *net);
 u32 tipc_bcast_get_broadcast_ratio(struct net *net);
 
-void tipc_mcast_filter_msg(struct sk_buff_head *defq,
+void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 			   struct sk_buff_head *inputq);
 
 static inline void tipc_bcast_lock(struct net *net)

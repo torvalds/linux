@@ -2166,7 +2166,7 @@ static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
 		tipc_group_filter_msg(grp, &inputq, xmitq);
 
 	if (unlikely(!grp) && mtyp == TIPC_MCAST_MSG)
-		tipc_mcast_filter_msg(&tsk->mc_method.deferredq, &inputq);
+		tipc_mcast_filter_msg(net, &tsk->mc_method.deferredq, &inputq);
 
 	/* Validate and add to receive buffer if there is space */
 	while ((skb = __skb_dequeue(&inputq))) {

@@ -760,7 +760,7 @@ u32 tipc_bcast_get_broadcast_ratio(struct net *net)
 	return bb->rc_ratio;
 }
 
-void tipc_mcast_filter_msg(struct sk_buff_head *defq,
+void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 			   struct sk_buff_head *inputq)
 {
 	struct sk_buff *skb, *_skb, *tmp;
@@ -775,6 +775,9 @@ void tipc_mcast_filter_msg(struct sk_buff_head *defq,
 		return;
 
 	node = msg_orignode(hdr);
+	if (node == tipc_own_addr(net))
+		return;
+
 	port = msg_origport(hdr);
 
 	/* Has the twin SYN message already arrived ? */
