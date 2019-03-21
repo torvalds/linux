@@ -1668,9 +1668,6 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 	}
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size < 0)
-			return -EINVAL;
-
 		ret = smu_v11_0_get_activity_monitor_coeff(smu,
 							   (uint8_t *)(&activity_monitor),
 							   WORKLOAD_PPLIB_CUSTOM_BIT);
