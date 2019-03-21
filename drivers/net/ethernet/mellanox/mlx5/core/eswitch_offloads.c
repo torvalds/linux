@@ -1402,6 +1402,7 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 {
 	int err;
 
+	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
 	mutex_init(&esw->fdb_table.offloads.fdb_prio_lock);
 
 	err = esw_create_offloads_fdb_tables(esw, nvports);
