@@ -2755,16 +2755,25 @@ static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
 			scsi_normalize_sense(error_info->data,
 				sense_data_length, &sshdr) &&
 				sshdr.sense_key == HARDWARE_ERROR &&
-				sshdr.asc == 0x3e &&
-				sshdr.ascq == 0x1) {
+				sshdr.asc == 0x3e) {
 			struct pqi_ctrl_info *ctrl_info = shost_to_hba(scmd->device->host);
 			struct pqi_scsi_dev *device = scmd->device->hostdata;
 
-			if (printk_ratelimit())
-				scmd_printk(KERN_ERR, scmd, "received 'logical unit failure' from controller for scsi %d:%d:%d:%d\n",
-					ctrl_info->scsi_host->host_no, device->bus, device->target, device->lun);
-			pqi_take_device_offline(scmd->device, "RAID");
-			host_byte = DID_NO_CONNECT;
+			switch (sshdr.ascq) {
+			case 0x1: /* LOGICAL UNIT FAILURE */
+				if (printk_ratelimit())
+					scmd_printk(KERN_ERR, scmd, "received 'logical unit failure' from controller for scsi %d:%d:%d:%d\n",
+						ctrl_info->scsi_host->host_no, device->bus, device->target, device->lun);
+				pqi_take_device_offline(scmd->device, "RAID");
+				host_byte = DID_NO_CONNECT;
+				break;
+
+			default: /* See http://www.t10.org/lists/asc-num.htm#ASC_3E */
+				if (printk_ratelimit())
+					scmd_printk(KERN_ERR, scmd, "received unhandled error %d from controller for scsi %d:%d:%d:%d\n",
+						sshdr.ascq, ctrl_info->scsi_host->host_no, device->bus, device->target, device->lun);
+				break;
+			}
 		}
 
 		if (sense_data_length > SCSI_SENSE_BUFFERSIZE)
