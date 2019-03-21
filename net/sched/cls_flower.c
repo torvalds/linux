@@ -1542,6 +1542,15 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			/* user specifies a handle and it doesn't exist */
 			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
 					    handle, GFP_ATOMIC);
+
+			/* Filter with specified handle was concurrently
+			 * inserted after initial check in cls_api. This is not
+			 * necessarily an error if NLM_F_EXCL is not set in
+			 * message flags. Returning EAGAIN will cause cls_api to
+			 * try to update concurrently inserted rule.
+			 */
+			if (err == -ENOSPC)
+				err = -EAGAIN;
 		} else {
 			handle = 1;
 			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
