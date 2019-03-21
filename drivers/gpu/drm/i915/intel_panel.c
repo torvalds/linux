@@ -56,24 +56,16 @@ static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
 		downclock_mode->clock < fixed_mode->clock;
 }
 
-/**
- * intel_find_panel_downclock - find the reduced downclock for LVDS in EDID
- * @dev_priv: i915 device instance
- * @fixed_mode : panel native mode
- * @connector: LVDS/eDP connector
- *
- * Return downclock_avail
- * Find the reduced downclock for LVDS/eDP in EDID.
- */
 struct drm_display_mode *
-intel_find_panel_downclock(struct drm_i915_private *dev_priv,
-			struct drm_display_mode *fixed_mode,
-			struct drm_connector *connector)
+intel_panel_edid_downclock_mode(struct intel_connector *connector,
+				const struct drm_display_mode *fixed_mode)
 {
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *scan, *best_mode = NULL;
+	struct drm_display_mode *downclock_mode;
 	int best_clock = fixed_mode->clock;
 
-	list_for_each_entry(scan, &connector->probed_modes, head) {
+	list_for_each_entry(scan, &connector->base.probed_modes, head) {
 		/*
 		 * If one mode has the same resolution with the fixed_panel
 		 * mode while they have the different refresh rate, it means
@@ -92,10 +84,18 @@ intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	if (best_mode)
-		return drm_mode_duplicate(&dev_priv->drm, best_mode);
+	if (!best_mode)
+		return NULL;
 
-	return NULL;
+	downclock_mode = drm_mode_duplicate(&dev_priv->drm, best_mode);
+	if (!downclock_mode)
+		return NULL;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using downclock mode from EDID: ",
+		      connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(downclock_mode);
+
+	return downclock_mode;
 }
 
 struct drm_display_mode *

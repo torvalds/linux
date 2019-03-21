@@ -2153,10 +2153,9 @@ void intel_panel_update_backlight(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
 void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_state);
-extern struct drm_display_mode *intel_find_panel_downclock(
-				struct drm_i915_private *dev_priv,
-				struct drm_display_mode *fixed_mode,
-				struct drm_connector *connector);
+struct drm_display_mode *
+intel_panel_edid_downclock_mode(struct intel_connector *connector,
+				const struct drm_display_mode *fixed_mode);
 struct drm_display_mode *
 intel_panel_edid_fixed_mode(struct intel_connector *connector);
 struct drm_display_mode *
