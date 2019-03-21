@@ -48,6 +48,14 @@ static int ufs_qcom_phy_qmp_14nm_init(struct phy *generic_phy)
 	bool is_rate_B = false;
 	int ret;
 
+	ret = ufs_qcom_phy_get_reset(phy_common);
+	if (ret)
+		return ret;
+
+	ret = reset_control_assert(phy_common->ufs_reset);
+	if (ret)
+		return ret;
+
 	if (phy_common->mode == PHY_MODE_UFS_HS_B)
 		is_rate_B = true;
 

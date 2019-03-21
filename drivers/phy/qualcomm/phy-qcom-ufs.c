@@ -147,6 +147,22 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_generic_probe);
 
+int ufs_qcom_phy_get_reset(struct ufs_qcom_phy *phy_common)
+{
+	struct reset_control *reset;
+
+	if (phy_common->ufs_reset)
+		return 0;
+
+	reset = devm_reset_control_get_exclusive_by_index(phy_common->dev, 0);
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	phy_common->ufs_reset = reset;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ufs_qcom_phy_get_reset);
+
 static int __ufs_qcom_phy_clk_get(struct device *dev,
 			 const char *name, struct clk **clk_out, bool err_print)
 {
@@ -533,6 +549,12 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 	if (phy_common->is_powered_on)
 		return 0;
 
+	err = reset_control_deassert(phy_common->ufs_reset);
+	if (err) {
+		dev_err(dev, "Failed to assert UFS PHY reset");
+		return err;
+	}
+
 	if (!phy_common->is_started) {
 		err = ufs_qcom_phy_start_serdes(phy_common);
 		if (err)
@@ -620,6 +642,7 @@ int ufs_qcom_phy_power_off(struct phy *generic_phy)
 
 	ufs_qcom_phy_disable_vreg(phy_common->dev, &phy_common->vdda_pll);
 	ufs_qcom_phy_disable_vreg(phy_common->dev, &phy_common->vdda_phy);
+	reset_control_assert(phy_common->ufs_reset);
 	phy_common->is_powered_on = false;
 
 	return 0;
