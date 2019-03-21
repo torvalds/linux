@@ -138,7 +138,6 @@ struct mt76_queue {
 	dma_addr_t desc_dma;
 	struct sk_buff *rx_head;
 	struct page_frag_cache rx_page;
-	spinlock_t rx_page_lock;
 };
 
 struct mt76_sw_queue {
