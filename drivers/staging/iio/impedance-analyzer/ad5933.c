@@ -315,12 +315,12 @@ static ssize_t ad5933_store_frequency(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out_voltage0_freq_start, 0644,
+static IIO_DEVICE_ATTR(out_altvoltage0_frequency_start, 0644,
 			ad5933_show_frequency,
 			ad5933_store_frequency,
 			AD5933_REG_FREQ_START);
 
-static IIO_DEVICE_ATTR(out_voltage0_freq_increment, 0644,
+static IIO_DEVICE_ATTR(out_altvoltage0_frequency_increment, 0644,
 			ad5933_show_frequency,
 			ad5933_store_frequency,
 			AD5933_REG_FREQ_INC);
@@ -443,12 +443,12 @@ static ssize_t ad5933_store(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out_voltage0_scale, 0644,
+static IIO_DEVICE_ATTR(out_altvoltage0_raw, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_OUT_RANGE);
 
-static IIO_DEVICE_ATTR(out_voltage0_scale_available, 0444,
+static IIO_DEVICE_ATTR(out_altvoltage0_scale_available, 0444,
 			ad5933_show,
 			NULL,
 			AD5933_OUT_RANGE_AVAIL);
@@ -463,12 +463,12 @@ static IIO_DEVICE_ATTR(in_voltage0_scale_available, 0444,
 			NULL,
 			AD5933_IN_PGA_GAIN_AVAIL);
 
-static IIO_DEVICE_ATTR(out_voltage0_freq_points, 0644,
+static IIO_DEVICE_ATTR(out_altvoltage0_frequency_points, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_FREQ_POINTS);
 
-static IIO_DEVICE_ATTR(out_voltage0_settling_cycles, 0644,
+static IIO_DEVICE_ATTR(out_altvoltage0_settling_cycles, 0644,
 			ad5933_show,
 			ad5933_store,
 			AD5933_OUT_SETTLING_CYCLES);
@@ -480,12 +480,12 @@ static IIO_DEVICE_ATTR(out_voltage0_settling_cycles, 0644,
  * don't create dedicated sysfs channel attributes for out0 and in0.
  */
 static struct attribute *ad5933_attributes[] = {
-	&iio_dev_attr_out_voltage0_scale.dev_attr.attr,
-	&iio_dev_attr_out_voltage0_scale_available.dev_attr.attr,
-	&iio_dev_attr_out_voltage0_freq_start.dev_attr.attr,
-	&iio_dev_attr_out_voltage0_freq_increment.dev_attr.attr,
-	&iio_dev_attr_out_voltage0_freq_points.dev_attr.attr,
-	&iio_dev_attr_out_voltage0_settling_cycles.dev_attr.attr,
+	&iio_dev_attr_out_altvoltage0_raw.dev_attr.attr,
+	&iio_dev_attr_out_altvoltage0_scale_available.dev_attr.attr,
+	&iio_dev_attr_out_altvoltage0_frequency_start.dev_attr.attr,
+	&iio_dev_attr_out_altvoltage0_frequency_increment.dev_attr.attr,
+	&iio_dev_attr_out_altvoltage0_frequency_points.dev_attr.attr,
+	&iio_dev_attr_out_altvoltage0_settling_cycles.dev_attr.attr,
 	&iio_dev_attr_in_voltage0_scale.dev_attr.attr,
 	&iio_dev_attr_in_voltage0_scale_available.dev_attr.attr,
 	NULL
