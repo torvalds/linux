@@ -7057,7 +7057,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	bool has_dpcd;
-	struct drm_display_mode *scan;
 	enum pipe pipe = INVALID_PIPE;
 	intel_wakeref_t wakeref;
 	struct edid *edid;
@@ -7110,15 +7109,9 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	intel_connector->edid = edid;
 
-	/* prefer fixed mode from EDID if available */
-	list_for_each_entry(scan, &connector->probed_modes, head) {
-		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
-			fixed_mode = drm_mode_duplicate(dev, scan);
-			downclock_mode = intel_dp_drrs_init(
-						intel_connector, fixed_mode);
-			break;
-		}
-	}
+	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+	if (fixed_mode)
+		downclock_mode = intel_dp_drrs_init(intel_connector, fixed_mode);
 
 	/* fallback to VBT if available for eDP */
 	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {

@@ -810,7 +810,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
@@ -949,16 +948,9 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_connector->edid = edid;
 
-	list_for_each_entry(scan, &connector->probed_modes, head) {
-		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
-			DRM_DEBUG_KMS("using preferred mode from EDID: ");
-			drm_mode_debug_printmodeline(scan);
-
-			fixed_mode = drm_mode_duplicate(dev, scan);
-			if (fixed_mode)
-				goto out;
-		}
-	}
+	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
+	if (fixed_mode)
+		goto out;
 
 	/* Failed to get EDID, what about VBT? */
 	if (dev_priv->vbt.lfp_lvds_vbt_mode) {

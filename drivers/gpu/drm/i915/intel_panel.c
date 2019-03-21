@@ -99,6 +99,33 @@ intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 		return NULL;
 }
 
+struct drm_display_mode *
+intel_panel_edid_fixed_mode(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	const struct drm_display_mode *scan;
+
+	/* prefer fixed mode from EDID if available */
+	list_for_each_entry(scan, &connector->base.probed_modes, head) {
+		struct drm_display_mode *fixed_mode;
+
+		if ((scan->type & DRM_MODE_TYPE_PREFERRED) == 0)
+			continue;
+
+		fixed_mode = drm_mode_duplicate(&dev_priv->drm, scan);
+		if (!fixed_mode)
+			return NULL;
+
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using preferred mode from EDID: ",
+			      connector->base.base.id, connector->base.name);
+		drm_mode_debug_printmodeline(fixed_mode);
+
+		return fixed_mode;
+	}
+
+	return NULL;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 void
 intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
