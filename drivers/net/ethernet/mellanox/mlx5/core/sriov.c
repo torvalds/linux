@@ -36,13 +36,6 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 
-bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
-{
-	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
-
-	return !!sriov->num_vfs;
-}
-
 static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;

@@ -111,7 +111,6 @@ void mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
 int mlx5_sriov_attach(struct mlx5_core_dev *dev);
 void mlx5_sriov_detach(struct mlx5_core_dev *dev);
 int mlx5_core_sriov_configure(struct pci_dev *dev, int num_vfs);
-bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev);
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_create_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
@@ -175,6 +174,11 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
+
+static inline bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
+{
+	return pci_num_vf(dev->pdev) ? true : false;
+}
 
 static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 {
