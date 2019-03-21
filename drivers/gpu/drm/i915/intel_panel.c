@@ -104,11 +104,13 @@ intel_panel_edid_fixed_mode(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *scan;
+	struct drm_display_mode *fixed_mode;
+
+	if (list_empty(&connector->base.probed_modes))
+		return NULL;
 
 	/* prefer fixed mode from EDID if available */
 	list_for_each_entry(scan, &connector->base.probed_modes, head) {
-		struct drm_display_mode *fixed_mode;
-
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED) == 0)
 			continue;
 
@@ -123,7 +125,20 @@ intel_panel_edid_fixed_mode(struct intel_connector *connector)
 		return fixed_mode;
 	}
 
-	return NULL;
+	scan = list_first_entry(&connector->base.probed_modes,
+				typeof(*scan), head);
+
+	fixed_mode = drm_mode_duplicate(&dev_priv->drm, scan);
+	if (!fixed_mode)
+		return NULL;
+
+	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using first mode from EDID: ",
+		      connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(fixed_mode);
+
+	return fixed_mode;
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
