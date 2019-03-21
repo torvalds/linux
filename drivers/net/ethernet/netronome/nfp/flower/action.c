@@ -161,7 +161,7 @@ nfp_fl_get_tun_from_act_l4_port(struct nfp_app *app,
 	struct nfp_flower_priv *priv = app->priv;
 
 	switch (tun->key.tp_dst) {
-	case htons(NFP_FL_VXLAN_PORT):
+	case htons(IANA_VXLAN_UDP_PORT):
 		return NFP_FL_TUNNEL_VXLAN;
 	case htons(GENEVE_UDP_PORT):
 		if (priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)

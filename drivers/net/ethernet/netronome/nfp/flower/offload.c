@@ -195,7 +195,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			flow_rule_match_enc_opts(rule, &enc_op);
 
 		switch (enc_ports.key->dst) {
-		case htons(NFP_FL_VXLAN_PORT):
+		case htons(IANA_VXLAN_UDP_PORT):
 			*tun_type = NFP_FL_TUNNEL_VXLAN;
 			key_layer |= NFP_FLOWER_LAYER_VXLAN;
 			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
