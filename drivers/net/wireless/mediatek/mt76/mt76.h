@@ -91,8 +91,6 @@ struct mt76_tx_info {
 
 struct mt76u_buf {
 	struct urb *urb;
-	size_t len;
-	void *buf;
 	bool done;
 };
 
