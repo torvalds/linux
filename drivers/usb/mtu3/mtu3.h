@@ -144,45 +144,32 @@ struct mtu3_fifo_info {
  *	The format of TX GPD is a little different from RX one.
  *	And the size of GPD is 16 bytes.
  *
- * @flag:
+ * @dw0_info:
  *	bit0: Hardware Own (HWO)
  *	bit1: Buffer Descriptor Present (BDP), always 0, BD is not supported
  *	bit2: Bypass (BPS), 1: HW skips this GPD if HWO = 1
  *	bit7: Interrupt On Completion (IOC)
- * @chksum: This is used to validate the contents of this GPD;
- *	If TXQ_CS_EN / RXQ_CS_EN bit is set, an interrupt is issued
- *	when checksum validation fails;
- *	Checksum value is calculated over the 16 bytes of the GPD by default;
- * @data_buf_len (RX ONLY): This value indicates the length of
- *	the assigned data buffer
- * @tx_ext_addr (TX ONLY): [3:0] are 4 extension bits of @buffer,
- *	[7:4] are 4 extension bits of @next_gpd
+ *	bit[31:16]: allow data buffer length (RX ONLY),
+ *		the buffer length of the data to receive
+ *	bit[23:16]: extension address (TX ONLY),
+ *		lower 4 bits are extension bits of @buffer,
+ *		upper 4 bits are extension bits of @next_gpd
  * @next_gpd: Physical address of the next GPD
  * @buffer: Physical address of the data buffer
- * @buf_len:
- *	(TX): This value indicates the length of the assigned data buffer
- *	(RX): The total length of data received
- * @ext_len: reserved
- * @rx_ext_addr(RX ONLY): [3:0] are 4 extension bits of @buffer,
- *	[7:4] are 4 extension bits of @next_gpd
- * @ext_flag:
- *	bit5 (TX ONLY): Zero Length Packet (ZLP),
+ * @dw3_info:
+ *	bit[15:0]: data buffer length,
+ *		(TX): the buffer length of the data to transmit
+ *		(RX): The total length of data received
+ *	bit[23:16]: extension address (RX ONLY),
+ *		lower 4 bits are extension bits of @buffer,
+ *		upper 4 bits are extension bits of @next_gpd
+ *	bit29: Zero Length Packet (ZLP) (TX ONLY)
  */
 struct qmu_gpd {
-	__u8 flag;
-	__u8 chksum;
-	union {
-		__le16 data_buf_len;
-		__le16 tx_ext_addr;
-	};
+	__le32 dw0_info;
 	__le32 next_gpd;
 	__le32 buffer;
-	__le16 buf_len;
-	union {
-		__u8 ext_len;
-		__u8 rx_ext_addr;
-	};
-	__u8 ext_flag;
+	__le32 dw3_info;
 } __packed;
 
 /**
