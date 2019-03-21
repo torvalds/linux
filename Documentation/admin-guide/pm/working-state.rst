@@ -8,3 +8,4 @@ Working-State Power Management
    cpuidle
    cpufreq
    intel_pstate
+   intel_epb
