@@ -41,7 +41,7 @@ static struct crypto_alg *algs[] = {
 	NULL,
 };
 
-int __init p8_init(void)
+static int __init p8_init(void)
 {
 	int ret = 0;
 	struct crypto_alg **alg_it;
@@ -67,7 +67,7 @@ int __init p8_init(void)
 	return ret;
 }
 
-void __exit p8_exit(void)
+static void __exit p8_exit(void)
 {
 	struct crypto_alg **alg_it;
 
