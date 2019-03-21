@@ -61,6 +61,8 @@ struct tb_switch_nvm {
  * @device: Device ID of the switch
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
+ * @link_speed: Speed of the link in Gb/s
+ * @link_width: Width of the link (1 or 2)
  * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @cap_lc: Offset to the link controller capability (%0 if not found)
@@ -97,6 +99,8 @@ struct tb_switch {
 	u16 device;
 	const char *vendor_name;
 	const char *device_name;
+	unsigned int link_speed;
+	unsigned int link_width;
 	unsigned int generation;
 	int cap_plug_events;
 	int cap_lc;
@@ -127,6 +131,7 @@ struct tb_switch {
  * @cap_adap: Offset of the adapter specific capability (%0 if not present)
  * @port: Port number on switch
  * @disabled: Disabled by eeprom
+ * @bonded: true if the port is bonded (two lanes combined as one)
  * @dual_link_port: If the switch is connected using two ports, points
  *		    to the other port.
  * @link_nr: Is this primary or secondary port on the dual_link.
@@ -142,6 +147,7 @@ struct tb_port {
 	int cap_adap;
 	u8 port;
 	bool disabled;
+	bool bonded;
 	struct tb_port *dual_link_port;
 	u8 link_nr:1;
 	struct ida in_hopids;
@@ -616,6 +622,9 @@ static inline bool tb_switch_is_icm(const struct tb_switch *sw)
 	return !sw->config.enabled;
 }
 
+int tb_switch_lane_bonding_enable(struct tb_switch *sw);
+void tb_switch_lane_bonding_disable(struct tb_switch *sw);
+
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_set_initial_credits(struct tb_port *port, u32 credits);
@@ -659,6 +668,7 @@ int tb_lc_read_uuid(struct tb_switch *sw, u32 *uuid);
 int tb_lc_configure_link(struct tb_switch *sw);
 void tb_lc_unconfigure_link(struct tb_switch *sw);
 int tb_lc_set_sleep(struct tb_switch *sw);
+bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
 
 static inline int tb_route_length(u64 route)
 {

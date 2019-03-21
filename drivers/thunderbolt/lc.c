@@ -177,3 +177,31 @@ int tb_lc_set_sleep(struct tb_switch *sw)
 
 	return 0;
 }
+
+/**
+ * tb_lc_lane_bonding_possible() - Is lane bonding possible towards switch
+ * @sw: Switch to check
+ *
+ * Checks whether conditions for lane bonding from parent to @sw are
+ * possible.
+ */
+bool tb_lc_lane_bonding_possible(struct tb_switch *sw)
+{
+	struct tb_port *up;
+	int cap, ret;
+	u32 val;
+
+	if (sw->generation < 2)
+		return false;
+
+	up = tb_upstream_port(sw);
+	cap = find_port_lc_cap(up);
+	if (cap < 0)
+		return false;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, cap + TB_LC_PORT_ATTR, 1);
+	if (ret)
+		return false;
+
+	return !!(val & TB_LC_PORT_ATTR_BE);
+}

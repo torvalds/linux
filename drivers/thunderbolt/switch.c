@@ -775,6 +775,132 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 	return next;
 }
 
+static int tb_port_get_link_speed(struct tb_port *port)
+{
+	u32 val, speed;
+	int ret;
+
+	if (!port->cap_phy)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	speed = (val & LANE_ADP_CS_1_CURRENT_SPEED_MASK) >>
+		LANE_ADP_CS_1_CURRENT_SPEED_SHIFT;
+	return speed == LANE_ADP_CS_1_CURRENT_SPEED_GEN3 ? 20 : 10;
+}
+
+static int tb_port_get_link_width(struct tb_port *port)
+{
+	u32 val;
+	int ret;
+
+	if (!port->cap_phy)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	return (val & LANE_ADP_CS_1_CURRENT_WIDTH_MASK) >>
+		LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT;
+}
+
+static bool tb_port_is_width_supported(struct tb_port *port, int width)
+{
+	u32 phy, widths;
+	int ret;
+
+	if (!port->cap_phy)
+		return false;
+
+	ret = tb_port_read(port, &phy, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_0, 1);
+	if (ret)
+		return ret;
+
+	widths = (phy & LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK) >>
+		LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT;
+
+	return !!(widths & width);
+}
+
+static int tb_port_set_link_width(struct tb_port *port, unsigned int width)
+{
+	u32 val;
+	int ret;
+
+	if (!port->cap_phy)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	val &= ~LANE_ADP_CS_1_TARGET_WIDTH_MASK;
+	switch (width) {
+	case 1:
+		val |= LANE_ADP_CS_1_TARGET_WIDTH_SINGLE <<
+			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
+		break;
+	case 2:
+		val |= LANE_ADP_CS_1_TARGET_WIDTH_DUAL <<
+			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	val |= LANE_ADP_CS_1_LB;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+static int tb_port_lane_bonding_enable(struct tb_port *port)
+{
+	int ret;
+
+	/*
+	 * Enable lane bonding for both links if not already enabled by
+	 * for example the boot firmware.
+	 */
+	ret = tb_port_get_link_width(port);
+	if (ret == 1) {
+		ret = tb_port_set_link_width(port, 2);
+		if (ret)
+			return ret;
+	}
+
+	ret = tb_port_get_link_width(port->dual_link_port);
+	if (ret == 1) {
+		ret = tb_port_set_link_width(port->dual_link_port, 2);
+		if (ret) {
+			tb_port_set_link_width(port, 1);
+			return ret;
+		}
+	}
+
+	port->bonded = true;
+	port->dual_link_port->bonded = true;
+
+	return 0;
+}
+
+static void tb_port_lane_bonding_disable(struct tb_port *port)
+{
+	port->dual_link_port->bonded = false;
+	port->bonded = false;
+
+	tb_port_set_link_width(port->dual_link_port, 1);
+	tb_port_set_link_width(port, 1);
+}
+
 /**
  * tb_port_is_enabled() - Is the adapter port enabled
  * @port: Port to check
@@ -1183,6 +1309,36 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(key, 0600, key_show, key_store);
 
+static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	return sprintf(buf, "%u.0 Gb/s\n", sw->link_speed);
+}
+
+/*
+ * Currently all lanes must run at the same speed but we expose here
+ * both directions to allow possible asymmetric links in the future.
+ */
+static DEVICE_ATTR(rx_speed, 0444, speed_show, NULL);
+static DEVICE_ATTR(tx_speed, 0444, speed_show, NULL);
+
+static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	return sprintf(buf, "%u\n", sw->link_width);
+}
+
+/*
+ * Currently link has same amount of lanes both directions (1 or 2) but
+ * expose them separately to allow possible asymmetric links in the future.
+ */
+static DEVICE_ATTR(rx_lanes, 0444, lanes_show, NULL);
+static DEVICE_ATTR(tx_lanes, 0444, lanes_show, NULL);
+
 static void nvm_authenticate_start(struct tb_switch *sw)
 {
 	struct pci_dev *root_port;
@@ -1340,6 +1496,10 @@ static struct attribute *switch_attrs[] = {
 	&dev_attr_key.attr,
 	&dev_attr_nvm_authenticate.attr,
 	&dev_attr_nvm_version.attr,
+	&dev_attr_rx_speed.attr,
+	&dev_attr_rx_lanes.attr,
+	&dev_attr_tx_speed.attr,
+	&dev_attr_tx_lanes.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_vendor_name.attr,
 	&dev_attr_unique_id.attr,
@@ -1368,6 +1528,13 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 		if (tb_route(sw) &&
 		    sw->tb->security_level == TB_SECURITY_SECURE &&
 		    sw->security_level == TB_SECURITY_SECURE)
+			return attr->mode;
+		return 0;
+	} else if (attr == &dev_attr_rx_speed.attr ||
+		   attr == &dev_attr_rx_lanes.attr ||
+		   attr == &dev_attr_tx_speed.attr ||
+		   attr == &dev_attr_tx_lanes.attr) {
+		if (tb_route(sw))
 			return attr->mode;
 		return 0;
 	} else if (attr == &dev_attr_nvm_authenticate.attr) {
@@ -1769,6 +1936,123 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	return -ESHUTDOWN;
 }
 
+static bool tb_switch_lane_bonding_possible(struct tb_switch *sw)
+{
+	const struct tb_port *up = tb_upstream_port(sw);
+
+	if (!up->dual_link_port || !up->dual_link_port->remote)
+		return false;
+
+	return tb_lc_lane_bonding_possible(sw);
+}
+
+static int tb_switch_update_link_attributes(struct tb_switch *sw)
+{
+	struct tb_port *up;
+	bool change = false;
+	int ret;
+
+	if (!tb_route(sw) || tb_switch_is_icm(sw))
+		return 0;
+
+	up = tb_upstream_port(sw);
+
+	ret = tb_port_get_link_speed(up);
+	if (ret < 0)
+		return ret;
+	if (sw->link_speed != ret)
+		change = true;
+	sw->link_speed = ret;
+
+	ret = tb_port_get_link_width(up);
+	if (ret < 0)
+		return ret;
+	if (sw->link_width != ret)
+		change = true;
+	sw->link_width = ret;
+
+	/* Notify userspace that there is possible link attribute change */
+	if (device_is_registered(&sw->dev) && change)
+		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+
+	return 0;
+}
+
+/**
+ * tb_switch_lane_bonding_enable() - Enable lane bonding
+ * @sw: Switch to enable lane bonding
+ *
+ * Connection manager can call this function to enable lane bonding of a
+ * switch. If conditions are correct and both switches support the feature,
+ * lanes are bonded. It is safe to call this to any switch.
+ */
+int tb_switch_lane_bonding_enable(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_to_switch(sw->dev.parent);
+	struct tb_port *up, *down;
+	u64 route = tb_route(sw);
+	int ret;
+
+	if (!route)
+		return 0;
+
+	if (!tb_switch_lane_bonding_possible(sw))
+		return 0;
+
+	up = tb_upstream_port(sw);
+	down = tb_port_at(route, parent);
+
+	if (!tb_port_is_width_supported(up, 2) ||
+	    !tb_port_is_width_supported(down, 2))
+		return 0;
+
+	ret = tb_port_lane_bonding_enable(up);
+	if (ret) {
+		tb_port_warn(up, "failed to enable lane bonding\n");
+		return ret;
+	}
+
+	ret = tb_port_lane_bonding_enable(down);
+	if (ret) {
+		tb_port_warn(down, "failed to enable lane bonding\n");
+		tb_port_lane_bonding_disable(up);
+		return ret;
+	}
+
+	tb_switch_update_link_attributes(sw);
+
+	tb_sw_dbg(sw, "lane bonding enabled\n");
+	return ret;
+}
+
+/**
+ * tb_switch_lane_bonding_disable() - Disable lane bonding
+ * @sw: Switch whose lane bonding to disable
+ *
+ * Disables lane bonding between @sw and parent. This can be called even
+ * if lanes were not bonded originally.
+ */
+void tb_switch_lane_bonding_disable(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_to_switch(sw->dev.parent);
+	struct tb_port *up, *down;
+
+	if (!tb_route(sw))
+		return;
+
+	up = tb_upstream_port(sw);
+	if (!up->bonded)
+		return;
+
+	down = tb_port_at(tb_route(sw), parent);
+
+	tb_port_lane_bonding_disable(up);
+	tb_port_lane_bonding_disable(down);
+
+	tb_switch_update_link_attributes(sw);
+	tb_sw_dbg(sw, "lane bonding disabled\n");
+}
+
 /**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
@@ -1824,6 +2108,10 @@ int tb_switch_add(struct tb_switch *sw)
 				return ret;
 			}
 		}
+
+		ret = tb_switch_update_link_attributes(sw);
+		if (ret)
+			return ret;
 	}
 
 	ret = device_add(&sw->dev);

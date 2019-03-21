@@ -220,6 +220,23 @@ struct tb_regs_port_header {
 #define ADP_CS_5_LCA_MASK			GENMASK(28, 22)
 #define ADP_CS_5_LCA_SHIFT			22
 
+/* Lane adapter registers */
+#define LANE_ADP_CS_0				0x00
+#define LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK	GENMASK(25, 20)
+#define LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT	20
+#define LANE_ADP_CS_1				0x01
+#define LANE_ADP_CS_1_TARGET_WIDTH_MASK		GENMASK(9, 4)
+#define LANE_ADP_CS_1_TARGET_WIDTH_SHIFT	4
+#define LANE_ADP_CS_1_TARGET_WIDTH_SINGLE	0x1
+#define LANE_ADP_CS_1_TARGET_WIDTH_DUAL		0x3
+#define LANE_ADP_CS_1_LB			BIT(15)
+#define LANE_ADP_CS_1_CURRENT_SPEED_MASK	GENMASK(19, 16)
+#define LANE_ADP_CS_1_CURRENT_SPEED_SHIFT	16
+#define LANE_ADP_CS_1_CURRENT_SPEED_GEN2	0x8
+#define LANE_ADP_CS_1_CURRENT_SPEED_GEN3	0x4
+#define LANE_ADP_CS_1_CURRENT_WIDTH_MASK	GENMASK(25, 20)
+#define LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT	20
+
 /* Display Port adapter registers */
 #define ADP_DP_CS_0				0x00
 #define ADP_DP_CS_0_VIDEO_HOPID_MASK		GENMASK(26, 16)
@@ -277,6 +294,9 @@ struct tb_regs_hop {
 #define TB_LC_FUSE			0x03
 
 /* Link controller registers */
+#define TB_LC_PORT_ATTR			0x8d
+#define TB_LC_PORT_ATTR_BE		BIT(12)
+
 #define TB_LC_SX_CTRL			0x96
 #define TB_LC_SX_CTRL_L1C		BIT(16)
 #define TB_LC_SX_CTRL_L2C		BIT(20)

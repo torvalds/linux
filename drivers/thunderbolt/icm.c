@@ -692,11 +692,11 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		(const struct icm_fr_event_device_connected *)hdr;
 	enum tb_security_level security_level;
 	struct tb_switch *sw, *parent_sw;
+	bool boot, dual_lane, speed_gen3;
 	struct icm *icm = tb_priv(tb);
 	bool authorized = false;
 	struct tb_xdomain *xd;
 	u8 link, depth;
-	bool boot;
 	u64 route;
 	int ret;
 
@@ -709,6 +709,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
 			 ICM_FLAGS_SLEVEL_SHIFT;
 	boot = pkg->link_info & ICM_LINK_INFO_BOOT;
+	dual_lane = pkg->hdr.flags & ICM_FLAGS_DUAL_LANE;
+	speed_gen3 = pkg->hdr.flags & ICM_FLAGS_SPEED_GEN3;
 
 	if (pkg->link_info & ICM_LINK_INFO_REJECTED) {
 		tb_info(tb, "switch at %u.%u was rejected by ICM firmware because topology limit exceeded\n",
@@ -817,6 +819,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		sw->authorized = authorized;
 		sw->security_level = security_level;
 		sw->boot = boot;
+		sw->link_speed = speed_gen3 ? 20 : 10;
+		sw->link_width = dual_lane ? 2 : 1;
 		sw->rpm = intel_vss_is_rtd3(pkg->ep_name, sizeof(pkg->ep_name));
 
 		if (add_switch(parent_sw, sw))
@@ -1152,10 +1156,10 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 {
 	const struct icm_tr_event_device_connected *pkg =
 		(const struct icm_tr_event_device_connected *)hdr;
+	bool authorized, boot, dual_lane, speed_gen3;
 	enum tb_security_level security_level;
 	struct tb_switch *sw, *parent_sw;
 	struct tb_xdomain *xd;
-	bool authorized, boot;
 	u64 route;
 
 	icm_postpone_rescan(tb);
@@ -1173,6 +1177,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 	security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
 			 ICM_FLAGS_SLEVEL_SHIFT;
 	boot = pkg->link_info & ICM_LINK_INFO_BOOT;
+	dual_lane = pkg->hdr.flags & ICM_FLAGS_DUAL_LANE;
+	speed_gen3 = pkg->hdr.flags & ICM_FLAGS_SPEED_GEN3;
 
 	if (pkg->link_info & ICM_LINK_INFO_REJECTED) {
 		tb_info(tb, "switch at %llx was rejected by ICM firmware because topology limit exceeded\n",
@@ -1223,6 +1229,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 		sw->authorized = authorized;
 		sw->security_level = security_level;
 		sw->boot = boot;
+		sw->link_speed = speed_gen3 ? 20 : 10;
+		sw->link_width = dual_lane ? 2 : 1;
 		sw->rpm = force_rtd3;
 		if (!sw->rpm)
 			sw->rpm = intel_vss_is_rtd3(pkg->ep_name,

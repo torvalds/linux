@@ -90,6 +90,22 @@ static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 	return 0;
 }
 
+static int tb_initial_credits(const struct tb_switch *sw)
+{
+	/* If the path is complete sw is not NULL */
+	if (sw) {
+		/* More credits for faster link */
+		switch (sw->link_speed * sw->link_width) {
+		case 40:
+			return 32;
+		case 20:
+			return 24;
+		}
+	}
+
+	return 16;
+}
+
 static void tb_pci_init_path(struct tb_path *path)
 {
 	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
@@ -101,7 +117,8 @@ static void tb_pci_init_path(struct tb_path *path)
 	path->drop_packages = 0;
 	path->nfc_credits = 0;
 	path->hops[0].initial_credits = 7;
-	path->hops[1].initial_credits = 16;
+	path->hops[1].initial_credits =
+		tb_initial_credits(path->hops[1].in_port->sw);
 }
 
 /**

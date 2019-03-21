@@ -216,6 +216,10 @@ static void tb_scan_port(struct tb_port *port)
 		upstream_port->dual_link_port->remote = port->dual_link_port;
 	}
 
+	/* Enable lane bonding if supported */
+	if (tb_switch_lane_bonding_enable(sw))
+		tb_sw_warn(sw, "failed to enable lane bonding\n");
+
 	tb_scan_switch(sw);
 }
 
@@ -269,6 +273,7 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 			continue;
 
 		if (port->remote->sw->is_unplugged) {
+			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
@@ -534,6 +539,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_port_dbg(port, "switch unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
+			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
@@ -703,6 +709,21 @@ static int tb_suspend_noirq(struct tb *tb)
 	return 0;
 }
 
+static void tb_restore_children(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_has_remote(port))
+			continue;
+
+		if (tb_switch_lane_bonding_enable(port->remote->sw))
+			dev_warn(&sw->dev, "failed to restore lane bonding\n");
+
+		tb_restore_children(port->remote->sw);
+	}
+}
+
 static int tb_resume_noirq(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
@@ -716,6 +737,7 @@ static int tb_resume_noirq(struct tb *tb)
 	tb_switch_resume(tb->root_switch);
 	tb_free_invalid_tunnels(tb);
 	tb_free_unplugged_children(tb->root_switch);
+	tb_restore_children(tb->root_switch);
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
 		tb_tunnel_restart(tunnel);
 	if (!list_empty(&tcm->tunnel_list)) {

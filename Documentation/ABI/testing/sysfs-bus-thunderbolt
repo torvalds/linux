@@ -112,6 +112,34 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute contains name of this device extracted from
 		the device DROM.
 
+What:		/sys/bus/thunderbolt/devices/.../rx_speed
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports the device RX speed per lane.
+		All RX lanes run at the same speed.
+
+What:		/sys/bus/thunderbolt/devices/.../rx_lanes
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports number of RX lanes the device is
+		using simultaneusly through its upstream port.
+
+What:		/sys/bus/thunderbolt/devices/.../tx_speed
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports the TX speed per lane.
+		All TX lanes run at the same speed.
+
+What:		/sys/bus/thunderbolt/devices/.../tx_lanes
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports number of TX lanes the device is
+		using simultaneusly through its upstream port.
+
 What:		/sys/bus/thunderbolt/devices/.../vendor
 Date:		Sep 2017
 KernelVersion:	4.13
