@@ -223,7 +223,7 @@ static int tls_do_decryption(struct sock *sk,
 		/* Using skb->sk to push sk through to crypto async callback
 		 * handler. This allows propagating errors up to the socket
 		 * if needed. It _must_ be cleared in the async handler
-		 * before kfree_skb is called. We _know_ skb->sk is NULL
+		 * before consume_skb is called. We _know_ skb->sk is NULL
 		 * because it is a clone from strparser.
 		 */
 		skb->sk = sk;
@@ -1535,7 +1535,7 @@ static bool tls_sw_advance_skb(struct sock *sk, struct sk_buff *skb,
 			rxm->full_len -= len;
 			return false;
 		}
-		kfree_skb(skb);
+		consume_skb(skb);
 	}
 
 	/* Finished with message */
@@ -1644,7 +1644,7 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 
 		if (!is_peek) {
 			skb_unlink(skb, &ctx->rx_list);
-			kfree_skb(skb);
+			consume_skb(skb);
 		}
 
 		skb = next_skb;
