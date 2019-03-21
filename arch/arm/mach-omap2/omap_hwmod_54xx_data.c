@@ -620,7 +620,6 @@ static struct omap_hwmod_class_sysconfig omap54xx_gpio_sysc = {
 static struct omap_hwmod_class omap54xx_gpio_hwmod_class = {
 	.name	= "gpio",
 	.sysc	= &omap54xx_gpio_sysc,
-	.rev	= 2,
 };
 
 /* gpio1 */
@@ -819,7 +818,6 @@ static struct omap_hwmod_class omap54xx_i2c_hwmod_class = {
 	.name	= "i2c",
 	.sysc	= &omap54xx_i2c_sysc,
 	.reset	= &omap_i2c_reset,
-	.rev	= OMAP_I2C_IP_VERSION_2,
 };
 
 /* i2c1 */

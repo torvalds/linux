@@ -1075,7 +1075,6 @@ static struct omap_hwmod_class_sysconfig omap44xx_gpio_sysc = {
 static struct omap_hwmod_class omap44xx_gpio_hwmod_class = {
 	.name	= "gpio",
 	.sysc	= &omap44xx_gpio_sysc,
-	.rev	= 2,
 };
 
 /* gpio1 */
@@ -1374,7 +1373,6 @@ static struct omap_hwmod_class_sysconfig omap44xx_i2c_sysc = {
 static struct omap_hwmod_class omap44xx_i2c_hwmod_class = {
 	.name	= "i2c",
 	.sysc	= &omap44xx_i2c_sysc,
-	.rev	= OMAP_I2C_IP_VERSION_2,
 	.reset	= &omap_i2c_reset,
 };
 
@@ -2367,7 +2365,6 @@ static struct omap_hwmod_class_sysconfig omap44xx_smartreflex_sysc = {
 static struct omap_hwmod_class omap44xx_smartreflex_hwmod_class = {
 	.name	= "smartreflex",
 	.sysc	= &omap44xx_smartreflex_sysc,
-	.rev	= 2,
 };
 
 /* smartreflex_core */

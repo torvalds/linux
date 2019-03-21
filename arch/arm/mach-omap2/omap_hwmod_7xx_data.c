@@ -693,7 +693,6 @@ static struct omap_hwmod_class_sysconfig dra7xx_aes_sysc = {
 static struct omap_hwmod_class dra7xx_aes_hwmod_class = {
 	.name	= "aes",
 	.sysc	= &dra7xx_aes_sysc,
-	.rev	= 2,
 };
 
 /* AES1 */
@@ -737,7 +736,6 @@ static struct omap_hwmod_class_sysconfig dra7xx_sha0_sysc = {
 static struct omap_hwmod_class dra7xx_sha0_hwmod_class = {
 	.name		= "sham",
 	.sysc		= &dra7xx_sha0_sysc,
-	.rev		= 2,
 };
 
 struct omap_hwmod dra7xx_sha0_hwmod = {
@@ -811,7 +809,6 @@ static struct omap_hwmod_class_sysconfig dra7xx_gpio_sysc = {
 static struct omap_hwmod_class dra7xx_gpio_hwmod_class = {
 	.name	= "gpio",
 	.sysc	= &dra7xx_gpio_sysc,
-	.rev	= 2,
 };
 
 /* gpio1 */
@@ -1085,7 +1082,6 @@ static struct omap_hwmod_class dra7xx_i2c_hwmod_class = {
 	.name	= "i2c",
 	.sysc	= &dra7xx_i2c_sysc,
 	.reset	= &omap_i2c_reset,
-	.rev	= OMAP_I2C_IP_VERSION_2,
 };
 
 /* i2c1 */
@@ -2019,7 +2015,6 @@ static struct omap_hwmod_class_sysconfig dra7xx_smartreflex_sysc = {
 static struct omap_hwmod_class dra7xx_smartreflex_hwmod_class = {
 	.name	= "smartreflex",
 	.sysc	= &dra7xx_smartreflex_sysc,
-	.rev	= 2,
 };
 
 /* smartreflex_core */
