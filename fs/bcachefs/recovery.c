@@ -277,6 +277,10 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (r->error)
 			goto err;
 
+		if (i == BTREE_ID_ALLOC &&
+		    test_reconstruct_alloc(c))
+			continue;
+
 		err = "error reading btree root";
 		ret = bch2_btree_root_read(c, i, &r->key, r->level);
 		if (ret) {

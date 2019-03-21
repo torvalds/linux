@@ -750,7 +750,9 @@ again:
 
 	c->gc_count++;
 out:
-	if (!ret && test_bit(BCH_FS_FIXED_GENS, &c->flags)) {
+	if (!ret &&
+	    (test_bit(BCH_FS_FIXED_GENS, &c->flags) ||
+	     (!iter && test_restart_gc(c)))) {
 		/*
 		 * XXX: make sure gens we fixed got saved
 		 */
