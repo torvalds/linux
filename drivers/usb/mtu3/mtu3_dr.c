@@ -238,14 +238,18 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 	otg_sx->vbus_nb.notifier_call = ssusb_vbus_notifier;
 	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB,
 					&otg_sx->vbus_nb);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(ssusb->dev, "failed to register notifier for USB\n");
+		return ret;
+	}
 
 	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
 	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
 					&otg_sx->id_nb);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(ssusb->dev, "failed to register notifier for USB-HOST\n");
+		return ret;
+	}
 
 	dev_dbg(ssusb->dev, "EXTCON_USB: %d, EXTCON_USB_HOST: %d\n",
 		extcon_get_state(edev, EXTCON_USB),
@@ -415,6 +419,7 @@ void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
 int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+	int ret = 0;
 
 	INIT_WORK(&otg_sx->id_work, ssusb_id_work);
 	INIT_WORK(&otg_sx->vbus_work, ssusb_vbus_work);
@@ -422,9 +427,9 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 	if (otg_sx->manual_drd_enabled)
 		ssusb_debugfs_init(ssusb);
 	else
-		ssusb_extcon_register(otg_sx);
+		ret = ssusb_extcon_register(otg_sx);
 
-	return 0;
+	return ret;
 }
 
 void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
