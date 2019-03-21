@@ -94,7 +94,7 @@ struct sysc {
 static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
 				  bool is_child);
 
-void sysc_write(struct sysc *ddata, int offset, u32 value)
+static void sysc_write(struct sysc *ddata, int offset, u32 value)
 {
 	writel_relaxed(value, ddata->module_va + offset);
 }
@@ -1209,7 +1209,7 @@ static int sysc_child_resume_noirq(struct device *dev)
 }
 #endif
 
-struct dev_pm_domain sysc_child_pm_domain = {
+static struct dev_pm_domain sysc_child_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(sysc_child_runtime_suspend,
 				   sysc_child_runtime_resume,
