@@ -170,13 +170,13 @@ struct pno_nlo_info
 	u8 ssid_channel_info[MAX_PNO_LIST_COUNT];	/* channel information */
 };
 
-typedef struct pno_ssid {
+struct pno_ssid {
 	u32 	SSID_len;
 	u8 SSID[32];
-} pno_ssid_t;
+};
 
 typedef struct pno_ssid_list {
-	pno_ssid_t	node[MAX_PNO_LIST_COUNT];
+	struct pno_ssid	node[MAX_PNO_LIST_COUNT];
 }pno_ssid_list_t;
 
 typedef struct pno_scan_channel_info
