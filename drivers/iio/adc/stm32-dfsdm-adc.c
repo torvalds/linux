@@ -38,6 +38,10 @@
 #define DFSDM_MAX_RES BIT(31)
 #define DFSDM_DATA_RES BIT(23)
 
+/* Filter configuration */
+#define DFSDM_CR1_CFG_MASK (DFSDM_CR1_RCH_MASK | DFSDM_CR1_RCONT_MASK | \
+			    DFSDM_CR1_RSYNC_MASK)
+
 enum sd_converter_type {
 	DFSDM_AUDIO,
 	DFSDM_IIO,
@@ -262,11 +266,13 @@ static void stm32_dfsdm_stop_filter(struct stm32_dfsdm *dfsdm,
 			   DFSDM_CR1_DFEN_MASK, DFSDM_CR1_DFEN(0));
 }
 
-static int stm32_dfsdm_filter_configure(struct stm32_dfsdm *dfsdm,
+static int stm32_dfsdm_filter_configure(struct stm32_dfsdm_adc *adc,
 					unsigned int fl_id, unsigned int ch_id)
 {
-	struct regmap *regmap = dfsdm->regmap;
-	struct stm32_dfsdm_filter *fl = &dfsdm->fl_list[fl_id];
+	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	struct regmap *regmap = adc->dfsdm->regmap;
+	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[fl_id];
+	u32 cr1;
 	int ret;
 
 	/* Average integrator oversampling */
@@ -287,14 +293,16 @@ static int stm32_dfsdm_filter_configure(struct stm32_dfsdm *dfsdm,
 		return ret;
 
 	/* No scan mode supported for the moment */
-	ret = regmap_update_bits(regmap, DFSDM_CR1(fl_id), DFSDM_CR1_RCH_MASK,
-				 DFSDM_CR1_RCH(ch_id));
-	if (ret)
-		return ret;
+	cr1 = DFSDM_CR1_RCH(ch_id);
 
-	return regmap_update_bits(regmap, DFSDM_CR1(fl_id),
-				  DFSDM_CR1_RSYNC_MASK,
-				  DFSDM_CR1_RSYNC(fl->sync_mode));
+	/* Continuous conversions triggered by SPI clock in buffer mode */
+	if (indio_dev->currentmode & INDIO_BUFFER_SOFTWARE)
+		cr1 |= DFSDM_CR1_RCONT(1);
+
+	cr1 |= DFSDM_CR1_RSYNC(fl->sync_mode);
+
+	return regmap_update_bits(regmap, DFSDM_CR1(fl_id), DFSDM_CR1_CFG_MASK,
+				  cr1);
 }
 
 static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
@@ -426,47 +434,39 @@ static int stm32_dfsdm_start_conv(struct stm32_dfsdm_adc *adc,
 {
 	struct regmap *regmap = adc->dfsdm->regmap;
 	int ret;
-	unsigned int dma_en = 0, cont_en = 0;
+	unsigned int dma_en = 0;
 
 	ret = stm32_dfsdm_start_channel(adc->dfsdm, chan->channel);
 	if (ret < 0)
 		return ret;
 
-	ret = stm32_dfsdm_filter_configure(adc->dfsdm, adc->fl_id,
-					   chan->channel);
+	ret = stm32_dfsdm_filter_configure(adc, adc->fl_id, chan->channel);
 	if (ret < 0)
 		goto stop_channels;
 
 	if (dma) {
 		/* Enable DMA transfer*/
 		dma_en =  DFSDM_CR1_RDMAEN(1);
-		/* Enable conversion triggered by SPI clock*/
-		cont_en = DFSDM_CR1_RCONT(1);
 	}
 	/* Enable DMA transfer*/
 	ret = regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
 				 DFSDM_CR1_RDMAEN_MASK, dma_en);
 	if (ret < 0)
-		goto stop_channels;
-
-	/* Enable conversion triggered by SPI clock*/
-	ret = regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
-				 DFSDM_CR1_RCONT_MASK, cont_en);
-	if (ret < 0)
-		goto stop_channels;
+		goto filter_unconfigure;
 
 	ret = stm32_dfsdm_start_filter(adc->dfsdm, adc->fl_id);
 	if (ret < 0)
-		goto stop_channels;
+		goto stop_dma;
 
 	return 0;
 
-stop_channels:
+stop_dma:
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
 			   DFSDM_CR1_RDMAEN_MASK, 0);
-
+filter_unconfigure:
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
-			   DFSDM_CR1_RCONT_MASK, 0);
+			   DFSDM_CR1_CFG_MASK, 0);
+stop_channels:
 	stm32_dfsdm_stop_channel(adc->dfsdm, chan->channel);
 
 	return ret;
@@ -484,7 +484,7 @@ static void stm32_dfsdm_stop_conv(struct stm32_dfsdm_adc *adc,
 			   DFSDM_CR1_RDMAEN_MASK, 0);
 
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
-			   DFSDM_CR1_RCONT_MASK, 0);
+			   DFSDM_CR1_CFG_MASK, 0);
 
 	stm32_dfsdm_stop_channel(adc->dfsdm, chan->channel);
 }
