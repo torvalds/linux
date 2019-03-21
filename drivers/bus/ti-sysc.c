@@ -622,9 +622,50 @@ static void sysc_show_registers(struct sysc *ddata)
 		buf);
 }
 
-static int __maybe_unused sysc_runtime_suspend(struct device *dev)
+static int __maybe_unused sysc_runtime_suspend_legacy(struct device *dev,
+						      struct sysc *ddata)
 {
 	struct ti_sysc_platform_data *pdata;
+	int error;
+
+	pdata = dev_get_platdata(ddata->dev);
+	if (!pdata)
+		return 0;
+
+	if (!pdata->idle_module)
+		return -ENODEV;
+
+	error = pdata->idle_module(dev, &ddata->cookie);
+	if (error)
+		dev_err(dev, "%s: could not idle: %i\n",
+			__func__, error);
+
+	return 0;
+}
+
+static int __maybe_unused sysc_runtime_resume_legacy(struct device *dev,
+						     struct sysc *ddata)
+{
+	struct ti_sysc_platform_data *pdata;
+	int error;
+
+	pdata = dev_get_platdata(ddata->dev);
+	if (!pdata)
+		return 0;
+
+	if (!pdata->enable_module)
+		return -ENODEV;
+
+	error = pdata->enable_module(dev, &ddata->cookie);
+	if (error)
+		dev_err(dev, "%s: could not enable: %i\n",
+			__func__, error);
+
+	return 0;
+}
+
+static int __maybe_unused sysc_runtime_suspend(struct device *dev)
+{
 	struct sysc *ddata;
 	int error = 0, i;
 
@@ -634,19 +675,11 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 		return 0;
 
 	if (ddata->legacy_mode) {
-		pdata = dev_get_platdata(ddata->dev);
-		if (!pdata)
-			return 0;
+		error = sysc_runtime_suspend_legacy(dev, ddata);
+		if (!error)
+			ddata->enabled = false;
 
-		if (!pdata->idle_module)
-			return -ENODEV;
-
-		error = pdata->idle_module(dev, &ddata->cookie);
-		if (error)
-			dev_err(dev, "%s: could not idle: %i\n",
-				__func__, error);
-
-		goto idled;
+		return error;
 	}
 
 	for (i = 0; i < ddata->nr_clocks; i++) {
@@ -659,7 +692,6 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 		clk_disable(ddata->clocks[i]);
 	}
 
-idled:
 	ddata->enabled = false;
 
 	return error;
@@ -667,7 +699,6 @@ idled:
 
 static int __maybe_unused sysc_runtime_resume(struct device *dev)
 {
-	struct ti_sysc_platform_data *pdata;
 	struct sysc *ddata;
 	int error = 0, i;
 
@@ -677,19 +708,11 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 		return 0;
 
 	if (ddata->legacy_mode) {
-		pdata = dev_get_platdata(ddata->dev);
-		if (!pdata)
-			return 0;
+		error = sysc_runtime_resume_legacy(dev, ddata);
+		if (!error)
+			ddata->enabled = true;
 
-		if (!pdata->enable_module)
-			return -ENODEV;
-
-		error = pdata->enable_module(dev, &ddata->cookie);
-		if (error)
-			dev_err(dev, "%s: could not enable: %i\n",
-				__func__, error);
-
-		goto awake;
+		return error;
 	}
 
 	for (i = 0; i < ddata->nr_clocks; i++) {
@@ -704,7 +727,6 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 			return error;
 	}
 
-awake:
 	ddata->enabled = true;
 
 	return error;
