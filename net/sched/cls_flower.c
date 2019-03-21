@@ -88,6 +88,7 @@ struct fl_flow_tmplt {
 
 struct cls_fl_head {
 	struct rhashtable ht;
+	spinlock_t masks_lock; /* Protect masks list */
 	struct list_head masks;
 	struct rcu_work rwork;
 	struct idr handle_idr;
@@ -312,6 +313,7 @@ static int fl_init(struct tcf_proto *tp)
 	if (!head)
 		return -ENOBUFS;
 
+	spin_lock_init(&head->masks_lock);
 	INIT_LIST_HEAD_RCU(&head->masks);
 	rcu_assign_pointer(tp->root, head);
 	idr_init(&head->handle_idr);
@@ -341,7 +343,11 @@ static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask,
 		return false;
 
 	rhashtable_remove_fast(&head->ht, &mask->ht_node, mask_ht_params);
+
+	spin_lock(&head->masks_lock);
 	list_del_rcu(&mask->list);
+	spin_unlock(&head->masks_lock);
+
 	if (async)
 		tcf_queue_work(&mask->rwork, fl_mask_free_work);
 	else
@@ -1312,7 +1318,9 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 	/* Wait until any potential concurrent users of mask are finished */
 	synchronize_rcu();
 
+	spin_lock(&head->masks_lock);
 	list_add_tail_rcu(&newmask->list, &head->masks);
+	spin_unlock(&head->masks_lock);
 
 	return newmask;
 
