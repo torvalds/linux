@@ -33,16 +33,22 @@
 #define MDIO_AN_VEND_PROV			0xc400
 #define MDIO_AN_VEND_PROV_1000BASET_FULL	BIT(15)
 #define MDIO_AN_VEND_PROV_1000BASET_HALF	BIT(14)
+#define MDIO_AN_VEND_PROV_DOWNSHIFT_EN		BIT(4)
+#define MDIO_AN_VEND_PROV_DOWNSHIFT_MASK	GENMASK(3, 0)
+#define MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT	4
 
 #define MDIO_AN_TX_VEND_STATUS1			0xc800
-#define MDIO_AN_TX_VEND_STATUS1_10BASET		(0x0 << 1)
-#define MDIO_AN_TX_VEND_STATUS1_100BASETX	(0x1 << 1)
-#define MDIO_AN_TX_VEND_STATUS1_1000BASET	(0x2 << 1)
-#define MDIO_AN_TX_VEND_STATUS1_10GBASET	(0x3 << 1)
-#define MDIO_AN_TX_VEND_STATUS1_2500BASET	(0x4 << 1)
-#define MDIO_AN_TX_VEND_STATUS1_5000BASET	(0x5 << 1)
-#define MDIO_AN_TX_VEND_STATUS1_RATE_MASK	(0x7 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_RATE_MASK	GENMASK(3, 1)
+#define MDIO_AN_TX_VEND_STATUS1_10BASET		0
+#define MDIO_AN_TX_VEND_STATUS1_100BASETX	1
+#define MDIO_AN_TX_VEND_STATUS1_1000BASET	2
+#define MDIO_AN_TX_VEND_STATUS1_10GBASET	3
+#define MDIO_AN_TX_VEND_STATUS1_2500BASET	4
+#define MDIO_AN_TX_VEND_STATUS1_5000BASET	5
 #define MDIO_AN_TX_VEND_STATUS1_FULL_DUPLEX	BIT(0)
+
+#define MDIO_AN_TX_VEND_INT_STATUS1		0xcc00
+#define MDIO_AN_TX_VEND_INT_STATUS1_DOWNSHIFT	BIT(1)
 
 #define MDIO_AN_TX_VEND_INT_STATUS2		0xcc01
 
@@ -186,6 +192,57 @@ static int aqr_read_status(struct phy_device *phydev)
 	return genphy_c45_read_status(phydev);
 }
 
+static int aqr107_read_downshift_event(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_STATUS1);
+	if (val < 0)
+		return val;
+
+	return !!(val & MDIO_AN_TX_VEND_INT_STATUS1_DOWNSHIFT);
+}
+
+static int aqr107_read_rate(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
+	if (val < 0)
+		return val;
+
+	switch (FIELD_GET(MDIO_AN_TX_VEND_STATUS1_RATE_MASK, val)) {
+	case MDIO_AN_TX_VEND_STATUS1_10BASET:
+		phydev->speed = SPEED_10;
+		break;
+	case MDIO_AN_TX_VEND_STATUS1_100BASETX:
+		phydev->speed = SPEED_100;
+		break;
+	case MDIO_AN_TX_VEND_STATUS1_1000BASET:
+		phydev->speed = SPEED_1000;
+		break;
+	case MDIO_AN_TX_VEND_STATUS1_2500BASET:
+		phydev->speed = SPEED_2500;
+		break;
+	case MDIO_AN_TX_VEND_STATUS1_5000BASET:
+		phydev->speed = SPEED_5000;
+		break;
+	case MDIO_AN_TX_VEND_STATUS1_10GBASET:
+		phydev->speed = SPEED_10000;
+		break;
+	default:
+		phydev->speed = SPEED_UNKNOWN;
+		break;
+	}
+
+	if (val & MDIO_AN_TX_VEND_STATUS1_FULL_DUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	return 0;
+}
+
 static int aqr107_read_status(struct phy_device *phydev)
 {
 	int val, ret;
@@ -194,7 +251,7 @@ static int aqr107_read_status(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	if (!phydev->link)
+	if (!phydev->link || phydev->autoneg == AUTONEG_DISABLE)
 		return 0;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_PHYXS, MDIO_PHYXS_VEND_IF_STATUS);
@@ -217,7 +274,69 @@ static int aqr107_read_status(struct phy_device *phydev)
 		break;
 	}
 
+	val = aqr107_read_downshift_event(phydev);
+	if (val <= 0)
+		return val;
+
+	phydev_warn(phydev, "Downshift occurred! Cabling may be defective.\n");
+
+	/* Read downshifted rate from vendor register */
+	return aqr107_read_rate(phydev);
+}
+
+static int aqr107_get_downshift(struct phy_device *phydev, u8 *data)
+{
+	int val, cnt, enable;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_VEND_PROV);
+	if (val < 0)
+		return val;
+
+	enable = FIELD_GET(MDIO_AN_VEND_PROV_DOWNSHIFT_EN, val);
+	cnt = FIELD_GET(MDIO_AN_VEND_PROV_DOWNSHIFT_MASK, val);
+
+	*data = enable && cnt ? cnt : DOWNSHIFT_DEV_DISABLE;
+
 	return 0;
+}
+
+static int aqr107_set_downshift(struct phy_device *phydev, u8 cnt)
+{
+	int val = 0;
+
+	if (!FIELD_FIT(MDIO_AN_VEND_PROV_DOWNSHIFT_MASK, cnt))
+		return -E2BIG;
+
+	if (cnt != DOWNSHIFT_DEV_DISABLE) {
+		val = MDIO_AN_VEND_PROV_DOWNSHIFT_EN;
+		val |= FIELD_PREP(MDIO_AN_VEND_PROV_DOWNSHIFT_MASK, cnt);
+	}
+
+	return phy_modify_mmd(phydev, MDIO_MMD_AN, MDIO_AN_VEND_PROV,
+			      MDIO_AN_VEND_PROV_DOWNSHIFT_EN |
+			      MDIO_AN_VEND_PROV_DOWNSHIFT_MASK, val);
+}
+
+static int aqr107_get_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return aqr107_get_downshift(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int aqr107_set_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return aqr107_set_downshift(phydev, *(const u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int aqr107_config_init(struct phy_device *phydev)
@@ -228,11 +347,16 @@ static int aqr107_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
 		return -ENODEV;
 
-	return 0;
+	/* ensure that a latched downshift event is cleared */
+	aqr107_read_downshift_event(phydev);
+
+	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 }
 
 static int aqcs109_config_init(struct phy_device *phydev)
 {
+	int ret;
+
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
@@ -242,7 +366,14 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	 * PMA speed ability bits are the same for all members of the family,
 	 * AQCS109 however supports speeds up to 2.5G only.
 	 */
-	return phy_set_max_speed(phydev, SPEED_2500);
+	ret = phy_set_max_speed(phydev, SPEED_2500);
+	if (ret)
+		return ret;
+
+	/* ensure that a latched downshift event is cleared */
+	aqr107_read_downshift_event(phydev);
+
+	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 }
 
 static struct phy_driver aqr_driver[] = {
@@ -297,6 +428,8 @@ static struct phy_driver aqr_driver[] = {
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
 	.read_status	= aqr107_read_status,
+	.get_tunable    = aqr107_get_tunable,
+	.set_tunable    = aqr107_set_tunable,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
@@ -309,6 +442,8 @@ static struct phy_driver aqr_driver[] = {
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
 	.read_status	= aqr107_read_status,
+	.get_tunable    = aqr107_get_tunable,
+	.set_tunable    = aqr107_set_tunable,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
