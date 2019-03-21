@@ -18,41 +18,40 @@
 #include "../ops.h"
 #include "hda.h"
 
-int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
+static void hda_dsp_ipc_host_done(struct snd_sof_dev *sdev)
 {
-	if (dir == SOF_IPC_HOST_REPLY) {
-		/*
-		 * tell DSP cmd is done - clear busy
-		 * interrupt and send reply msg to dsp
-		 */
-		snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
-					       HDA_DSP_REG_HIPCT,
-					       HDA_DSP_REG_HIPCT_BUSY,
-					       HDA_DSP_REG_HIPCT_BUSY);
+	/*
+	 * tell DSP cmd is done - clear busy
+	 * interrupt and send reply msg to dsp
+	 */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       HDA_DSP_REG_HIPCT,
+				       HDA_DSP_REG_HIPCT_BUSY,
+				       HDA_DSP_REG_HIPCT_BUSY);
 
-		/* unmask BUSY interrupt */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-					HDA_DSP_REG_HIPCCTL,
-					HDA_DSP_REG_HIPCCTL_BUSY,
-					HDA_DSP_REG_HIPCCTL_BUSY);
-	} else {
-		/*
-		 * set DONE bit - tell DSP we have received the reply msg
-		 * from DSP, and processed it, don't send more reply to host
-		 */
-		snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
-					       HDA_DSP_REG_HIPCIE,
-					       HDA_DSP_REG_HIPCIE_DONE,
-					       HDA_DSP_REG_HIPCIE_DONE);
+	/* unmask BUSY interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
+				HDA_DSP_REG_HIPCCTL,
+				HDA_DSP_REG_HIPCCTL_BUSY,
+				HDA_DSP_REG_HIPCCTL_BUSY);
+}
 
-		/* unmask Done interrupt */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-					HDA_DSP_REG_HIPCCTL,
-					HDA_DSP_REG_HIPCCTL_DONE,
-					HDA_DSP_REG_HIPCCTL_DONE);
-	}
+static void hda_dsp_ipc_dsp_done(struct snd_sof_dev *sdev)
+{
+	/*
+	 * set DONE bit - tell DSP we have received the reply msg
+	 * from DSP, and processed it, don't send more reply to host
+	 */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       HDA_DSP_REG_HIPCIE,
+				       HDA_DSP_REG_HIPCIE_DONE,
+				       HDA_DSP_REG_HIPCIE_DONE);
 
-	return 0;
+	/* unmask Done interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
+				HDA_DSP_REG_HIPCCTL,
+				HDA_DSP_REG_HIPCCTL_DONE,
+				HDA_DSP_REG_HIPCCTL_DONE);
 }
 
 int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
@@ -118,7 +117,8 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 /* IPC handler thread */
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
+	irqreturn_t ret = IRQ_NONE;
 	u32 hipci;
 	u32 hipcie;
 	u32 hipct;
@@ -126,12 +126,10 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 	u32 hipcctl;
 	u32 msg;
 	u32 msg_ext;
-	irqreturn_t ret = IRQ_NONE;
-	int reply = -EINVAL;
 
 	/* here we handle IPC interrupts only */
 	if (!(sdev->irq_status & HDA_DSP_ADSPIS_IPC))
-		return ret;
+		return IRQ_NONE;
 
 	/* read IPC status */
 	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -139,10 +137,13 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
 	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL);
 
+	/* reenable IPC interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
+				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
+
 	/* is this a reply message from the DSP */
 	if (hipcie & HDA_DSP_REG_HIPCIE_DONE &&
 	    hipcctl & HDA_DSP_REG_HIPCCTL_DONE) {
-
 		hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_REG_HIPCI);
 		msg = hipci & HDA_DSP_REG_HIPCI_MSG_MASK;
@@ -160,18 +161,17 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		/* handle immediate reply from DSP core - ignore ROM messages */
 		if (msg != 0x1004000) {
 			hda_dsp_ipc_get_reply(sdev);
-			reply = snd_sof_ipc_reply(sdev, msg);
+			snd_sof_ipc_reply(sdev, msg);
 		}
 
-		/*
-		 * handle immediate reply from DSP core. If the msg is
-		 * found, set done bit in cmd_done which is called at the
-		 * end of message processing function, else set it here
-		 * because the done bit can't be set in cmd_done function
-		 * which is triggered by msg
-		 */
-		if (reply)
-			hda_dsp_ipc_cmd_done(sdev, SOF_IPC_DSP_REPLY);
+		/* wake up sleeper if we are loading code */
+		if (sdev->code_loading)	{
+			sdev->code_loading = 0;
+			wake_up(&sdev->waitq);
+		}
+
+		/* set the done bit */
+		hda_dsp_ipc_dsp_done(sdev);
 
 		ret = IRQ_HANDLED;
 	}
@@ -203,19 +203,9 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 			snd_sof_ipc_msgs_rx(sdev);
 		}
 
+		hda_dsp_ipc_host_done(sdev);
+
 		ret = IRQ_HANDLED;
-	}
-
-	if (ret == IRQ_HANDLED) {
-		/* reenable IPC interrupt */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-					HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
-	}
-
-	/* wake up sleeper if we are loading code */
-	if (sdev->code_loading)	{
-		sdev->code_loading = 0;
-		wake_up(&sdev->waitq);
 	}
 
 	return ret;

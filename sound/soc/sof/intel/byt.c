@@ -105,7 +105,8 @@ static const struct snd_sof_debugfs_map cht_debugfs[] = {
 	 SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
-static int byt_cmd_done(struct snd_sof_dev *sdev, int dir);
+static void byt_host_done(struct snd_sof_dev *sdev);
+static void byt_dsp_done(struct snd_sof_dev *sdev);
 static void byt_get_reply(struct snd_sof_dev *sdev);
 
 /*
@@ -313,7 +314,7 @@ static irqreturn_t byt_irq_handler(int irq, void *context)
 
 static irqreturn_t byt_irq_thread(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	u64 ipcx, ipcd;
 	u64 imrx;
 
@@ -336,8 +337,9 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 		 * which is triggered by msg
 		 */
 		byt_get_reply(sdev);
-		if (snd_sof_ipc_reply(sdev, ipcx))
-			byt_cmd_done(sdev, SOF_IPC_DSP_REPLY);
+		snd_sof_ipc_reply(sdev, ipcx);
+
+		byt_dsp_done(sdev);
 	}
 
 	/* new message from DSP */
@@ -357,6 +359,8 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}
+
+		byt_host_done(sdev);
 	}
 
 	return IRQ_HANDLED;
@@ -409,29 +413,28 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 }
 
-static int byt_cmd_done(struct snd_sof_dev *sdev, int dir)
+static void byt_host_done(struct snd_sof_dev *sdev)
 {
-	if (dir == SOF_IPC_HOST_REPLY) {
-		/* clear BUSY bit and set DONE bit - accept new messages */
-		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IPCD,
-						   SHIM_BYT_IPCD_BUSY |
-						   SHIM_BYT_IPCD_DONE,
-						   SHIM_BYT_IPCD_DONE);
+	/* clear BUSY bit and set DONE bit - accept new messages */
+	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IPCD,
+					   SHIM_BYT_IPCD_BUSY |
+					   SHIM_BYT_IPCD_DONE,
+					   SHIM_BYT_IPCD_DONE);
 
-		/* unmask busy interrupt */
-		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
-						   SHIM_IMRX_BUSY, 0);
-	} else {
-		/* clear DONE bit - tell DSP we have completed */
-		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IPCX,
-						   SHIM_BYT_IPCX_DONE, 0);
+	/* unmask busy interrupt */
+	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
+					   SHIM_IMRX_BUSY, 0);
+}
 
-		/* unmask Done interrupt */
-		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
-						   SHIM_IMRX_DONE, 0);
-	}
+static void byt_dsp_done(struct snd_sof_dev *sdev)
+{
+	/* clear DONE bit - tell DSP we have completed */
+	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IPCX,
+					   SHIM_BYT_IPCX_DONE, 0);
 
-	return 0;
+	/* unmask Done interrupt */
+	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
+					   SHIM_IMRX_DONE, 0);
 }
 
 /*
@@ -609,7 +612,6 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	/* ipc */
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
-	.cmd_done	= byt_cmd_done,
 
 	/* debug */
 	.debug_map	= byt_debugfs,
@@ -769,7 +771,6 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 	/* ipc */
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
-	.cmd_done	= byt_cmd_done,
 
 	/* debug */
 	.debug_map	= byt_debugfs,
@@ -824,7 +825,6 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* ipc */
 	.send_msg	= byt_send_msg,
 	.fw_ready	= byt_fw_ready,
-	.cmd_done	= byt_cmd_done,
 
 	/* debug */
 	.debug_map	= cht_debugfs,

@@ -221,8 +221,6 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 			ipc_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
 	}
 
-	snd_sof_dsp_cmd_done(sdev, SOF_IPC_DSP_REPLY);
-
 	return ret;
 }
 
@@ -394,9 +392,6 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	}
 
 	ipc_log_header(sdev->dev, "ipc rx done", hdr.cmd);
-
-	/* tell DSP we are done */
-	snd_sof_dsp_cmd_done(sdev, SOF_IPC_HOST_REPLY);
 }
 EXPORT_SYMBOL(snd_sof_ipc_msgs_rx);
 
