@@ -3512,7 +3512,7 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 
 
 	/* da == NULL, assum it's null data for sta to ap*/
-	if (da == NULL)
+	if (!da)
 		da = get_my_bssid(&(pmlmeinfo->network));
 
 	psta = rtw_get_stainfo(&padapter->stapriv, da);
@@ -3578,7 +3578,7 @@ s32 issue_nulldata_in_interrupt(struct adapter *padapter, u8 *da)
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
 	/* da == NULL, assum it's null data for sta to ap*/
-	if (da == NULL)
+	if (!da)
 		da = get_my_bssid(&(pmlmeinfo->network));
 
 	ret = _issue_nulldata(padapter, da, 0, false);
@@ -3675,7 +3675,7 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	/* da == NULL, assum it's null data for sta to ap*/
-	if (da == NULL)
+	if (!da)
 		da = get_my_bssid(&(pmlmeinfo->network));
 
 	do {
