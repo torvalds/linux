@@ -900,14 +900,12 @@ mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 }
 EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
 
+#ifdef CONFIG_RFS_ACCEL
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev)
 {
-#ifdef CONFIG_RFS_ACCEL
 	return dev->priv.eq_table->rmap;
-#else
-	return NULL;
-#endif
 }
+#endif
 
 struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn)
 {
