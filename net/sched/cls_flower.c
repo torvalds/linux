@@ -368,9 +368,7 @@ static void fl_destroy_filter_work(struct work_struct *work)
 	struct cls_fl_filter *f = container_of(to_rcu_work(work),
 					struct cls_fl_filter, rwork);
 
-	rtnl_lock();
 	__fl_destroy_filter(f);
-	rtnl_unlock();
 }
 
 static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f,
@@ -2372,6 +2370,7 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.tmplt_destroy	= fl_tmplt_destroy,
 	.tmplt_dump	= fl_tmplt_dump,
 	.owner		= THIS_MODULE,
+	.flags		= TCF_PROTO_OPS_DOIT_UNLOCKED,
 };
 
 static int __init cls_fl_init(void)
