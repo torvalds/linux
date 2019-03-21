@@ -47,7 +47,10 @@ enum sysc_clocks {
 	SYSC_MAX_CLOCKS,
 };
 
-static const char * const clock_names[SYSC_ICK + 1] = { "fck", "ick", };
+static const char * const clock_names[SYSC_MAX_CLOCKS] = {
+	"fck", "ick", "opt0", "opt1", "opt2", "opt3", "opt4",
+	"opt5", "opt6", "opt7",
+};
 
 #define SYSC_IDLEMODE_MASK		3
 #define SYSC_CLOCKACTIVITY_MASK		3
@@ -129,6 +132,81 @@ static u32 sysc_read_revision(struct sysc *ddata)
 	return sysc_read(ddata, offset);
 }
 
+static int sysc_add_named_clock_from_child(struct sysc *ddata,
+					   const char *name,
+					   const char *optfck_name)
+{
+	struct device_node *np = ddata->dev->of_node;
+	struct device_node *child;
+	struct clk_lookup *cl;
+	struct clk *clock;
+	const char *n;
+
+	if (name)
+		n = name;
+	else
+		n = optfck_name;
+
+	/* Does the clock alias already exist? */
+	clock = of_clk_get_by_name(np, n);
+	if (!IS_ERR(clock)) {
+		clk_put(clock);
+
+		return 0;
+	}
+
+	child = of_get_next_available_child(np, NULL);
+	if (!child)
+		return -ENODEV;
+
+	clock = devm_get_clk_from_child(ddata->dev, child, name);
+	if (IS_ERR(clock))
+		return PTR_ERR(clock);
+
+	/*
+	 * Use clkdev_add() instead of clkdev_alloc() to avoid the MAX_DEV_ID
+	 * limit for clk_get(). If cl ever needs to be freed, it should be done
+	 * with clkdev_drop().
+	 */
+	cl = kcalloc(1, sizeof(*cl), GFP_KERNEL);
+	if (!cl)
+		return -ENOMEM;
+
+	cl->con_id = n;
+	cl->dev_id = dev_name(ddata->dev);
+	cl->clk = clock;
+	clkdev_add(cl);
+
+	clk_put(clock);
+
+	return 0;
+}
+
+static int sysc_init_ext_opt_clock(struct sysc *ddata, const char *name)
+{
+	const char *optfck_name;
+	int error, index;
+
+	if (ddata->nr_clocks < SYSC_OPTFCK0)
+		index = SYSC_OPTFCK0;
+	else
+		index = ddata->nr_clocks;
+
+	if (name)
+		optfck_name = name;
+	else
+		optfck_name = clock_names[index];
+
+	error = sysc_add_named_clock_from_child(ddata, name, optfck_name);
+	if (error)
+		return error;
+
+	ddata->clock_roles[index] = optfck_name;
+	ddata->nr_clocks++;
+
+	return 0;
+}
+
 static int sysc_get_one_clock(struct sysc *ddata, const char *name)
 {
 	int error, i, index = -ENODEV;
@@ -199,6 +277,12 @@ static int sysc_get_clocks(struct sysc *ddata)
 
 	if (ddata->nr_clocks < 1)
 		return 0;
+
+	if ((ddata->cfg.quirks & SYSC_QUIRK_EXT_OPT_CLOCK)) {
+		error = sysc_init_ext_opt_clock(ddata, NULL);
+		if (error)
+			return error;
+	}
 
 	if (ddata->nr_clocks > SYSC_MAX_CLOCKS) {
 		dev_err(ddata->dev, "too many clocks for %pOF\n", np);
@@ -900,6 +984,11 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_QUIRK_LEGACY_IDLE),
 	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x47422e03, 0xffffffff,
 		   SYSC_QUIRK_LEGACY_IDLE),
+
+	/* Quirks that need to be set based on the module address */
+	SYSC_QUIRK("mcpdm", 0x40132000, 0, 0x10, -1, 0x50000800, 0xffffffff,
+		   SYSC_QUIRK_EXT_OPT_CLOCK | SYSC_QUIRK_NO_RESET_ON_INIT |
+		   SYSC_QUIRK_SWSUP_SIDLE),
 
 #ifdef DEBUG
 	SYSC_QUIRK("adc", 0, 0, 0x10, -1, 0x47300001, 0xffffffff, 0),
