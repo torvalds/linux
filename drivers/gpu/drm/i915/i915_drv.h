@@ -216,7 +216,9 @@ struct drm_i915_file_private {
  */
 #define DRM_I915_THROTTLE_JIFFIES msecs_to_jiffies(20)
 	} mm;
+
 	struct idr context_idr;
+	struct mutex context_idr_lock; /* guards context_idr */
 
 	unsigned int bsd_engine;
 

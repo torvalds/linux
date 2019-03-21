@@ -579,9 +579,7 @@ void i915_gem_contexts_fini(struct drm_i915_private *i915)
 
 static int context_idr_cleanup(int id, void *p, void *data)
 {
-	struct i915_gem_context *ctx = p;
-
-	context_close(ctx);
+	context_close(p);
 	return 0;
 }
 
@@ -603,12 +601,14 @@ static int gem_context_register(struct i915_gem_context *ctx,
 	}
 
 	/* And finally expose ourselves to userspace via the idr */
+	mutex_lock(&fpriv->context_idr_lock);
 	ret = idr_alloc(&fpriv->context_idr, ctx,
 			DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
+	if (ret >= 0)
+		ctx->user_handle = ret;
+	mutex_unlock(&fpriv->context_idr_lock);
 	if (ret < 0)
 		goto err_name;
-
-	ctx->user_handle = ret;
 
 	return 0;
 
@@ -627,10 +627,11 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	int err;
 
 	idr_init(&file_priv->context_idr);
+	mutex_init(&file_priv->context_idr_lock);
 
 	mutex_lock(&i915->drm.struct_mutex);
-
 	ctx = i915_gem_create_context(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto err;
@@ -643,14 +644,14 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	GEM_BUG_ON(ctx->user_handle != DEFAULT_CONTEXT_HANDLE);
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	return 0;
 
 err_ctx:
+	mutex_lock(&i915->drm.struct_mutex);
 	context_close(ctx);
-err:
 	mutex_unlock(&i915->drm.struct_mutex);
+err:
+	mutex_destroy(&file_priv->context_idr_lock);
 	idr_destroy(&file_priv->context_idr);
 	return PTR_ERR(ctx);
 }
@@ -663,6 +664,7 @@ void i915_gem_context_close(struct drm_file *file)
 
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);
+	mutex_destroy(&file_priv->context_idr_lock);
 }
 
 static struct i915_request *
@@ -845,16 +847,13 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	ctx = i915_gem_create_context(i915);
-	if (IS_ERR(ctx)) {
-		ret = PTR_ERR(ctx);
-		goto err_unlock;
-	}
+	mutex_unlock(&dev->struct_mutex);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ret = gem_context_register(ctx, file_priv);
 	if (ret)
 		goto err_ctx;
-
-	mutex_unlock(&dev->struct_mutex);
 
 	args->ctx_id = ctx->user_handle;
 	DRM_DEBUG("HW context %d created\n", args->ctx_id);
@@ -862,8 +861,8 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 err_ctx:
+	mutex_lock(&dev->struct_mutex);
 	context_close(ctx);
-err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -874,7 +873,6 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_context_destroy *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
-	int ret;
 
 	if (args->pad != 0)
 		return -EINVAL;
@@ -882,21 +880,18 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
 
-	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
+	if (mutex_lock_interruptible(&file_priv->context_idr_lock))
+		return -EINTR;
+
+	ctx = idr_remove(&file_priv->context_idr, args->ctx_id);
+	mutex_unlock(&file_priv->context_idr_lock);
 	if (!ctx)
 		return -ENOENT;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		goto out;
-
-	idr_remove(&file_priv->context_idr, ctx->user_handle);
+	mutex_lock(&dev->struct_mutex);
 	context_close(ctx);
-
 	mutex_unlock(&dev->struct_mutex);
 
-out:
-	i915_gem_context_put(ctx);
 	return 0;
 }
 
