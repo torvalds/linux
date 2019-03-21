@@ -89,10 +89,6 @@ struct mt76_tx_info {
 	u32 info;
 };
 
-struct mt76u_buf {
-	struct urb *urb;
-};
-
 struct mt76_queue_entry {
 	union {
 		void *buf;
@@ -100,7 +96,7 @@ struct mt76_queue_entry {
 	};
 	union {
 		struct mt76_txwi_cache *txwi;
-		struct mt76u_buf ubuf;
+		struct urb *urb;
 	};
 	enum mt76_txq_id qid;
 	bool schedule;
