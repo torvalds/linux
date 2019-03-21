@@ -109,8 +109,6 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 #define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
-#define BUFFER_LRU_MAX 64
-
 struct tree_entry {
 	u64 start;
 	u64 end;
