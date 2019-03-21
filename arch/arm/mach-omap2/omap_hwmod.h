@@ -493,6 +493,12 @@ struct omap_hwmod_omap4_prcm {
 #define _HWMOD_STATE_IDLE			5
 #define _HWMOD_STATE_DISABLED			6
 
+#ifdef CONFIG_PM
+#define _HWMOD_STATE_DEFAULT			_HWMOD_STATE_IDLE
+#else
+#define _HWMOD_STATE_DEFAULT			_HWMOD_STATE_ENABLED
+#endif
+
 /**
  * struct omap_hwmod_class - the type of an IP block
  * @name: name of the hwmod_class
