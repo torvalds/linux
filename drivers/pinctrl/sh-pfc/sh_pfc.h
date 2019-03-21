@@ -584,7 +584,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 
 /* GP_ALL(suffix) - Expand to a list of GP_#_#_suffix */
 #define _GP_ALL(bank, pin, name, sfx, cfg)	name##_##sfx
-#define GP_ALL(str)			CPU_ALL_PORT(_GP_ALL, str)
+#define GP_ALL(str)			CPU_ALL_GP(_GP_ALL, str)
 
 /* PINMUX_GPIO_GP_ALL - Expand to a list of sh_pfc_pin entries */
 #define _GP_GPIO(bank, _pin, _name, sfx, cfg)				\
@@ -594,11 +594,11 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 		.enum_id = _name##_DATA,				\
 		.configs = cfg,						\
 	}
-#define PINMUX_GPIO_GP_ALL()		CPU_ALL_PORT(_GP_GPIO, unused)
+#define PINMUX_GPIO_GP_ALL()		CPU_ALL_GP(_GP_GPIO, unused)
 
 /* PINMUX_DATA_GP_ALL -  Expand to a list of name_DATA, name_FN marks */
 #define _GP_DATA(bank, pin, name, sfx, cfg)	PINMUX_DATA(name##_DATA, name##_FN)
-#define PINMUX_DATA_GP_ALL()		CPU_ALL_PORT(_GP_DATA, unused)
+#define PINMUX_DATA_GP_ALL()		CPU_ALL_GP(_GP_DATA, unused)
 
 /*
  * PORT style (linear pin space)
