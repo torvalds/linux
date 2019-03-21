@@ -326,6 +326,18 @@ struct ceph_snapid_map {
 };
 
 /*
+ * node for list of quotarealm inodes that are not visible from the filesystem
+ * mountpoint, but required to handle, e.g. quotas.
+ */
+struct ceph_quotarealm_inode {
+	struct rb_node node;
+	u64 ino;
+	unsigned long timeout; /* last time a lookup failed for this inode */
+	struct mutex mutex;
+	struct inode *inode;
+};
+
+/*
  * mds client state
  */
 struct ceph_mds_client {
@@ -344,6 +356,12 @@ struct ceph_mds_client {
 	int                     stopping;      /* true if shutting down */
 
 	atomic64_t		quotarealms_count; /* # realms with quota */
+	/*
+	 * We keep a list of inodes we don't see in the mountpoint but that we
+	 * need to track quota realms.
+	 */
+	struct rb_root		quotarealms_inodes;
+	struct mutex		quotarealms_inodes_mutex;
 
 	/*
 	 * snap_rwsem will cover cap linkage into snaprealms, and
