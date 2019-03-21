@@ -1451,7 +1451,6 @@ static const u16 pinmux_data[] = {
 #define ROW_GROUP_A(r) ('Z' - 'A' + 1 + (r))
 #define PIN_NUMBER(r, c) (((r) - 'A') * 39 + (c) + 300)
 #define PIN_A_NUMBER(r, c) PIN_NUMBER(ROW_GROUP_A(r), c)
-#define PIN_NONE U16_MAX
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
@@ -5656,7 +5655,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[ 5] = PIN_A_NUMBER('T', 27),	/* TCK */
 		[ 6] = PIN_A_NUMBER('R', 30),	/* TMS */
 		[ 7] = PIN_A_NUMBER('R', 29),	/* TDI */
-		[ 8] = PIN_NONE,
+		[ 8] = SH_PFC_PIN_NONE,
 		[ 9] = PIN_A_NUMBER('T', 30),	/* ASEBRK */
 		[10] = RCAR_GP_PIN(3,  0),	/* SD0_CLK */
 		[11] = RCAR_GP_PIN(3,  1),	/* SD0_CMD */
@@ -5757,31 +5756,31 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[ 4] = RCAR_GP_PIN(6, 29),	/* USB30_OVC */
 		[ 5] = RCAR_GP_PIN(6, 30),	/* USB31_PWEN */
 		[ 6] = RCAR_GP_PIN(6, 31),	/* USB31_OVC */
-		[ 7] = PIN_NONE,
-		[ 8] = PIN_NONE,
-		[ 9] = PIN_NONE,
-		[10] = PIN_NONE,
-		[11] = PIN_NONE,
-		[12] = PIN_NONE,
-		[13] = PIN_NONE,
-		[14] = PIN_NONE,
-		[15] = PIN_NONE,
-		[16] = PIN_NONE,
-		[17] = PIN_NONE,
-		[18] = PIN_NONE,
-		[19] = PIN_NONE,
-		[20] = PIN_NONE,
-		[21] = PIN_NONE,
-		[22] = PIN_NONE,
-		[23] = PIN_NONE,
-		[24] = PIN_NONE,
-		[25] = PIN_NONE,
-		[26] = PIN_NONE,
-		[27] = PIN_NONE,
-		[28] = PIN_NONE,
-		[29] = PIN_NONE,
-		[30] = PIN_NONE,
-		[31] = PIN_NONE,
+		[ 7] = SH_PFC_PIN_NONE,
+		[ 8] = SH_PFC_PIN_NONE,
+		[ 9] = SH_PFC_PIN_NONE,
+		[10] = SH_PFC_PIN_NONE,
+		[11] = SH_PFC_PIN_NONE,
+		[12] = SH_PFC_PIN_NONE,
+		[13] = SH_PFC_PIN_NONE,
+		[14] = SH_PFC_PIN_NONE,
+		[15] = SH_PFC_PIN_NONE,
+		[16] = SH_PFC_PIN_NONE,
+		[17] = SH_PFC_PIN_NONE,
+		[18] = SH_PFC_PIN_NONE,
+		[19] = SH_PFC_PIN_NONE,
+		[20] = SH_PFC_PIN_NONE,
+		[21] = SH_PFC_PIN_NONE,
+		[22] = SH_PFC_PIN_NONE,
+		[23] = SH_PFC_PIN_NONE,
+		[24] = SH_PFC_PIN_NONE,
+		[25] = SH_PFC_PIN_NONE,
+		[26] = SH_PFC_PIN_NONE,
+		[27] = SH_PFC_PIN_NONE,
+		[28] = SH_PFC_PIN_NONE,
+		[29] = SH_PFC_PIN_NONE,
+		[30] = SH_PFC_PIN_NONE,
+		[31] = SH_PFC_PIN_NONE,
 	} },
 	{ /* sentinel */ },
 };

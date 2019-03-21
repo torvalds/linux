@@ -2921,8 +2921,6 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
-#define PIN_NONE	U16_MAX
-
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ PINMUX_BIAS_REG("PUPR0", 0x100, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  6),	/* A0 */
@@ -2969,28 +2967,28 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[ 7] = RCAR_GP_PIN(1, 10),	/* DACK0	*/
 		[ 8] = RCAR_GP_PIN(1, 12),	/* IRQ0		*/
 		[ 9] = RCAR_GP_PIN(1, 13),	/* IRQ1		*/
-		[10] = PIN_NONE,
-		[11] = PIN_NONE,
-		[12] = PIN_NONE,
-		[13] = PIN_NONE,
-		[14] = PIN_NONE,
-		[15] = PIN_NONE,
-		[16] = PIN_NONE,
-		[17] = PIN_NONE,
-		[18] = PIN_NONE,
-		[19] = PIN_NONE,
-		[20] = PIN_NONE,
-		[21] = PIN_NONE,
-		[22] = PIN_NONE,
-		[23] = PIN_NONE,
-		[24] = PIN_NONE,
-		[25] = PIN_NONE,
-		[26] = PIN_NONE,
-		[27] = PIN_NONE,
-		[28] = PIN_NONE,
-		[29] = PIN_NONE,
-		[30] = PIN_NONE,
-		[31] = PIN_NONE,
+		[10] = SH_PFC_PIN_NONE,
+		[11] = SH_PFC_PIN_NONE,
+		[12] = SH_PFC_PIN_NONE,
+		[13] = SH_PFC_PIN_NONE,
+		[14] = SH_PFC_PIN_NONE,
+		[15] = SH_PFC_PIN_NONE,
+		[16] = SH_PFC_PIN_NONE,
+		[17] = SH_PFC_PIN_NONE,
+		[18] = SH_PFC_PIN_NONE,
+		[19] = SH_PFC_PIN_NONE,
+		[20] = SH_PFC_PIN_NONE,
+		[21] = SH_PFC_PIN_NONE,
+		[22] = SH_PFC_PIN_NONE,
+		[23] = SH_PFC_PIN_NONE,
+		[24] = SH_PFC_PIN_NONE,
+		[25] = SH_PFC_PIN_NONE,
+		[26] = SH_PFC_PIN_NONE,
+		[27] = SH_PFC_PIN_NONE,
+		[28] = SH_PFC_PIN_NONE,
+		[29] = SH_PFC_PIN_NONE,
+		[30] = SH_PFC_PIN_NONE,
+		[31] = SH_PFC_PIN_NONE,
 	} },
 	{ PINMUX_BIAS_REG("PUPR2", 0x108, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(1, 22),	/* DU0_DR0	*/
@@ -3112,21 +3110,21 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[14] = RCAR_GP_PIN(4, 20),	/* ETH_MAGIC	*/
 		[15] = RCAR_GP_PIN(4, 25),	/* AVS1		*/
 		[16] = RCAR_GP_PIN(4, 26),	/* AVS2		*/
-		[17] = PIN_NONE,
-		[18] = PIN_NONE,
-		[19] = PIN_NONE,
-		[20] = PIN_NONE,
-		[21] = PIN_NONE,
-		[22] = PIN_NONE,
-		[23] = PIN_NONE,
-		[24] = PIN_NONE,
-		[25] = PIN_NONE,
-		[26] = PIN_NONE,
-		[27] = PIN_NONE,
-		[28] = PIN_NONE,
-		[29] = PIN_NONE,
-		[30] = PIN_NONE,
-		[31] = PIN_NONE,
+		[17] = SH_PFC_PIN_NONE,
+		[18] = SH_PFC_PIN_NONE,
+		[19] = SH_PFC_PIN_NONE,
+		[20] = SH_PFC_PIN_NONE,
+		[21] = SH_PFC_PIN_NONE,
+		[22] = SH_PFC_PIN_NONE,
+		[23] = SH_PFC_PIN_NONE,
+		[24] = SH_PFC_PIN_NONE,
+		[25] = SH_PFC_PIN_NONE,
+		[26] = SH_PFC_PIN_NONE,
+		[27] = SH_PFC_PIN_NONE,
+		[28] = SH_PFC_PIN_NONE,
+		[29] = SH_PFC_PIN_NONE,
+		[30] = SH_PFC_PIN_NONE,
+		[31] = SH_PFC_PIN_NONE,
 	} },
 	{ /* sentinel */ },
 };

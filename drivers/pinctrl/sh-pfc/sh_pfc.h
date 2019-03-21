@@ -21,6 +21,8 @@ enum {
 	PINMUX_TYPE_INPUT,
 };
 
+#define SH_PFC_PIN_NONE			U16_MAX
+
 #define SH_PFC_PIN_CFG_INPUT		(1 << 0)
 #define SH_PFC_PIN_CFG_OUTPUT		(1 << 1)
 #define SH_PFC_PIN_CFG_PULL_UP		(1 << 2)
