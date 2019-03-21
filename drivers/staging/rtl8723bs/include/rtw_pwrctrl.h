@@ -187,7 +187,7 @@ struct pno_scan_channel_info
 	u8 active;				/* set 1 means active scan, or pasivite scan. */
 };
 
-typedef struct pno_scan_info
+struct pno_scan_info
 {
 	u8 enableRFE;			/* Enable RFE */
 	u8 period_scan_time;		/* exclusive with fast_scan_period and slow_scan_period */
@@ -199,7 +199,7 @@ typedef struct pno_scan_info
 	u8 channel_num;			/* number of channel */
 	u64	rfe_type;			/* rfe_type && 0x00000000000000ff */
 	struct pno_scan_channel_info ssid_channel_info[MAX_SCAN_LIST_COUNT];
-}pno_scan_info_t;
+};
 #endif /* CONFIG_PNO_SUPPORT */
 
 struct pwrctrl_priv
@@ -280,7 +280,7 @@ struct pwrctrl_priv
 	u8 pno_in_resume;
 	u8 pno_inited;
 	struct pno_nlo_info *pnlo_info;
-	pno_scan_info_t	*pscan_info;
+	struct pno_scan_info *pscan_info;
 	struct pno_ssid_list *pno_ssid_list;
 #endif
 	u32 	wowlan_pattern_context[8][5];
