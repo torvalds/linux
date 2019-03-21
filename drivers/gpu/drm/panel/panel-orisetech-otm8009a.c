@@ -67,15 +67,15 @@ struct otm8009a {
 };
 
 static const struct drm_display_mode default_mode = {
-	.clock = 32729,
+	.clock = 29700,
 	.hdisplay = 480,
-	.hsync_start = 480 + 120,
-	.hsync_end = 480 + 120 + 63,
-	.htotal = 480 + 120 + 63 + 120,
+	.hsync_start = 480 + 98,
+	.hsync_end = 480 + 98 + 32,
+	.htotal = 480 + 98 + 32 + 98,
 	.vdisplay = 800,
-	.vsync_start = 800 + 12,
-	.vsync_end = 800 + 12 + 12,
-	.vtotal = 800 + 12 + 12 + 12,
+	.vsync_start = 800 + 15,
+	.vsync_end = 800 + 15 + 10,
+	.vtotal = 800 + 15 + 10 + 14,
 	.vrefresh = 50,
 	.flags = 0,
 	.width_mm = 52,
