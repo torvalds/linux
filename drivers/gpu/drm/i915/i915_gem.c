@@ -4431,6 +4431,8 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 */
 	GEM_BUG_ON(i915->gt.awake);
 
+	intel_uc_suspend(i915);
+
 	intel_runtime_pm_put(i915, wakeref);
 }
 
