@@ -179,13 +179,13 @@ struct pno_ssid_list {
 	struct pno_ssid	node[MAX_PNO_LIST_COUNT];
 };
 
-typedef struct pno_scan_channel_info
+struct pno_scan_channel_info
 {
 	u8 channel;
 	u8 tx_power;
 	u8 timeout;
 	u8 active;				/* set 1 means active scan, or pasivite scan. */
-}pno_scan_channel_info_t;
+};
 
 typedef struct pno_scan_info
 {
@@ -198,7 +198,7 @@ typedef struct pno_scan_info
 	u8 orig_ch;			/* original channel */
 	u8 channel_num;			/* number of channel */
 	u64	rfe_type;			/* rfe_type && 0x00000000000000ff */
-	pno_scan_channel_info_t ssid_channel_info[MAX_SCAN_LIST_COUNT];
+	struct pno_scan_channel_info ssid_channel_info[MAX_SCAN_LIST_COUNT];
 }pno_scan_info_t;
 #endif /* CONFIG_PNO_SUPPORT */
 
