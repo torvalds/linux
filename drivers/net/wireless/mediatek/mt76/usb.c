@@ -336,19 +336,19 @@ mt76u_refill_rx(struct mt76_dev *dev, struct urb *urb, int nsgs, gfp_t gfp)
 static int
 mt76u_urb_alloc(struct mt76_dev *dev, struct mt76_queue_entry *e)
 {
-	struct urb *urb;
+	unsigned int size = sizeof(struct urb);
 
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb)
+	if (dev->usb.sg_en)
+		size += MT_SG_MAX_SIZE * sizeof(struct scatterlist);
+
+	e->urb = kzalloc(size, GFP_KERNEL);
+	if (!e->urb)
 		return -ENOMEM;
-	e->urb = urb;
 
-	if (dev->usb.sg_en) {
-		urb->sg = devm_kcalloc(dev->dev, MT_SG_MAX_SIZE,
-				       sizeof(*urb->sg), GFP_KERNEL);
-		if (!urb->sg)
-			return -ENOMEM;
-	}
+	usb_init_urb(e->urb);
+
+	if (dev->usb.sg_en)
+		e->urb->sg = (struct scatterlist *)(e->urb + 1);
 
 	return 0;
 }
