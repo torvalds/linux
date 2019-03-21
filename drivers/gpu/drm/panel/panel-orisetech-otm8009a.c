@@ -248,6 +248,9 @@ static int otm8009a_init_sequence(struct otm8009a *ctx)
 	/* Send Command GRAM memory write (no parameters) */
 	dcs_write_seq(ctx, MIPI_DCS_WRITE_MEMORY_START);
 
+	/* Wait a short while to let the panel be ready before the 1st frame */
+	mdelay(10);
+
 	return 0;
 }
 
