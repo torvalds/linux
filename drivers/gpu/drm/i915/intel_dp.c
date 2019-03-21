@@ -7114,15 +7114,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		downclock_mode = intel_dp_drrs_init(intel_connector, fixed_mode);
 
 	/* fallback to VBT if available for eDP */
-	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
-		fixed_mode = drm_mode_duplicate(dev,
-					dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode) {
-			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-			connector->display_info.width_mm = fixed_mode->width_mm;
-			connector->display_info.height_mm = fixed_mode->height_mm;
-		}
-	}
+	if (!fixed_mode)
+		fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {

@@ -141,6 +141,33 @@ intel_panel_edid_fixed_mode(struct intel_connector *connector)
 	return fixed_mode;
 }
 
+struct drm_display_mode *
+intel_panel_vbt_fixed_mode(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct drm_display_info *info = &connector->base.display_info;
+	struct drm_display_mode *fixed_mode;
+
+	if (!dev_priv->vbt.lfp_lvds_vbt_mode)
+		return NULL;
+
+	fixed_mode = drm_mode_duplicate(&dev_priv->drm,
+					dev_priv->vbt.lfp_lvds_vbt_mode);
+	if (!fixed_mode)
+		return NULL;
+
+	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using mode from VBT: ",
+		      connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(fixed_mode);
+
+	info->width_mm = fixed_mode->width_mm;
+	info->height_mm = fixed_mode->height_mm;
+
+	return fixed_mode;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 void
 intel_pch_panel_fitting(struct intel_crtc *intel_crtc,

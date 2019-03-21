@@ -953,18 +953,9 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 		goto out;
 
 	/* Failed to get EDID, what about VBT? */
-	if (dev_priv->vbt.lfp_lvds_vbt_mode) {
-		DRM_DEBUG_KMS("using mode from VBT: ");
-		drm_mode_debug_printmodeline(dev_priv->vbt.lfp_lvds_vbt_mode);
-
-		fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode) {
-			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-			connector->display_info.width_mm = fixed_mode->width_mm;
-			connector->display_info.height_mm = fixed_mode->height_mm;
-			goto out;
-		}
-	}
+	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
+	if (fixed_mode)
+		goto out;
 
 	/*
 	 * If we didn't get EDID, try checking if the panel is already turned
