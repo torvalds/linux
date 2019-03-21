@@ -4,7 +4,6 @@
 
 #include "osdep_service.h"
 
-
 #define _REPEAT_THRESHOLD_	3
 
 #define EFUSE_MAX_SIZE		512
