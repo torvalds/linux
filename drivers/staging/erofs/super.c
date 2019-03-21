@@ -37,7 +37,7 @@ static int __init erofs_init_inode_cache(void)
 					       SLAB_RECLAIM_ACCOUNT,
 					       init_once);
 
-	return erofs_inode_cachep != NULL ? 0 : -ENOMEM;
+	return erofs_inode_cachep ? 0 : -ENOMEM;
 }
 
 static void erofs_exit_inode_cache(void)
@@ -50,7 +50,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 	struct erofs_vnode *vi =
 		kmem_cache_alloc(erofs_inode_cachep, GFP_KERNEL);
 
-	if (vi == NULL)
+	if (!vi)
 		return NULL;
 
 	/* zero out everything except vfs_inode */
@@ -87,7 +87,7 @@ static int superblock_read(struct super_block *sb)
 
 	bh = sb_bread(sb, 0);
 
-	if (bh == NULL) {
+	if (!bh) {
 		errln("cannot read erofs superblock");
 		return -EIO;
 	}
@@ -338,7 +338,7 @@ static struct inode *erofs_init_managed_cache(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
 
-	if (unlikely(inode == NULL))
+	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 
 	set_nlink(inode, 1);
@@ -370,7 +370,7 @@ static int erofs_read_super(struct super_block *sb,
 	}
 
 	sbi = kzalloc(sizeof(struct erofs_sb_info), GFP_KERNEL);
-	if (unlikely(sbi == NULL)) {
+	if (unlikely(!sbi)) {
 		err = -ENOMEM;
 		goto err;
 	}
@@ -434,14 +434,14 @@ static int erofs_read_super(struct super_block *sb,
 	}
 
 	sb->s_root = d_make_root(inode);
-	if (sb->s_root == NULL) {
+	if (!sb->s_root) {
 		err = -ENOMEM;
 		goto err_iget;
 	}
 
 	/* save the device name to sbi */
 	sbi->dev_name = __getname();
-	if (sbi->dev_name == NULL) {
+	if (!sbi->dev_name) {
 		err = -ENOMEM;
 		goto err_devname;
 	}
@@ -484,7 +484,7 @@ static void erofs_put_super(struct super_block *sb)
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
 	/* for cases which are failed in "read_super" */
-	if (sbi == NULL)
+	if (!sbi)
 		return;
 
 	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
