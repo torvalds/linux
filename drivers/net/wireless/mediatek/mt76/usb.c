@@ -352,7 +352,19 @@ mt76u_urb_alloc(struct mt76_dev *dev, struct mt76_queue_entry *e)
 		sg_init_table(urb->sg, MT_SG_MAX_SIZE);
 	}
 
-	return mt76u_refill_rx(dev, urb, MT_SG_MAX_SIZE, GFP_KERNEL);
+	return 0;
+}
+
+static int
+mt76u_rx_urb_alloc(struct mt76_dev *dev, struct mt76_queue_entry *e)
+{
+	int err;
+
+	err = mt76u_urb_alloc(dev, e);
+	if (err)
+		return err;
+
+	return mt76u_refill_rx(dev, e->urb, MT_SG_MAX_SIZE, GFP_KERNEL);
 }
 
 static void mt76u_urb_free(struct urb *urb)
@@ -570,7 +582,7 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 	q->buf_size = dev->usb.sg_en ? MT_RX_BUF_SIZE : PAGE_SIZE;
 	q->ndesc = MT_NUM_RX_ENTRIES;
 	for (i = 0; i < q->ndesc; i++) {
-		err = mt76u_urb_alloc(dev, &q->entry[i]);
+		err = mt76u_rx_urb_alloc(dev, &q->entry[i]);
 		if (err < 0)
 			return err;
 	}
@@ -770,9 +782,8 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 
 static int mt76u_alloc_tx(struct mt76_dev *dev)
 {
-	struct urb *urb;
 	struct mt76_queue *q;
-	int i, j;
+	int i, j, err;
 
 	for (i = 0; i <= MT_TXQ_PSD; i++) {
 		INIT_LIST_HEAD(&dev->q_tx[i].swq);
@@ -798,19 +809,9 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 
 		q->ndesc = MT_NUM_TX_ENTRIES;
 		for (j = 0; j < q->ndesc; j++) {
-			urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!urb)
-				return -ENOMEM;
-			q->entry[j].urb = urb;
-
-			if (!dev->usb.sg_en)
-				continue;
-
-			urb->sg = devm_kcalloc(dev->dev, MT_SG_MAX_SIZE,
-					       sizeof(struct scatterlist),
-					       GFP_KERNEL);
-			if (!urb->sg)
-				return -ENOMEM;
+			err = mt76u_urb_alloc(dev, &q->entry[j]);
+			if (err < 0)
+				return err;
 		}
 	}
 	return 0;
