@@ -148,22 +148,23 @@ struct mtu3_fifo_info {
  *	bit0: Hardware Own (HWO)
  *	bit1: Buffer Descriptor Present (BDP), always 0, BD is not supported
  *	bit2: Bypass (BPS), 1: HW skips this GPD if HWO = 1
+ *	bit6: [EL] Zero Length Packet (ZLP), moved from @dw3_info[29]
  *	bit7: Interrupt On Completion (IOC)
- *	bit[31:16]: allow data buffer length (RX ONLY),
+ *	bit[31:16]: ([EL] bit[31:12]) allow data buffer length (RX ONLY),
  *		the buffer length of the data to receive
- *	bit[23:16]: extension address (TX ONLY),
+ *	bit[23:16]: ([EL] bit[31:24]) extension address (TX ONLY),
  *		lower 4 bits are extension bits of @buffer,
  *		upper 4 bits are extension bits of @next_gpd
  * @next_gpd: Physical address of the next GPD
  * @buffer: Physical address of the data buffer
  * @dw3_info:
- *	bit[15:0]: data buffer length,
+ *	bit[15:0]: ([EL] bit[19:0]) data buffer length,
  *		(TX): the buffer length of the data to transmit
  *		(RX): The total length of data received
- *	bit[23:16]: extension address (RX ONLY),
+ *	bit[23:16]: ([EL] bit[31:24]) extension address (RX ONLY),
  *		lower 4 bits are extension bits of @buffer,
  *		upper 4 bits are extension bits of @next_gpd
- *	bit29: Zero Length Packet (ZLP) (TX ONLY)
+ *	bit29: ([EL] abandoned) Zero Length Packet (ZLP) (TX ONLY)
  */
 struct qmu_gpd {
 	__le32 dw0_info;
