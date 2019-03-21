@@ -23,6 +23,7 @@
 #include <linux/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_pedit.h>
 #include <uapi/linux/tc_act/tc_pedit.h>
+#include <net/pkt_cls.h>
 
 static unsigned int pedit_net_id;
 static struct tc_action_ops act_pedit_ops;
@@ -138,10 +139,11 @@ nla_failure:
 static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			  struct nlattr *est, struct tc_action **a,
 			  int ovr, int bind, bool rtnl_held,
-			  struct netlink_ext_ack *extack)
+			  struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_pedit_key *keys = NULL;
 	struct tcf_pedit_key_ex *keys_ex;
 	struct tc_pedit *parm;
@@ -205,6 +207,11 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		goto out_free;
 	}
 
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0) {
+		ret = err;
+		goto out_release;
+	}
 	p = to_pedit(*a);
 	spin_lock_bh(&p->tcf_lock);
 
@@ -214,7 +221,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		if (!keys) {
 			spin_unlock_bh(&p->tcf_lock);
 			ret = -ENOMEM;
-			goto out_release;
+			goto put_chain;
 		}
 		kfree(p->tcfp_keys);
 		p->tcfp_keys = keys;
@@ -223,16 +230,21 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	memcpy(p->tcfp_keys, parm->keys, ksize);
 
 	p->tcfp_flags = parm->flags;
-	p->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 
 	kfree(p->tcfp_keys_ex);
 	p->tcfp_keys_ex = keys_ex;
 
 	spin_unlock_bh(&p->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
 
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 out_release:
 	tcf_idr_release(*a, bind);
 out_free:
