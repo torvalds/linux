@@ -181,6 +181,54 @@ static struct notifier_block i10nm_mce_dec = {
 	.priority	= MCE_PRIO_EDAC,
 };
 
+#ifdef CONFIG_EDAC_DEBUG
+/*
+ * Debug feature.
+ * Exercise the address decode logic by writing an address to
+ * /sys/kernel/debug/edac/i10nm_test/addr.
+ */
+static struct dentry *i10nm_test;
+
+static int debugfs_u64_set(void *data, u64 val)
+{
+	struct mce m;
+
+	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
+
+	memset(&m, 0, sizeof(m));
+	/* ADDRV + MemRd + Unknown channel */
+	m.status = MCI_STATUS_ADDRV + 0x90;
+	/* One corrected error */
+	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
+	m.addr = val;
+	skx_mce_check_error(NULL, 0, &m);
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
+
+static void setup_i10nm_debug(void)
+{
+	i10nm_test = edac_debugfs_create_dir("i10nm_test");
+	if (!i10nm_test)
+		return;
+
+	if (!edac_debugfs_create_file("addr", 0200, i10nm_test,
+				      NULL, &fops_u64_wo)) {
+		debugfs_remove(i10nm_test);
+		i10nm_test = NULL;
+	}
+}
+
+static void teardown_i10nm_debug(void)
+{
+	debugfs_remove_recursive(i10nm_test);
+}
+#else
+static inline void setup_i10nm_debug(void) {}
+static inline void teardown_i10nm_debug(void) {}
+#endif /*CONFIG_EDAC_DEBUG*/
+
 static int __init i10nm_init(void)
 {
 	u8 mc = 0, src_id = 0, node_id = 0;
@@ -249,7 +297,7 @@ static int __init i10nm_init(void)
 
 	opstate_init();
 	mce_register_decode_chain(&i10nm_mce_dec);
-	setup_skx_debug("i10nm_test");
+	setup_i10nm_debug();
 
 	i10nm_printk(KERN_INFO, "%s\n", I10NM_REVISION);
 
@@ -262,7 +310,7 @@ fail:
 static void __exit i10nm_exit(void)
 {
 	edac_dbg(2, "\n");
-	teardown_skx_debug();
+	teardown_i10nm_debug();
 	mce_unregister_decode_chain(&i10nm_mce_dec);
 	skx_adxl_put();
 	skx_remove();
