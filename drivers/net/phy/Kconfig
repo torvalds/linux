@@ -270,10 +270,9 @@ config BCM87XX_PHY
 	  Currently supports the BCM8706 and BCM8727 10G Ethernet PHYs.
 
 config BCM_CYGNUS_PHY
-	tristate "Broadcom Cygnus SoC internal PHY"
+	tristate "Broadcom Cygnus/Omega SoC internal PHY"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MDIO_BCM_IPROC
-	tristate "Broadcom Cygnus/Omega SoC internal PHY"
 	select BCM_NET_PHYLIB
 	---help---
 	  This PHY driver is for the 1G internal PHYs of the Broadcom
