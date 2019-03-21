@@ -41,8 +41,8 @@ Documentation/process/submitting-drivers.rst 。
 何子目录。
 为一个单独的文件创建补丁，一般来说这样做就够了::
 
-        SRCTREE= linux-2.6
-        MYFILE=  drivers/net/mydriver.c
+        SRCTREE=linux-2.6
+        MYFILE=drivers/net/mydriver.c
 
         cd $SRCTREE
         cp $MYFILE $MYFILE.orig
@@ -53,7 +53,7 @@ Documentation/process/submitting-drivers.rst 。
 为多个文件创建补丁，你可以解开一个没有修改过的内核源代码树，然后和你自
 己的代码树之间做 diff 。例如::
 
-        MYSRC= /devel/linux-2.6
+        MYSRC=/devel/linux-2.6
 
         tar xvfz linux-2.6.12.tar.gz
         mv linux-2.6.12 linux-2.6.12-vanilla

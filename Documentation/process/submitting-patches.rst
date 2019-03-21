@@ -60,8 +60,8 @@ not in any lower subdirectory.
 
 To create a patch for a single file, it is often sufficient to do::
 
-	SRCTREE= linux
-	MYFILE=  drivers/net/mydriver.c
+	SRCTREE=linux
+	MYFILE=drivers/net/mydriver.c
 
 	cd $SRCTREE
 	cp $MYFILE $MYFILE.orig
@@ -73,7 +73,7 @@ To create a patch for multiple files, you should unpack a "vanilla",
 or unmodified kernel source tree, and generate a ``diff`` against your
 own source tree.  For example::
 
-	MYSRC= /devel/linux
+	MYSRC=/devel/linux
 
 	tar xvfz linux-3.19.tar.gz
 	mv linux-3.19 linux-3.19-vanilla

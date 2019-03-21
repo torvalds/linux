@@ -67,8 +67,8 @@ sulla radice dei sorgenti del kernel, e non sulle sue sottocartelle.
 
 Per creare una patch per un singolo file, spesso è sufficiente fare::
 
-	SRCTREE= linux
-	MYFILE=  drivers/net/mydriver.c
+	SRCTREE=linux
+	MYFILE=drivers/net/mydriver.c
 
 	cd $SRCTREE
 	cp $MYFILE $MYFILE.orig
@@ -80,7 +80,7 @@ Per creare una patch per molteplici file, dovreste spacchettare i sorgenti
 "vergini", o comunque non modificati, e fare un ``diff`` coi vostri.
 Per esempio::
 
-	MYSRC= /devel/linux
+	MYSRC=/devel/linux
 
 	tar xvfz linux-3.19.tar.gz
 	mv linux-3.19 linux-3.19-vanilla
