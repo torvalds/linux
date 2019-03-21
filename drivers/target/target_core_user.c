@@ -442,25 +442,21 @@ static const struct genl_ops tcmu_genl_ops[] = {
 	{
 		.cmd	= TCMU_CMD_SET_FEATURES,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_set_features,
 	},
 	{
 		.cmd	= TCMU_CMD_ADDED_DEVICE_DONE,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_add_dev_done,
 	},
 	{
 		.cmd	= TCMU_CMD_REMOVED_DEVICE_DONE,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_rm_dev_done,
 	},
 	{
 		.cmd	= TCMU_CMD_RECONFIG_DEVICE_DONE,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_reconfig_dev_done,
 	},
 };
@@ -472,6 +468,7 @@ static struct genl_family tcmu_genl_family __ro_after_init = {
 	.name = "TCM-USER",
 	.version = 2,
 	.maxattr = TCMU_ATTR_MAX,
+	.policy = tcmu_attr_policy,
 	.mcgrps = tcmu_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(tcmu_mcgrps),
 	.netnsok = true,

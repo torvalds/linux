@@ -233,7 +233,6 @@ const char *CONCAT_(GENL_MAGIC_FAMILY, _genl_cmd_to_str)(__u8 cmd)
 {								\
 	handler							\
 	.cmd = op_name,						\
-	.policy	= CONCAT_(GENL_MAGIC_FAMILY, _tla_nl_policy),	\
 },
 
 #define ZZZ_genl_ops		CONCAT_(GENL_MAGIC_FAMILY, _genl_ops)
@@ -290,7 +289,8 @@ static struct genl_family ZZZ_genl_family __ro_after_init = {
 #ifdef GENL_MAGIC_FAMILY_HDRSZ
 	.hdrsize = NLA_ALIGN(GENL_MAGIC_FAMILY_HDRSZ),
 #endif
-	.maxattr = ARRAY_SIZE(drbd_tla_nl_policy)-1,
+	.maxattr = ARRAY_SIZE(CONCAT_(GENL_MAGIC_FAMILY, _tla_nl_policy))-1,
+	.policy	= CONCAT_(GENL_MAGIC_FAMILY, _tla_nl_policy),
 	.ops = ZZZ_genl_ops,
 	.n_ops = ARRAY_SIZE(ZZZ_genl_ops),
 	.mcgrps = ZZZ_genl_mcgrps,

@@ -2637,60 +2637,50 @@ static const struct genl_ops macsec_genl_ops[] = {
 	{
 		.cmd = MACSEC_CMD_GET_TXSC,
 		.dumpit = macsec_dump_txsc,
-		.policy = macsec_genl_policy,
 	},
 	{
 		.cmd = MACSEC_CMD_ADD_RXSC,
 		.doit = macsec_add_rxsc,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_DEL_RXSC,
 		.doit = macsec_del_rxsc,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_UPD_RXSC,
 		.doit = macsec_upd_rxsc,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_ADD_TXSA,
 		.doit = macsec_add_txsa,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_DEL_TXSA,
 		.doit = macsec_del_txsa,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_UPD_TXSA,
 		.doit = macsec_upd_txsa,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_ADD_RXSA,
 		.doit = macsec_add_rxsa,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_DEL_RXSA,
 		.doit = macsec_del_rxsa,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_UPD_RXSA,
 		.doit = macsec_upd_rxsa,
-		.policy = macsec_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 };
@@ -2700,6 +2690,7 @@ static struct genl_family macsec_fam __ro_after_init = {
 	.hdrsize	= 0,
 	.version	= MACSEC_GENL_VERSION,
 	.maxattr	= MACSEC_ATTR_MAX,
+	.policy = macsec_genl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
 	.ops		= macsec_genl_ops,

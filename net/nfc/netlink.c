@@ -1670,99 +1670,80 @@ static const struct genl_ops nfc_genl_ops[] = {
 		.doit = nfc_genl_get_device,
 		.dumpit = nfc_genl_dump_devices,
 		.done = nfc_genl_dump_devices_done,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEV_UP,
 		.doit = nfc_genl_dev_up,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEV_DOWN,
 		.doit = nfc_genl_dev_down,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_START_POLL,
 		.doit = nfc_genl_start_poll,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_STOP_POLL,
 		.doit = nfc_genl_stop_poll,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEP_LINK_UP,
 		.doit = nfc_genl_dep_link_up,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEP_LINK_DOWN,
 		.doit = nfc_genl_dep_link_down,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_GET_TARGET,
 		.dumpit = nfc_genl_dump_targets,
 		.done = nfc_genl_dump_targets_done,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_LLC_GET_PARAMS,
 		.doit = nfc_genl_llc_get_params,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_LLC_SET_PARAMS,
 		.doit = nfc_genl_llc_set_params,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_LLC_SDREQ,
 		.doit = nfc_genl_llc_sdreq,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_FW_DOWNLOAD,
 		.doit = nfc_genl_fw_download,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_ENABLE_SE,
 		.doit = nfc_genl_enable_se,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DISABLE_SE,
 		.doit = nfc_genl_disable_se,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_GET_SE,
 		.dumpit = nfc_genl_dump_ses,
 		.done = nfc_genl_dump_ses_done,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_SE_IO,
 		.doit = nfc_genl_se_io,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_ACTIVATE_TARGET,
 		.doit = nfc_genl_activate_target,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_VENDOR,
 		.doit = nfc_genl_vendor_cmd,
-		.policy = nfc_genl_policy,
 	},
 	{
 		.cmd = NFC_CMD_DEACTIVATE_TARGET,
 		.doit = nfc_genl_deactivate_target,
-		.policy = nfc_genl_policy,
 	},
 };
 
@@ -1771,6 +1752,7 @@ static struct genl_family nfc_genl_family __ro_after_init = {
 	.name = NFC_GENL_NAME,
 	.version = NFC_GENL_VERSION,
 	.maxattr = NFC_ATTR_MAX,
+	.policy = nfc_genl_policy,
 	.module = THIS_MODULE,
 	.ops = nfc_genl_ops,
 	.n_ops = ARRAY_SIZE(nfc_genl_ops),

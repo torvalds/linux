@@ -611,7 +611,6 @@ static const struct genl_ops smc_pnet_ops[] = {
 	{
 		.cmd = SMC_PNETID_GET,
 		.flags = GENL_ADMIN_PERM,
-		.policy = smc_pnet_policy,
 		.doit = smc_pnet_get,
 		.dumpit = smc_pnet_dump,
 		.start = smc_pnet_dump_start
@@ -619,19 +618,16 @@ static const struct genl_ops smc_pnet_ops[] = {
 	{
 		.cmd = SMC_PNETID_ADD,
 		.flags = GENL_ADMIN_PERM,
-		.policy = smc_pnet_policy,
 		.doit = smc_pnet_add
 	},
 	{
 		.cmd = SMC_PNETID_DEL,
 		.flags = GENL_ADMIN_PERM,
-		.policy = smc_pnet_policy,
 		.doit = smc_pnet_del
 	},
 	{
 		.cmd = SMC_PNETID_FLUSH,
 		.flags = GENL_ADMIN_PERM,
-		.policy = smc_pnet_policy,
 		.doit = smc_pnet_flush
 	}
 };
@@ -642,6 +638,7 @@ static struct genl_family smc_pnet_nl_family __ro_after_init = {
 	.name = SMCR_GENL_FAMILY_NAME,
 	.version = SMCR_GENL_FAMILY_VERSION,
 	.maxattr = SMC_PNETID_MAX,
+	.policy = smc_pnet_policy,
 	.netnsok = true,
 	.module = THIS_MODULE,
 	.ops = smc_pnet_ops,

@@ -2154,18 +2154,15 @@ static struct genl_ops ct_limit_genl_ops[] = {
 	{ .cmd = OVS_CT_LIMIT_CMD_SET,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   * privilege. */
-		.policy = ct_limit_policy,
 		.doit = ovs_ct_limit_cmd_set,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_DEL,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   * privilege. */
-		.policy = ct_limit_policy,
 		.doit = ovs_ct_limit_cmd_del,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_GET,
 		.flags = 0,		  /* OK for unprivileged users. */
-		.policy = ct_limit_policy,
 		.doit = ovs_ct_limit_cmd_get,
 	},
 };
@@ -2179,6 +2176,7 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 	.name = OVS_CT_LIMIT_FAMILY,
 	.version = OVS_CT_LIMIT_VERSION,
 	.maxattr = OVS_CT_LIMIT_ATTR_MAX,
+	.policy = ct_limit_policy,
 	.netnsok = true,
 	.parallel_ops = true,
 	.ops = ct_limit_genl_ops,

@@ -953,12 +953,10 @@ static const struct genl_ops tcp_metrics_nl_ops[] = {
 		.cmd = TCP_METRICS_CMD_GET,
 		.doit = tcp_metrics_nl_cmd_get,
 		.dumpit = tcp_metrics_nl_dump,
-		.policy = tcp_metrics_nl_policy,
 	},
 	{
 		.cmd = TCP_METRICS_CMD_DEL,
 		.doit = tcp_metrics_nl_cmd_del,
-		.policy = tcp_metrics_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 };
@@ -968,6 +966,7 @@ static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.name		= TCP_METRICS_GENL_NAME,
 	.version	= TCP_METRICS_GENL_VERSION,
 	.maxattr	= TCP_METRICS_ATTR_MAX,
+	.policy = tcp_metrics_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
 	.ops		= tcp_metrics_nl_ops,

@@ -1345,34 +1345,29 @@ static const struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_MESH,
 		/* can be retrieved by unprivileged users */
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_get_mesh,
 		.internal_flags = BATADV_FLAG_NEED_MESH,
 	},
 	{
 		.cmd = BATADV_CMD_TP_METER,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_tp_meter_start,
 		.internal_flags = BATADV_FLAG_NEED_MESH,
 	},
 	{
 		.cmd = BATADV_CMD_TP_METER_CANCEL,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_tp_meter_cancel,
 		.internal_flags = BATADV_FLAG_NEED_MESH,
 	},
 	{
 		.cmd = BATADV_CMD_GET_ROUTING_ALGOS,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_algo_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_HARDIF,
 		/* can be retrieved by unprivileged users */
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_netlink_dump_hardif,
 		.doit = batadv_netlink_get_hardif,
 		.internal_flags = BATADV_FLAG_NEED_MESH |
@@ -1381,68 +1376,57 @@ static const struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_TRANSTABLE_LOCAL,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_tt_local_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_TRANSTABLE_GLOBAL,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_tt_global_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_ORIGINATORS,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_orig_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_NEIGHBORS,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_hardif_neigh_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_GATEWAYS,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_gw_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_BLA_CLAIM,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_bla_claim_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_BLA_BACKBONE,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_bla_backbone_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_DAT_CACHE,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_dat_cache_dump,
 	},
 	{
 		.cmd = BATADV_CMD_GET_MCAST_FLAGS,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.dumpit = batadv_mcast_flags_dump,
 	},
 	{
 		.cmd = BATADV_CMD_SET_MESH,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_set_mesh,
 		.internal_flags = BATADV_FLAG_NEED_MESH,
 	},
 	{
 		.cmd = BATADV_CMD_SET_HARDIF,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_set_hardif,
 		.internal_flags = BATADV_FLAG_NEED_MESH |
 				  BATADV_FLAG_NEED_HARDIF,
@@ -1450,7 +1434,6 @@ static const struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_VLAN,
 		/* can be retrieved by unprivileged users */
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_get_vlan,
 		.internal_flags = BATADV_FLAG_NEED_MESH |
 				  BATADV_FLAG_NEED_VLAN,
@@ -1458,7 +1441,6 @@ static const struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_SET_VLAN,
 		.flags = GENL_ADMIN_PERM,
-		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_set_vlan,
 		.internal_flags = BATADV_FLAG_NEED_MESH |
 				  BATADV_FLAG_NEED_VLAN,
@@ -1470,6 +1452,7 @@ struct genl_family batadv_netlink_family __ro_after_init = {
 	.name = BATADV_NL_NAME,
 	.version = 1,
 	.maxattr = BATADV_ATTR_MAX,
+	.policy = batadv_netlink_policy,
 	.netnsok = true,
 	.pre_doit = batadv_pre_doit,
 	.post_doit = batadv_post_doit,

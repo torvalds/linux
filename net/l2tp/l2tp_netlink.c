@@ -916,57 +916,48 @@ static const struct genl_ops l2tp_nl_ops[] = {
 	{
 		.cmd = L2TP_CMD_NOOP,
 		.doit = l2tp_nl_cmd_noop,
-		.policy = l2tp_nl_policy,
 		/* can be retrieved by unprivileged users */
 	},
 	{
 		.cmd = L2TP_CMD_TUNNEL_CREATE,
 		.doit = l2tp_nl_cmd_tunnel_create,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_TUNNEL_DELETE,
 		.doit = l2tp_nl_cmd_tunnel_delete,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_TUNNEL_MODIFY,
 		.doit = l2tp_nl_cmd_tunnel_modify,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_TUNNEL_GET,
 		.doit = l2tp_nl_cmd_tunnel_get,
 		.dumpit = l2tp_nl_cmd_tunnel_dump,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_SESSION_CREATE,
 		.doit = l2tp_nl_cmd_session_create,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_SESSION_DELETE,
 		.doit = l2tp_nl_cmd_session_delete,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_SESSION_MODIFY,
 		.doit = l2tp_nl_cmd_session_modify,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = L2TP_CMD_SESSION_GET,
 		.doit = l2tp_nl_cmd_session_get,
 		.dumpit = l2tp_nl_cmd_session_dump,
-		.policy = l2tp_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 };
@@ -976,6 +967,7 @@ static struct genl_family l2tp_nl_family __ro_after_init = {
 	.version	= L2TP_GENL_VERSION,
 	.hdrsize	= 0,
 	.maxattr	= L2TP_ATTR_MAX,
+	.policy = l2tp_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
 	.ops		= l2tp_nl_ops,

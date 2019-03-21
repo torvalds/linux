@@ -1271,20 +1271,17 @@ static const struct genl_ops gtp_genl_ops[] = {
 	{
 		.cmd = GTP_CMD_NEWPDP,
 		.doit = gtp_genl_new_pdp,
-		.policy = gtp_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = GTP_CMD_DELPDP,
 		.doit = gtp_genl_del_pdp,
-		.policy = gtp_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = GTP_CMD_GETPDP,
 		.doit = gtp_genl_get_pdp,
 		.dumpit = gtp_genl_dump_pdp,
-		.policy = gtp_genl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 };
@@ -1294,6 +1291,7 @@ static struct genl_family gtp_genl_family __ro_after_init = {
 	.version	= 0,
 	.hdrsize	= 0,
 	.maxattr	= GTPA_MAX,
+	.policy = gtp_genl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
 	.ops		= gtp_genl_ops,

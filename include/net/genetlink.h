@@ -26,6 +26,7 @@ struct genl_info;
  * @name: name of family
  * @version: protocol version
  * @maxattr: maximum number of attributes supported
+ * @policy: netlink policy
  * @netnsok: set to true if the family can handle network
  *	namespaces and should be presented in all of them
  * @parallel_ops: operations can be called in parallel and aren't
@@ -56,6 +57,7 @@ struct genl_family {
 	unsigned int		maxattr;
 	bool			netnsok;
 	bool			parallel_ops;
+	const struct nla_policy *policy;
 	int			(*pre_doit)(const struct genl_ops *ops,
 					    struct sk_buff *skb,
 					    struct genl_info *info);
@@ -124,14 +126,12 @@ static inline int genl_err_attr(struct genl_info *info, int err,
  * @cmd: command identifier
  * @internal_flags: flags used by the family
  * @flags: flags
- * @policy: attribute validation policy
  * @doit: standard command callback
  * @start: start callback for dumps
  * @dumpit: callback for dumpers
  * @done: completion callback for dumps
  */
 struct genl_ops {
-	const struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,
 				       struct genl_info *info);
 	int		       (*start)(struct netlink_callback *cb);

@@ -527,26 +527,22 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 static struct genl_ops dp_meter_genl_ops[] = {
 	{ .cmd = OVS_METER_CMD_FEATURES,
 		.flags = 0,		  /* OK for unprivileged users. */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_features
 	},
 	{ .cmd = OVS_METER_CMD_SET,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   *  privilege.
 					   */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_set,
 	},
 	{ .cmd = OVS_METER_CMD_GET,
 		.flags = 0,		  /* OK for unprivileged users. */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_get,
 	},
 	{ .cmd = OVS_METER_CMD_DEL,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   *  privilege.
 					   */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_del
 	},
 };
@@ -560,6 +556,7 @@ struct genl_family dp_meter_genl_family __ro_after_init = {
 	.name = OVS_METER_FAMILY,
 	.version = OVS_METER_VERSION,
 	.maxattr = OVS_METER_ATTR_MAX,
+	.policy = meter_policy,
 	.netnsok = true,
 	.parallel_ops = true,
 	.ops = dp_meter_genl_ops,

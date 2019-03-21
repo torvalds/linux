@@ -598,37 +598,31 @@ static const struct nla_policy hwsim_genl_policy[MAC802154_HWSIM_ATTR_MAX + 1] =
 static const struct genl_ops hwsim_nl_ops[] = {
 	{
 		.cmd = MAC802154_HWSIM_CMD_NEW_RADIO,
-		.policy = hwsim_genl_policy,
 		.doit = hwsim_new_radio_nl,
 		.flags = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd = MAC802154_HWSIM_CMD_DEL_RADIO,
-		.policy = hwsim_genl_policy,
 		.doit = hwsim_del_radio_nl,
 		.flags = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd = MAC802154_HWSIM_CMD_GET_RADIO,
-		.policy = hwsim_genl_policy,
 		.doit = hwsim_get_radio_nl,
 		.dumpit = hwsim_dump_radio_nl,
 	},
 	{
 		.cmd = MAC802154_HWSIM_CMD_NEW_EDGE,
-		.policy = hwsim_genl_policy,
 		.doit = hwsim_new_edge_nl,
 		.flags = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd = MAC802154_HWSIM_CMD_DEL_EDGE,
-		.policy = hwsim_genl_policy,
 		.doit = hwsim_del_edge_nl,
 		.flags = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd = MAC802154_HWSIM_CMD_SET_EDGE,
-		.policy = hwsim_genl_policy,
 		.doit = hwsim_set_edge_lqi,
 		.flags = GENL_UNS_ADMIN_PERM,
 	},
@@ -638,6 +632,7 @@ static struct genl_family hwsim_genl_family __ro_after_init = {
 	.name = "MAC802154_HWSIM",
 	.version = 1,
 	.maxattr = MAC802154_HWSIM_ATTR_MAX,
+	.policy = hwsim_genl_policy,
 	.module = THIS_MODULE,
 	.ops = hwsim_nl_ops,
 	.n_ops = ARRAY_SIZE(hwsim_nl_ops),

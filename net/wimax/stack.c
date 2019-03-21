@@ -420,25 +420,21 @@ static const struct genl_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_msg_from_user,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RESET,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_reset,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RFKILL,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_rfkill,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_STATE_GET,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_state_get,
 	},
 };
@@ -582,6 +578,7 @@ struct genl_family wimax_gnl_family __ro_after_init = {
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,
 	.maxattr = WIMAX_GNL_ATTR_MAX,
+	.policy = wimax_gnl_policy,
 	.module = THIS_MODULE,
 	.ops = wimax_gnl_ops,
 	.n_ops = ARRAY_SIZE(wimax_gnl_ops),

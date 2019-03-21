@@ -399,7 +399,6 @@ static const struct genl_ops seg6_genl_ops[] = {
 	{
 		.cmd	= SEG6_CMD_SETHMAC,
 		.doit	= seg6_genl_sethmac,
-		.policy	= seg6_genl_policy,
 		.flags	= GENL_ADMIN_PERM,
 	},
 	{
@@ -407,19 +406,16 @@ static const struct genl_ops seg6_genl_ops[] = {
 		.start	= seg6_genl_dumphmac_start,
 		.dumpit	= seg6_genl_dumphmac,
 		.done	= seg6_genl_dumphmac_done,
-		.policy	= seg6_genl_policy,
 		.flags	= GENL_ADMIN_PERM,
 	},
 	{
 		.cmd	= SEG6_CMD_SET_TUNSRC,
 		.doit	= seg6_genl_set_tunsrc,
-		.policy	= seg6_genl_policy,
 		.flags	= GENL_ADMIN_PERM,
 	},
 	{
 		.cmd	= SEG6_CMD_GET_TUNSRC,
 		.doit	= seg6_genl_get_tunsrc,
-		.policy = seg6_genl_policy,
 		.flags	= GENL_ADMIN_PERM,
 	},
 };
@@ -429,6 +425,7 @@ static struct genl_family seg6_genl_family __ro_after_init = {
 	.name		= SEG6_GENL_NAME,
 	.version	= SEG6_GENL_VERSION,
 	.maxattr	= SEG6_ATTR_MAX,
+	.policy = seg6_genl_policy,
 	.netnsok	= true,
 	.parallel_ops	= true,
 	.ops		= seg6_genl_ops,

@@ -17,19 +17,16 @@ static const struct genl_ops ila_nl_ops[] = {
 	{
 		.cmd = ILA_CMD_ADD,
 		.doit = ila_xlat_nl_cmd_add_mapping,
-		.policy = ila_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = ILA_CMD_DEL,
 		.doit = ila_xlat_nl_cmd_del_mapping,
-		.policy = ila_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = ILA_CMD_FLUSH,
 		.doit = ila_xlat_nl_cmd_flush,
-		.policy = ila_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
@@ -38,7 +35,6 @@ static const struct genl_ops ila_nl_ops[] = {
 		.start = ila_xlat_nl_dump_start,
 		.dumpit = ila_xlat_nl_dump,
 		.done = ila_xlat_nl_dump_done,
-		.policy = ila_nl_policy,
 	},
 };
 
@@ -49,6 +45,7 @@ struct genl_family ila_nl_family __ro_after_init = {
 	.name		= ILA_GENL_NAME,
 	.version	= ILA_GENL_VERSION,
 	.maxattr	= ILA_ATTR_MAX,
+	.policy = ila_nl_policy,
 	.netnsok	= true,
 	.parallel_ops	= true,
 	.module		= THIS_MODULE,

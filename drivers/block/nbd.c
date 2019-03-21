@@ -1999,22 +1999,18 @@ out:
 static const struct genl_ops nbd_connect_genl_ops[] = {
 	{
 		.cmd	= NBD_CMD_CONNECT,
-		.policy	= nbd_attr_policy,
 		.doit	= nbd_genl_connect,
 	},
 	{
 		.cmd	= NBD_CMD_DISCONNECT,
-		.policy	= nbd_attr_policy,
 		.doit	= nbd_genl_disconnect,
 	},
 	{
 		.cmd	= NBD_CMD_RECONFIGURE,
-		.policy	= nbd_attr_policy,
 		.doit	= nbd_genl_reconfigure,
 	},
 	{
 		.cmd	= NBD_CMD_STATUS,
-		.policy	= nbd_attr_policy,
 		.doit	= nbd_genl_status,
 	},
 };
@@ -2031,6 +2027,7 @@ static struct genl_family nbd_genl_family __ro_after_init = {
 	.ops		= nbd_connect_genl_ops,
 	.n_ops		= ARRAY_SIZE(nbd_connect_genl_ops),
 	.maxattr	= NBD_ATTR_MAX,
+	.policy = nbd_attr_policy,
 	.mcgrps		= nbd_mcast_grps,
 	.n_mcgrps	= ARRAY_SIZE(nbd_mcast_grps),
 };

@@ -449,14 +449,12 @@ static const struct genl_ops hsr_ops[] = {
 	{
 		.cmd = HSR_C_GET_NODE_STATUS,
 		.flags = 0,
-		.policy = hsr_genl_policy,
 		.doit = hsr_get_node_status,
 		.dumpit = NULL,
 	},
 	{
 		.cmd = HSR_C_GET_NODE_LIST,
 		.flags = 0,
-		.policy = hsr_genl_policy,
 		.doit = hsr_get_node_list,
 		.dumpit = NULL,
 	},
@@ -467,6 +465,7 @@ static struct genl_family hsr_genl_family __ro_after_init = {
 	.name = "HSR",
 	.version = 1,
 	.maxattr = HSR_A_MAX,
+	.policy = hsr_genl_policy,
 	.module = THIS_MODULE,
 	.ops = hsr_ops,
 	.n_ops = ARRAY_SIZE(hsr_ops),
