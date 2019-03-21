@@ -34,6 +34,7 @@
 #include <net/pkt_cls.h>
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
+#include <net/geneve.h>
 #include <linux/bpf.h>
 #include <linux/if_bridge.h>
 #include <net/page_pool.h>
@@ -43,6 +44,7 @@
 #include "en_rep.h"
 #include "en_accel/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
+#include "en_accel/en_accel.h"
 #include "en_accel/tls.h"
 #include "accel/ipsec.h"
 #include "accel/tls.h"
@@ -2173,10 +2175,13 @@ static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 {
 	void *sqc = param->sqc;
 	void *wq = MLX5_ADDR_OF(sqc, sqc, wq);
+	bool allow_swp;
 
+	allow_swp = mlx5_geneve_tx_allowed(priv->mdev) ||
+		    !!MLX5_IPSEC_DEV(priv->mdev);
 	mlx5e_build_sq_param_common(priv, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
-	MLX5_SET(sqc, sqc, allow_swp, !!MLX5_IPSEC_DEV(priv->mdev));
+	MLX5_SET(sqc, sqc, allow_swp, allow_swp);
 }
 
 static void mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
@@ -4103,6 +4108,12 @@ static netdev_features_t mlx5e_tunnel_features_check(struct mlx5e_priv *priv,
 		/* Verify if UDP port is being offloaded by HW */
 		if (mlx5_vxlan_lookup_port(priv->mdev->vxlan, port))
 			return features;
+
+#if IS_ENABLED(CONFIG_GENEVE)
+		/* Support Geneve offload for default UDP port */
+		if (port == GENEVE_UDP_PORT && mlx5_geneve_tx_allowed(priv->mdev))
+			return features;
+#endif
 	}
 
 out:
@@ -4674,7 +4685,8 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
 
-	if (mlx5_vxlan_allowed(mdev->vxlan) || MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
+	if (mlx5_vxlan_allowed(mdev->vxlan) || mlx5_geneve_tx_allowed(mdev) ||
+	    MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
 		netdev->hw_enc_features |= NETIF_F_IP_CSUM;
 		netdev->hw_enc_features |= NETIF_F_IPV6_CSUM;
 		netdev->hw_enc_features |= NETIF_F_TSO;
@@ -4682,7 +4694,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 		netdev->hw_enc_features |= NETIF_F_GSO_PARTIAL;
 	}
 
-	if (mlx5_vxlan_allowed(mdev->vxlan)) {
+	if (mlx5_vxlan_allowed(mdev->vxlan) || mlx5_geneve_tx_allowed(mdev)) {
 		netdev->hw_features     |= NETIF_F_GSO_UDP_TUNNEL |
 					   NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL |

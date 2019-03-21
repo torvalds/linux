@@ -884,6 +884,12 @@ static inline bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
 		MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ft_field_support.inner_ip_version));
 }
 
+static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_ETH(mdev, swp) &&
+		MLX5_CAP_ETH(mdev, swp_csum) && MLX5_CAP_ETH(mdev, swp_lso);
+}
+
 struct mlx5e_swp_spec {
 	__be16 l3_proto;
 	u8 l4_proto;
