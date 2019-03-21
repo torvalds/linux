@@ -688,8 +688,9 @@ static void artpec6_pmx_select_func(struct pinctrl_dev *pctldev,
 	}
 }
 
-int artpec6_pmx_enable(struct pinctrl_dev *pctldev, unsigned int function,
-		       unsigned int group)
+static int artpec6_pmx_enable(struct pinctrl_dev *pctldev,
+			      unsigned int function,
+			      unsigned int group)
 {
 	struct artpec6_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 
@@ -702,8 +703,9 @@ int artpec6_pmx_enable(struct pinctrl_dev *pctldev, unsigned int function,
 	return 0;
 }
 
-void artpec6_pmx_disable(struct pinctrl_dev *pctldev, unsigned int function,
-			 unsigned int group)
+static void artpec6_pmx_disable(struct pinctrl_dev *pctldev,
+				unsigned int function,
+				unsigned int group)
 {
 	struct artpec6_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 
