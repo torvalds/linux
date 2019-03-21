@@ -394,18 +394,6 @@ mt76u_fill_bulk_urb(struct mt76_dev *dev, int dir, int index,
 			  complete_fn, context);
 }
 
-static int
-mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
-		 struct mt76u_buf *buf, gfp_t gfp,
-		 usb_complete_t complete_fn, void *context)
-{
-	mt76u_fill_bulk_urb(dev, dir, index, buf, complete_fn,
-			    context);
-	trace_submit_urb(dev, buf->urb);
-
-	return usb_submit_urb(buf->urb, gfp);
-}
-
 static inline struct mt76u_buf
 *mt76u_get_next_rx_entry(struct mt76_queue *q)
 {
@@ -513,6 +501,16 @@ out:
 	spin_unlock_irqrestore(&q->lock, flags);
 }
 
+static int
+mt76u_submit_rx_buf(struct mt76_dev *dev, struct mt76u_buf *buf)
+{
+	mt76u_fill_bulk_urb(dev, USB_DIR_IN, MT_EP_IN_PKT_RX, buf,
+			    mt76u_complete_rx, dev);
+	trace_submit_urb(dev, buf->urb);
+
+	return usb_submit_urb(buf->urb, GFP_ATOMIC);
+}
+
 static void mt76u_rx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
@@ -534,9 +532,7 @@ static void mt76u_rx_tasklet(unsigned long data)
 			if (err < 0)
 				break;
 		}
-		mt76u_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX,
-				 buf, GFP_ATOMIC,
-				 mt76u_complete_rx, dev);
+		mt76u_submit_rx_buf(dev, buf);
 	}
 	mt76_rx_poll_complete(dev, MT_RXQ_MAIN, NULL);
 
@@ -551,9 +547,7 @@ int mt76u_submit_rx_buffers(struct mt76_dev *dev)
 
 	spin_lock_irqsave(&q->lock, flags);
 	for (i = 0; i < q->ndesc; i++) {
-		err = mt76u_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX,
-				       &q->entry[i].ubuf, GFP_ATOMIC,
-				       mt76u_complete_rx, dev);
+		err = mt76u_submit_rx_buf(dev, &q->entry[i].ubuf);
 		if (err < 0)
 			break;
 	}
