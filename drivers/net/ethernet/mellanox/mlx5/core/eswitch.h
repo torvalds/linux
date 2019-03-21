@@ -431,6 +431,9 @@ static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 	return index;
 }
 
+/* TODO: This mlx5e_tc function shouldn't be called by eswitch */
+void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
