@@ -3443,7 +3443,7 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 				      u32 idlemodes)
 {
 	struct omap_hwmod_class_sysconfig *sysc;
-	struct omap_hwmod_class *class;
+	struct omap_hwmod_class *class = NULL;
 	void __iomem *regs = NULL;
 	unsigned long flags;
 
@@ -3467,19 +3467,21 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	}
 
 	/*
-	 * We need new oh->class as the other devices in the same class
+	 * We may need a new oh->class as the other devices in the same class
 	 * may not yet have ioremapped their registers.
 	 */
-	class = kmemdup(oh->class, sizeof(*oh->class), GFP_KERNEL);
-	if (!class)
-		return -ENOMEM;
-
-	class->sysc = sysc;
+	if (oh->class->name && strcmp(oh->class->name, data->name)) {
+		class = kmemdup(oh->class, sizeof(*oh->class), GFP_KERNEL);
+		if (!class)
+			return -ENOMEM;
+	}
 
 	spin_lock_irqsave(&oh->_lock, flags);
 	if (regs)
 		oh->_mpu_rt_va = regs;
-	oh->class = class;
+	if (class)
+		oh->class = class;
+	oh->class->sysc = sysc;
 	oh->_state = _HWMOD_STATE_INITIALIZED;
 	_setup(oh, NULL);
 	spin_unlock_irqrestore(&oh->_lock, flags);
