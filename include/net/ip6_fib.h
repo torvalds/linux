@@ -50,7 +50,8 @@ struct fib6_config {
 	u32		fc_protocol;
 	u16		fc_type;        /* only 8 bits are used */
 	u16		fc_delete_all_nh : 1,
-			__unused : 15;
+			fc_ignore_dev_down:1,
+			__unused : 14;
 
 	struct in6_addr	fc_dst;
 	struct in6_addr	fc_src;

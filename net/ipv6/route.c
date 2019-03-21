@@ -2951,9 +2951,6 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 			goto out;
 	}
 
-	if (cfg->fc_metric == 0)
-		cfg->fc_metric = IP6_RT_PRIO_USER;
-
 	if (cfg->fc_flags & RTNH_F_ONLINK) {
 		if (!dev) {
 			NL_SET_ERR_MSG(extack,
@@ -3082,7 +3079,7 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 		goto out;
 	}
 
-	if (!(dev->flags & IFF_UP)) {
+	if (!(dev->flags & IFF_UP) && !cfg->fc_ignore_dev_down) {
 		NL_SET_ERR_MSG(extack, "Nexthop device is not up");
 		err = -ENETDOWN;
 		goto out;
@@ -3604,7 +3601,7 @@ static void rtmsg_to_fib6_config(struct net *net,
 		.fc_table = l3mdev_fib_table_by_index(net, rtmsg->rtmsg_ifindex) ?
 			 : RT6_TABLE_MAIN,
 		.fc_ifindex = rtmsg->rtmsg_ifindex,
-		.fc_metric = rtmsg->rtmsg_metric,
+		.fc_metric = rtmsg->rtmsg_metric ? : IP6_RT_PRIO_USER,
 		.fc_expires = rtmsg->rtmsg_info,
 		.fc_dst_len = rtmsg->rtmsg_dst_len,
 		.fc_src_len = rtmsg->rtmsg_src_len,
@@ -3715,36 +3712,26 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 				     const struct in6_addr *addr,
 				     bool anycast, gfp_t gfp_flags)
 {
-	u32 tb_id;
-	struct net_device *dev = idev->dev;
-	struct fib6_info *f6i;
+	struct fib6_config cfg = {
+		.fc_table = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL,
+		.fc_ifindex = idev->dev->ifindex,
+		.fc_flags = RTF_UP | RTF_ADDRCONF | RTF_NONEXTHOP,
+		.fc_dst = *addr,
+		.fc_dst_len = 128,
+		.fc_protocol = RTPROT_KERNEL,
+		.fc_nlinfo.nl_net = net,
+		.fc_ignore_dev_down = true,
+	};
 
-	f6i = fib6_info_alloc(gfp_flags);
-	if (!f6i)
-		return ERR_PTR(-ENOMEM);
-
-	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0, NULL);
-	f6i->dst_nocount = true;
-	f6i->dst_host = true;
-	f6i->fib6_protocol = RTPROT_KERNEL;
-	f6i->fib6_flags = RTF_UP | RTF_NONEXTHOP;
 	if (anycast) {
-		f6i->fib6_type = RTN_ANYCAST;
-		f6i->fib6_flags |= RTF_ANYCAST;
+		cfg.fc_type = RTN_ANYCAST;
+		cfg.fc_flags |= RTF_ANYCAST;
 	} else {
-		f6i->fib6_type = RTN_LOCAL;
-		f6i->fib6_flags |= RTF_LOCAL;
+		cfg.fc_type = RTN_LOCAL;
+		cfg.fc_flags |= RTF_LOCAL;
 	}
 
-	f6i->fib6_nh.nh_gw = *addr;
-	dev_hold(dev);
-	f6i->fib6_nh.nh_dev = dev;
-	f6i->fib6_dst.addr = *addr;
-	f6i->fib6_dst.plen = 128;
-	tb_id = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL;
-	f6i->fib6_table = fib6_get_table(net, tb_id);
-
-	return f6i;
+	return ip6_route_info_create(&cfg, gfp_flags, NULL);
 }
 
 /* remove deleted ip from prefsrc entries */
@@ -4523,6 +4510,9 @@ static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = rtm_to_fib6_config(skb, nlh, &cfg, extack);
 	if (err < 0)
 		return err;
+
+	if (cfg.fc_metric == 0)
+		cfg.fc_metric = IP6_RT_PRIO_USER;
 
 	if (cfg.fc_mp)
 		return ip6_route_multipath_add(&cfg, extack);
