@@ -43,16 +43,18 @@ void at91_init_twi_bus_master(struct at91_twi_dev *dev)
  * Calculate symmetric clock as stated in datasheet:
  * twi_clk = F_MAIN / (2 * (cdiv * (1 << ckdiv) + offset))
  */
-static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
+static void at91_calc_twi_clock(struct at91_twi_dev *dev)
 {
 	int ckdiv, cdiv, div, hold = 0;
 	struct at91_twi_pdata *pdata = dev->pdata;
 	int offset = pdata->clk_offset;
 	int max_ckdiv = pdata->clk_max_div;
-	u32 twd_hold_time_ns = 0;
+	struct i2c_timings timings, *t = &timings;
+
+	i2c_parse_fw_timings(dev->dev, t, true);
 
 	div = max(0, (int)DIV_ROUND_UP(clk_get_rate(dev->clk),
-				       2 * twi_clk) - offset);
+				       2 * t->bus_freq_hz) - offset);
 	ckdiv = fls(div >> 8);
 	cdiv = div >> ckdiv;
 
@@ -64,15 +66,12 @@ static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
 	}
 
 	if (pdata->has_hold_field) {
-		of_property_read_u32(dev->dev->of_node, "i2c-sda-hold-time-ns",
-				     &twd_hold_time_ns);
-
 		/*
 		 * hold time = HOLD + 3 x T_peripheral_clock
 		 * Use clk rate in kHz to prevent overflows when computing
 		 * hold.
 		 */
-		hold = DIV_ROUND_UP(twd_hold_time_ns
+		hold = DIV_ROUND_UP(t->sda_hold_ns
 				    * (clk_get_rate(dev->clk) / 1000), 1000000);
 		hold -= 3;
 		if (hold < 0)
@@ -89,7 +88,7 @@ static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
 			    | AT91_TWI_CWGR_HOLD(hold);
 
 	dev_dbg(dev->dev, "cdiv %d ckdiv %d hold %d (%d ns)\n",
-		cdiv, ckdiv, hold, twd_hold_time_ns);
+		cdiv, ckdiv, hold, t->sda_hold_ns);
 }
 
 static void at91_twi_dma_cleanup(struct at91_twi_dev *dev)
@@ -772,7 +771,6 @@ int at91_twi_probe_master(struct platform_device *pdev,
 			  u32 phy_addr, struct at91_twi_dev *dev)
 {
 	int rc;
-	u32 bus_clk_rate;
 
 	init_completion(&dev->cmd_complete);
 
@@ -794,12 +792,7 @@ int at91_twi_probe_master(struct platform_device *pdev,
 		dev_info(dev->dev, "Using FIFO (%u data)\n", dev->fifo_size);
 	}
 
-	rc = of_property_read_u32(dev->dev->of_node, "clock-frequency",
-				  &bus_clk_rate);
-	if (rc)
-		bus_clk_rate = DEFAULT_TWI_CLK_HZ;
-
-	at91_calc_twi_clock(dev, bus_clk_rate);
+	at91_calc_twi_clock(dev);
 
 	dev->adapter.algo = &at91_twi_algorithm;
 	dev->adapter.quirks = &at91_twi_quirks;

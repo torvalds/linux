@@ -21,7 +21,6 @@
 #include <linux/platform_data/dma-atmel.h>
 #include <linux/platform_device.h>
 
-#define DEFAULT_TWI_CLK_HZ		100000		/* max 400 Kbits/s */
 #define AT91_I2C_TIMEOUT	msecs_to_jiffies(100)	/* transfer timeout */
 #define AT91_I2C_DMA_THRESHOLD	8			/* enable DMA if transfer size is bigger than this threshold */
 #define AUTOSUSPEND_TIMEOUT		2000
