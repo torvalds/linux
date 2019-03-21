@@ -454,11 +454,6 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
 	}
-	list_for_each_entry (chunk, &drm->dmem->chunk_empty, list) {
-		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
-		/* FIXME handle pin failure */
-		WARN_ON(ret);
-	}
 	mutex_unlock(&drm->dmem->mutex);
 }
 
@@ -475,9 +470,6 @@ nouveau_dmem_suspend(struct nouveau_drm *drm)
 		nouveau_bo_unpin(chunk->bo);
 	}
 	list_for_each_entry (chunk, &drm->dmem->chunk_full, list) {
-		nouveau_bo_unpin(chunk->bo);
-	}
-	list_for_each_entry (chunk, &drm->dmem->chunk_empty, list) {
 		nouveau_bo_unpin(chunk->bo);
 	}
 	mutex_unlock(&drm->dmem->mutex);
