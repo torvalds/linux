@@ -332,7 +332,7 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 
 		if (fh->buffers.need_contiguous) {
 			mem = kmalloc(fh->buffers.buffer_size, GFP_KERNEL);
-			if (mem == NULL) {
+			if (!mem) {
 				dprintk(1,
 					KERN_ERR
 					"%s: %s - kmalloc failed for buffer %d\n",
