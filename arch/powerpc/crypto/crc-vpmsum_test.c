@@ -78,16 +78,12 @@ static int __init crc_test_init(void)
 
 		pr_info("crc-vpmsum_test begins, %lu iterations\n", iterations);
 		for (i=0; i<iterations; i++) {
-			size_t len, offset;
+			size_t offset = prandom_u32_max(16);
+			size_t len = prandom_u32_max(MAX_CRC_LENGTH);
 
-			get_random_bytes(data, MAX_CRC_LENGTH);
-			get_random_bytes(&len, sizeof(len));
-			get_random_bytes(&offset, sizeof(offset));
-
-			len %= MAX_CRC_LENGTH;
-			offset &= 15;
 			if (len <= offset)
 				continue;
+			prandom_bytes(data, len);
 			len -= offset;
 
 			crypto_shash_update(crct10dif_shash, data+offset, len);
