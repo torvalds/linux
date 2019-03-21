@@ -261,15 +261,14 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 		return ret;
 
 	mutex_lock(&c->btree_root_lock);
-
 	b = c->btree_roots[btree_id].b;
 	if (!btree_node_fake(b))
-		bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
-				 &max_stale, initial);
+		ret = bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
+				       &max_stale, initial);
 	gc_pos_set(c, gc_pos_btree_root(b->btree_id));
-
 	mutex_unlock(&c->btree_root_lock);
-	return 0;
+
+	return ret;
 }
 
 static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
