@@ -46,6 +46,16 @@ intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 }
 
+static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
+			      const struct drm_display_mode *fixed_mode)
+{
+	return drm_mode_match(downclock_mode, fixed_mode,
+			      DRM_MODE_MATCH_TIMINGS |
+			      DRM_MODE_MATCH_FLAGS |
+			      DRM_MODE_MATCH_3D_FLAGS) &&
+		downclock_mode->clock < fixed_mode->clock;
+}
+
 /**
  * intel_find_panel_downclock - find the reduced downclock for LVDS in EDID
  * @dev_priv: i915 device instance
@@ -60,11 +70,8 @@ intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 			struct drm_display_mode *fixed_mode,
 			struct drm_connector *connector)
 {
-	struct drm_display_mode *scan, *tmp_mode;
-	int temp_downclock;
-
-	temp_downclock = fixed_mode->clock;
-	tmp_mode = NULL;
+	const struct drm_display_mode *scan, *best_mode = NULL;
+	int best_clock = fixed_mode->clock;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		/*
@@ -74,29 +81,21 @@ intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 		 * case we can set the different FPx0/1 to dynamically select
 		 * between low and high frequency.
 		 */
-		if (scan->hdisplay == fixed_mode->hdisplay &&
-		    scan->hsync_start == fixed_mode->hsync_start &&
-		    scan->hsync_end == fixed_mode->hsync_end &&
-		    scan->htotal == fixed_mode->htotal &&
-		    scan->vdisplay == fixed_mode->vdisplay &&
-		    scan->vsync_start == fixed_mode->vsync_start &&
-		    scan->vsync_end == fixed_mode->vsync_end &&
-		    scan->vtotal == fixed_mode->vtotal) {
-			if (scan->clock < temp_downclock) {
-				/*
-				 * The downclock is already found. But we
-				 * expect to find the lower downclock.
-				 */
-				temp_downclock = scan->clock;
-				tmp_mode = scan;
-			}
+		if (is_downclock_mode(scan, fixed_mode) &&
+		    scan->clock < best_clock) {
+			/*
+			 * The downclock is already found. But we
+			 * expect to find the lower downclock.
+			 */
+			best_clock = scan->clock;
+			best_mode = scan;
 		}
 	}
 
-	if (temp_downclock < fixed_mode->clock)
-		return drm_mode_duplicate(&dev_priv->drm, tmp_mode);
-	else
-		return NULL;
+	if (best_mode)
+		return drm_mode_duplicate(&dev_priv->drm, best_mode);
+
+	return NULL;
 }
 
 struct drm_display_mode *
