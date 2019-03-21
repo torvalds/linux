@@ -118,9 +118,7 @@ const char *ras_block_string[] = {
 #define ras_err_str(i) (ras_error_string[ffs(i)])
 #define ras_block_str(i) (ras_block_string[i])
 
-enum amdgpu_ras_flags {
-	AMDGPU_RAS_FLAG_INIT_BY_VBIOS = 1,
-};
+#define AMDGPU_RAS_FLAG_INIT_BY_VBIOS 1
 #define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
 
 static void amdgpu_ras_self_test(struct amdgpu_device *adev)
