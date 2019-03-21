@@ -285,11 +285,13 @@ mt76u_set_endpoints(struct usb_interface *intf,
 }
 
 static int
-mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
-		 int nsgs, int len, int sglen)
+mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf, int nsgs,
+		 gfp_t gfp)
 {
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+	int sglen = SKB_WITH_OVERHEAD(q->buf_size);
 	struct urb *urb = buf->urb;
+
 	int i;
 
 	for (i = 0; i < nsgs; i++) {
@@ -297,7 +299,7 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 		void *data;
 		int offset;
 
-		data = page_frag_alloc(&q->rx_page, len, GFP_ATOMIC);
+		data = page_frag_alloc(&q->rx_page, q->buf_size, gfp);
 		if (!data)
 			break;
 
@@ -326,8 +328,7 @@ mt76u_refill_rx(struct mt76_dev *dev, struct mt76_queue *q,
 		struct mt76u_buf *buf, int nsgs, gfp_t gfp)
 {
 	if (dev->usb.sg_en) {
-		return mt76u_fill_rx_sg(dev, buf, nsgs, q->buf_size,
-					SKB_WITH_OVERHEAD(q->buf_size));
+		return mt76u_fill_rx_sg(dev, buf, nsgs, gfp);
 	} else {
 		buf->buf = page_frag_alloc(&q->rx_page, q->buf_size, gfp);
 		return buf->buf ? 0 : -ENOMEM;
