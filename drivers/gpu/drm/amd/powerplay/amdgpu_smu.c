@@ -187,6 +187,8 @@ int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
 	if (ret)
 		pr_info("smu reset failed, ret = %d\n", ret);
 
+	return ret;
+
 failed:
 	mutex_unlock(&smu->mutex);
 	return ret;
