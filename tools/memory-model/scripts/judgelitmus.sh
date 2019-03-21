@@ -6,7 +6,7 @@
 # test ran correctly.  If the --hw argument is omitted, check against the
 # LKMM output, which is assumed to be in file.litmus.out.  If this argument
 # is provided, this is assumed to be a hardware test, and the output is
-# assumed to be in file.HW.litmus.out, where "HW" is the --hw argument.
+# assumed to be in file.litmus.HW.out, where "HW" is the --hw argument.
 # In addition, non-Sometimes verification results will be noted, but
 # forgiven.  Furthermore, if there is no "Result:" comment but there is
 # an LKMM .litmus.out file, the observation in that file will be used
@@ -37,7 +37,7 @@ then
 	lkmmout=
 else
 	litmusout="`echo $litmus |
-		sed -e 's/\.litmus$/.'${LKMM_HW_MAP_FILE}'.litmus/'`.out"
+		sed -e 's/\.litmus$/.litmus.'${LKMM_HW_MAP_FILE}'/'`.out"
 	lkmmout=$litmus.out
 fi
 if test -f "$LKMM_DESTDIR/$litmusout" -a -r "$LKMM_DESTDIR/$litmusout"
