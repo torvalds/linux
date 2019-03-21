@@ -271,11 +271,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 			continue;
 
 		err = "invalid btree root pointer";
+		ret = -1;
 		if (r->error)
 			goto err;
 
 		err = "error reading btree root";
-		if (bch2_btree_root_read(c, i, &r->key, r->level)) {
+		ret = bch2_btree_root_read(c, i, &r->key, r->level);
+		if (ret) {
 			if (i != BTREE_ID_ALLOC)
 				goto err;
 
