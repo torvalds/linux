@@ -1440,7 +1440,8 @@ static void btree_split(struct btree_update *as, struct btree *b,
 
 	bch2_btree_iter_verify_locks(iter);
 
-	bch2_time_stats_update(&c->times[BCH_TIME_btree_split], start_time);
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_split],
+			       start_time);
 }
 
 static void

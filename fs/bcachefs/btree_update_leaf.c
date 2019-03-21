@@ -824,10 +824,10 @@ int bch2_trans_commit(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	int ret;
+	int ret = 0;
 
 	if (!trans->nr_updates)
-		return 0;
+		goto out;
 
 	/* for the sake of sanity: */
 	BUG_ON(trans->nr_updates > 1 && !(flags & BTREE_INSERT_ATOMIC));
@@ -850,6 +850,9 @@ int bch2_trans_commit(struct btree_trans *trans,
 		     !percpu_ref_tryget(&c->writes)))
 		return -EROFS;
 
+	if (!trans->commit_start)
+		trans->commit_start = local_clock();
+
 	ret = bch2_trans_journal_preres_get(trans);
 	if (ret)
 		goto err;
@@ -860,6 +863,12 @@ err:
 
 	if (unlikely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&c->writes);
+out:
+	if (!ret && trans->commit_start) {
+		bch2_time_stats_update(&c->times[BCH_TIME_btree_update],
+				       trans->commit_start);
+		trans->commit_start = 0;
+	}
 
 	trans->nr_updates = 0;
 

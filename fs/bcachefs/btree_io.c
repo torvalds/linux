@@ -327,7 +327,7 @@ static void btree_node_sort(struct bch_fs *c, struct btree *b,
 	BUG_ON(vstruct_end(&out->keys) > (void *) out + (PAGE_SIZE << order));
 
 	if (sorting_entire_node)
-		bch2_time_stats_update(&c->times[BCH_TIME_btree_sort],
+		bch2_time_stats_update(&c->times[BCH_TIME_btree_node_sort],
 				       start_time);
 
 	/* Make sure we preserve bset journal_seq: */
@@ -403,7 +403,8 @@ void bch2_btree_sort_into(struct bch_fs *c,
 				&dst->format,
 				true);
 
-	bch2_time_stats_update(&c->times[BCH_TIME_btree_sort], start_time);
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_sort],
+			       start_time);
 
 	set_btree_bset_end(dst, dst->set);
 
@@ -988,7 +989,8 @@ start:
 		}
 	}
 
-	bch2_time_stats_update(&c->times[BCH_TIME_btree_read], rb->start_time);
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_read],
+			       rb->start_time);
 	bio_put(&rb->bio);
 	clear_btree_node_read_in_flight(b);
 	wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
