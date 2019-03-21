@@ -204,11 +204,6 @@ struct amdgpu_vm_update_params {
 	struct amdgpu_job *job;
 
 	/**
-	 * @ib: indirect buffer to fill with commands
-	 */
-	struct amdgpu_ib *ib;
-
-	/**
 	 * @num_dw_left: number of dw left for the IB
 	 */
 	unsigned int num_dw_left;

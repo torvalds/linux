@@ -78,7 +78,6 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 		return r;
 
 	p->num_dw_left = ndw;
-	p->ib = &p->job->ibs[0];
 	return 0;
 }
 
@@ -95,15 +94,16 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 				 struct dma_fence **fence)
 {
 	struct amdgpu_bo *root = p->vm->root.base.bo;
+	struct amdgpu_ib *ib = p->job->ibs;
 	struct amdgpu_ring *ring;
 	struct dma_fence *f;
 	int r;
 
 	ring = container_of(p->vm->entity.rq->sched, struct amdgpu_ring, sched);
 
-	WARN_ON(p->ib->length_dw == 0);
-	amdgpu_ring_pad_ib(ring, p->ib);
-	WARN_ON(p->ib->length_dw > p->num_dw_left);
+	WARN_ON(ib->length_dw == 0);
+	amdgpu_ring_pad_ib(ring, ib);
+	WARN_ON(ib->length_dw > p->num_dw_left);
 	r = amdgpu_job_submit(p->job, &p->vm->entity,
 			      AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
@@ -135,14 +135,15 @@ static void amdgpu_vm_sdma_copy_ptes(struct amdgpu_vm_update_params *p,
 				     struct amdgpu_bo *bo, uint64_t pe,
 				     unsigned count)
 {
-	uint64_t src = p->ib->gpu_addr;
+	struct amdgpu_ib *ib = p->job->ibs;
+	uint64_t src = ib->gpu_addr;
 
 	src += p->num_dw_left * 4;
 
 	pe += amdgpu_bo_gpu_offset(bo);
 	trace_amdgpu_vm_copy_ptes(pe, src, count);
 
-	amdgpu_vm_copy_pte(p->adev, p->ib, pe, src, count);
+	amdgpu_vm_copy_pte(p->adev, ib, pe, src, count);
 }
 
 /**
@@ -164,13 +165,15 @@ static void amdgpu_vm_sdma_set_ptes(struct amdgpu_vm_update_params *p,
 				    uint64_t addr, unsigned count,
 				    uint32_t incr, uint64_t flags)
 {
+	struct amdgpu_ib *ib = p->job->ibs;
+
 	pe += amdgpu_bo_gpu_offset(bo);
 	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
 	if (count < 3) {
-		amdgpu_vm_write_pte(p->adev, p->ib, pe, addr | flags,
+		amdgpu_vm_write_pte(p->adev, ib, pe, addr | flags,
 				    count, incr);
 	} else {
-		amdgpu_vm_set_pte_pde(p->adev, p->ib, pe, addr,
+		amdgpu_vm_set_pte_pde(p->adev, ib, pe, addr,
 				      count, incr, flags);
 	}
 }
@@ -200,7 +203,7 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 
 	do {
 		ndw = p->num_dw_left;
-		ndw -= p->ib->length_dw;
+		ndw -= p->job->ibs->length_dw;
 
 		if (ndw < 32) {
 			r = amdgpu_vm_sdma_commit(p, NULL);
@@ -219,7 +222,6 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 				return r;
 
 			p->num_dw_left = ndw;
-			p->ib = &p->job->ibs[0];
 		}
 
 		if (!p->pages_addr) {
@@ -243,7 +245,7 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 
 		/* Put the PTEs at the end of the IB. */
 		p->num_dw_left -= nptes * 2;
-		pte = (uint64_t *)&(p->ib->ptr[p->num_dw_left]);
+		pte = (uint64_t *)&(p->job->ibs->ptr[p->num_dw_left]);
 		for (i = 0; i < nptes; ++i, addr += incr) {
 			pte[i] = amdgpu_vm_map_gart(p->pages_addr, addr);
 			pte[i] |= flags;
