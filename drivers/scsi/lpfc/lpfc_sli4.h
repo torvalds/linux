@@ -1080,4 +1080,8 @@ int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_ras_dma_free(struct lpfc_hba *phba);
-inline void *lpfc_sli4_qe(struct lpfc_queue *, uint16_t);
+static inline void *lpfc_sli4_qe(struct lpfc_queue *q, uint16_t idx)
+{
+	return q->q_pgs[idx / q->entry_cnt_per_pg] +
+		(q->entry_size * (idx % q->entry_cnt_per_pg));
+}

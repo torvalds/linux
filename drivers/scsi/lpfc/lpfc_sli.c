@@ -14574,12 +14574,6 @@ out_fail:
 	return NULL;
 }
 
-inline void *lpfc_sli4_qe(struct lpfc_queue *q, uint16_t idx)
-{
-	return q->q_pgs[idx / q->entry_cnt_per_pg] +
-		(q->entry_size * (idx % q->entry_cnt_per_pg));
-}
-
 /**
  * lpfc_dual_chute_pci_bar_map - Map pci base address register to host memory
  * @phba: HBA structure that indicates port to create a queue on.
