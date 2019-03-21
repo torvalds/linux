@@ -1430,7 +1430,7 @@ lpfc_vport_symbolic_port_name(struct lpfc_vport *vport, char *symbol,
 	 * Name object.  NPIV is not in play so this integer
 	 * value is sufficient and unique per FC-ID.
 	 */
-	n = snprintf(symbol, size, "%d", vport->phba->brd_no);
+	n = scnprintf(symbol, size, "%d", vport->phba->brd_no);
 	return n;
 }
 
@@ -1444,26 +1444,26 @@ lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 
 	lpfc_decode_firmware_rev(vport->phba, fwrev, 0);
 
-	n = snprintf(symbol, size, "Emulex %s", vport->phba->ModelName);
+	n = scnprintf(symbol, size, "Emulex %s", vport->phba->ModelName);
 	if (size < n)
 		return n;
 
-	n += snprintf(symbol + n, size - n, " FV%s", fwrev);
+	n += scnprintf(symbol + n, size - n, " FV%s", fwrev);
 	if (size < n)
 		return n;
 
-	n += snprintf(symbol + n, size - n, " DV%s.",
+	n += scnprintf(symbol + n, size - n, " DV%s.",
 		      lpfc_release_version);
 	if (size < n)
 		return n;
 
-	n += snprintf(symbol + n, size - n, " HN:%s.",
+	n += scnprintf(symbol + n, size - n, " HN:%s.",
 		      init_utsname()->nodename);
 	if (size < n)
 		return n;
 
 	/* Note :- OS name is "Linux" */
-	n += snprintf(symbol + n, size - n, " OS:%s\n",
+	n += scnprintf(symbol + n, size - n, " OS:%s\n",
 		      init_utsname()->sysname);
 	return n;
 }
