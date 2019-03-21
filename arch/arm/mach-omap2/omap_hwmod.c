@@ -155,6 +155,8 @@
 #include "soc.h"
 #include "common.h"
 #include "clockdomain.h"
+#include "hdq1w.h"
+#include "mmc.h"
 #include "powerdomain.h"
 #include "cm2xxx.h"
 #include "cm3xxx.h"
@@ -165,6 +167,7 @@
 #include "prm33xx.h"
 #include "prminst44xx.h"
 #include "pm.h"
+#include "wd_timer.h"
 
 /* Name of the OMAP hwmod for the MPU */
 #define MPU_INITIATOR_NAME		"mpu"
@@ -203,6 +206,20 @@ struct clkctrl_provider {
 };
 
 static LIST_HEAD(clkctrl_providers);
+
+/**
+ * struct omap_hwmod_reset - IP specific reset functions
+ * @match: string to match against the module name
+ * @len: number of characters to match
+ * @reset: IP specific reset function
+ *
+ * Used only in cases where struct omap_hwmod is dynamically allocated.
+ */
+struct omap_hwmod_reset {
+	const char *match;
+	int len;
+	int (*reset)(struct omap_hwmod *oh);
+};
 
 /**
  * struct omap_hwmod_soc_ops - fn ptrs for some SoC-specific operations
@@ -3542,6 +3559,57 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	return 0;
 }
 
+static const struct omap_hwmod_reset omap24xx_reset_quirks[] = {
+	{ .match = "msdi", .len = 4, .reset = omap_msdi_reset, },
+};
+
+static const struct omap_hwmod_reset dra7_reset_quirks[] = {
+	{ .match = "pcie", .len = 4, .reset = dra7xx_pciess_reset, },
+};
+
+static const struct omap_hwmod_reset omap_reset_quirks[] = {
+	{ .match = "dss", .len = 3, .reset = omap_dss_reset, },
+	{ .match = "hdq1w", .len = 5, .reset = omap_hdq1w_reset, },
+	{ .match = "i2c", .len = 3, .reset = omap_i2c_reset, },
+	{ .match = "wd_timer", .len = 8, .reset = omap2_wd_timer_reset, },
+};
+
+static void
+omap_hwmod_init_reset_quirk(struct device *dev, struct omap_hwmod *oh,
+			    const struct ti_sysc_module_data *data,
+			    const struct omap_hwmod_reset *quirks,
+			    int quirks_sz)
+{
+	const struct omap_hwmod_reset *quirk;
+	int i;
+
+	for (i = 0; i < quirks_sz; i++) {
+		quirk = &quirks[i];
+		if (!strncmp(data->name, quirk->match, quirk->len)) {
+			oh->class->reset = quirk->reset;
+
+			return;
+		}
+	}
+}
+
+static void
+omap_hwmod_init_reset_quirks(struct device *dev, struct omap_hwmod *oh,
+			     const struct ti_sysc_module_data *data)
+{
+	if (soc_is_omap24xx())
+		omap_hwmod_init_reset_quirk(dev, oh, data,
+					    omap24xx_reset_quirks,
+					    ARRAY_SIZE(omap24xx_reset_quirks));
+
+	if (soc_is_dra7xx())
+		omap_hwmod_init_reset_quirk(dev, oh, data, dra7_reset_quirks,
+					    ARRAY_SIZE(dra7_reset_quirks));
+
+	omap_hwmod_init_reset_quirk(dev, oh, data, omap_reset_quirks,
+				    ARRAY_SIZE(omap_reset_quirks));
+}
+
 /**
  * omap_hwmod_init_module - initialize new module
  * @dev: struct device
@@ -3579,6 +3647,8 @@ int omap_hwmod_init_module(struct device *dev,
 			kfree(oh);
 			return -ENOMEM;
 		}
+
+		omap_hwmod_init_reset_quirks(dev, oh, data);
 
 		oh->class->name = data->name;
 		mutex_lock(&list_lock);

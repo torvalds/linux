@@ -1828,7 +1828,7 @@ static struct omap_hwmod dra7xx_ocp2scp3_hwmod = {
  * We use a PCIeSS HWMOD class specific reset handler to deassert the hardreset
  * lines after asserting them.
  */
-static int dra7xx_pciess_reset(struct omap_hwmod *oh)
+int dra7xx_pciess_reset(struct omap_hwmod *oh)
 {
 	int i;
 
