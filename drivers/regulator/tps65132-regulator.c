@@ -117,7 +117,7 @@ static int tps65132_regulator_is_enabled(struct regulator_dev *rdev)
 	return 1;
 }
 
-static struct regulator_ops tps65132_regulator_ops = {
+static const struct regulator_ops tps65132_regulator_ops = {
 	.enable = tps65132_regulator_enable,
 	.disable = tps65132_regulator_disable,
 	.is_enabled = tps65132_regulator_is_enabled,
@@ -193,7 +193,7 @@ static int tps65132_of_parse_cb(struct device_node *np,
 		.owner = THIS_MODULE,			\
 	}
 
-static struct regulator_desc tps_regs_desc[TPS65132_MAX_REGULATORS] = {
+static const struct regulator_desc tps_regs_desc[TPS65132_MAX_REGULATORS] = {
 	TPS65132_REGULATOR_DESC(VPOS, outp),
 	TPS65132_REGULATOR_DESC(VNEG, outn),
 };
