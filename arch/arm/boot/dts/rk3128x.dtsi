@@ -355,7 +355,7 @@
 		};
 
 		u2phy0: usb2-phy@760 {
-			compatible = "rockchip,rk322x-usb2phy";
+			compatible = "rockchip,rk3228-usb2phy";
 			reg = <0x0760 0x0c>;
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
@@ -382,7 +382,7 @@
 		};
 
 		u2phy1: usb2-phy@800 {
-			compatible = "rockchip,rk322x-usb2phy";
+			compatible = "rockchip,rk3228-usb2phy";
 			reg = <0x0800 0x0c>;
 			clocks = <&cru SCLK_OTGPHY1>;
 			clock-names = "phyclk";
