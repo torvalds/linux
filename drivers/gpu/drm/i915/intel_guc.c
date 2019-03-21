@@ -484,17 +484,25 @@ void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc)
 	spin_unlock(&guc->irq_lock);
 	enable_rpm_wakeref_asserts(dev_priv);
 
-	intel_guc_to_host_process_recv_msg(guc, msg);
+	intel_guc_to_host_process_recv_msg(guc, &msg, 1);
 }
 
-void intel_guc_to_host_process_recv_msg(struct intel_guc *guc, u32 msg)
+int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
+				       const u32 *payload, u32 len)
 {
+	u32 msg;
+
+	if (unlikely(!len))
+		return -EPROTO;
+
 	/* Make sure to handle only enabled messages */
-	msg &= guc->msg_enabled_mask;
+	msg = payload[0] & guc->msg_enabled_mask;
 
 	if (msg & (INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
 		   INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED))
 		intel_guc_log_handle_flush_event(&guc->log);
+
+	return 0;
 }
 
 int intel_guc_sample_forcewake(struct intel_guc *guc)

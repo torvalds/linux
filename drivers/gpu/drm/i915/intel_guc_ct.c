@@ -701,14 +701,15 @@ static void ct_process_request(struct intel_guc_ct *ct,
 			       u32 action, u32 len, const u32 *payload)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
+	int ret;
 
 	CT_DEBUG_DRIVER("CT: request %x %*ph\n", action, 4 * len, payload);
 
 	switch (action) {
 	case INTEL_GUC_ACTION_DEFAULT:
-		if (unlikely(len < 1))
+		ret = intel_guc_to_host_process_recv_msg(guc, payload, len);
+		if (unlikely(ret))
 			goto fail_unexpected;
-		intel_guc_to_host_process_recv_msg(guc, *payload);
 		break;
 
 	default:
