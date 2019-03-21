@@ -1500,6 +1500,14 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (!tc_in_hw(fnew->flags))
 		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
 
+	/* tp was deleted concurrently. -EAGAIN will cause caller to lookup
+	 * proto again or create new one, if necessary.
+	 */
+	if (tp->deleting) {
+		err = -EAGAIN;
+		goto errout_hw;
+	}
+
 	refcount_inc(&fnew->refcnt);
 	if (fold) {
 		/* Fold filter was deleted concurrently. Retry lookup. */
