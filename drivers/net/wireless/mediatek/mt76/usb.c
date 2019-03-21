@@ -348,8 +348,6 @@ mt76u_urb_alloc(struct mt76_dev *dev, struct mt76_queue_entry *e)
 				       sizeof(*urb->sg), GFP_KERNEL);
 		if (!urb->sg)
 			return -ENOMEM;
-
-		sg_init_table(urb->sg, MT_SG_MAX_SIZE);
 	}
 
 	return 0;
