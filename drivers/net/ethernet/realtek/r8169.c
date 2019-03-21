@@ -6264,7 +6264,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 		 */
 		smp_mb();
 		if (rtl_tx_slots_avail(tp, MAX_SKB_FRAGS))
-			netif_wake_queue(dev);
+			netif_start_queue(dev);
 	}
 
 	return NETDEV_TX_OK;
