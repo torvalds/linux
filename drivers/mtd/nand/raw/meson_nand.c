@@ -1188,6 +1188,8 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 		return -EINVAL;
 	}
 
+	mtd_set_ooblayout(mtd, &meson_ooblayout_ops);
+
 	ret = meson_nand_bch_mode(nand);
 	if (ret)
 		return -EINVAL;
