@@ -1042,39 +1042,45 @@ static int sysc_reset(struct sysc *ddata)
 				  100, MAX_MODULE_SOFTRESET_WAIT);
 }
 
-/* At this point the module is configured enough to read the revision */
+/*
+ * At this point the module is configured enough to read the revision but
+ * module may not be completely configured yet to use PM runtime. Enable
+ * all clocks directly during init to configure the quirks needed for PM
+ * runtime based on the revision register.
+ */
 static int sysc_init_module(struct sysc *ddata)
 {
-	int error;
+	int error = 0;
+	bool manage_clocks = true;
 
 	if (ddata->cfg.quirks &
-	    (SYSC_QUIRK_NO_IDLE | SYSC_QUIRK_NO_IDLE_ON_INIT)) {
-		ddata->revision = sysc_read_revision(ddata);
-		goto rev_quirks;
-	}
+	    (SYSC_QUIRK_NO_IDLE | SYSC_QUIRK_NO_IDLE_ON_INIT))
+		manage_clocks = false;
 
-	error = pm_runtime_get_sync(ddata->dev);
-	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
+	if (manage_clocks) {
+		error = sysc_enable_opt_clocks(ddata);
+		if (error)
+			return error;
 
-		return 0;
-	}
-
-	error = sysc_reset(ddata);
-	if (error) {
-		dev_err(ddata->dev, "Reset failed with %d\n", error);
-		pm_runtime_put_sync(ddata->dev);
-
-		return error;
+		error = sysc_enable_main_clocks(ddata);
+		if (error)
+			goto err_opt_clocks;
 	}
 
 	ddata->revision = sysc_read_revision(ddata);
-	pm_runtime_put_sync(ddata->dev);
-
-rev_quirks:
 	sysc_init_revision_quirks(ddata);
 
-	return 0;
+	error = sysc_reset(ddata);
+	if (error)
+		dev_err(ddata->dev, "Reset failed with %d\n", error);
+
+	if (manage_clocks)
+		sysc_disable_main_clocks(ddata);
+err_opt_clocks:
+	if (manage_clocks)
+		sysc_disable_opt_clocks(ddata);
+
+	return error;
 }
 
 static int sysc_init_sysc_mask(struct sysc *ddata)
@@ -1812,11 +1818,11 @@ static int sysc_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	pm_runtime_enable(ddata->dev);
 	error = sysc_init_module(ddata);
 	if (error)
 		goto unprepare;
 
+	pm_runtime_enable(ddata->dev);
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
 		pm_runtime_put_noidle(ddata->dev);
