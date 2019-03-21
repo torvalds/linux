@@ -1704,7 +1704,6 @@ static void SwLedControlMode5(struct _adapter *padapter,
 	}
 }
 
-
 static void SwLedControlMode6(struct _adapter *padapter,
 			      enum LED_CTL_MODE LedAction)
 {
