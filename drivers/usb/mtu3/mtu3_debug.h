@@ -27,11 +27,13 @@ struct mtu3_file_map {
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 void ssusb_dev_debugfs_init(struct ssusb_mtk *ssusb);
+void ssusb_dr_debugfs_init(struct ssusb_mtk *ssusb);
 void ssusb_debugfs_create_root(struct ssusb_mtk *ssusb);
 void ssusb_debugfs_remove_root(struct ssusb_mtk *ssusb);
 
 #else
 static inline void ssusb_dev_debugfs_init(struct ssusb_mtk *ssusb) {}
+static inline void ssusb_dr_debugfs_init(struct ssusb_mtk *ssusb) {}
 static inline void ssusb_debugfs_create_root(struct ssusb_mtk *ssusb) {}
 static inline void ssusb_debugfs_remove_root(struct ssusb_mtk *ssusb) {}
 

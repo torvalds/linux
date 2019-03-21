@@ -7,16 +7,9 @@
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
  */
 
-#include <linux/debugfs.h>
-#include <linux/irq.h>
-#include <linux/kernel.h>
-#include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/seq_file.h>
-#include <linux/uaccess.h>
-
 #include "mtu3.h"
 #include "mtu3_dr.h"
+#include "mtu3_debug.h"
 
 #define USB2_PORT 2
 #define USB3_PORT 3
@@ -270,7 +263,7 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
  * This is useful in special cases, such as uses TYPE-A receptacle but also
  * wants to support dual-role mode.
  */
-static void ssusb_mode_manual_switch(struct ssusb_mtk *ssusb, int to_host)
+void ssusb_mode_manual_switch(struct ssusb_mtk *ssusb, int to_host)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
@@ -283,106 +276,6 @@ static void ssusb_mode_manual_switch(struct ssusb_mtk *ssusb, int to_host)
 		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
 		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
 	}
-}
-
-static int ssusb_mode_show(struct seq_file *sf, void *unused)
-{
-	struct ssusb_mtk *ssusb = sf->private;
-
-	seq_printf(sf, "current mode: %s(%s drd)\n(echo device/host)\n",
-		ssusb->is_host ? "host" : "device",
-		ssusb->otg_switch.manual_drd_enabled ? "manual" : "auto");
-
-	return 0;
-}
-
-static int ssusb_mode_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ssusb_mode_show, inode->i_private);
-}
-
-static ssize_t ssusb_mode_write(struct file *file,
-	const char __user *ubuf, size_t count, loff_t *ppos)
-{
-	struct seq_file *sf = file->private_data;
-	struct ssusb_mtk *ssusb = sf->private;
-	char buf[16];
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	if (!strncmp(buf, "host", 4) && !ssusb->is_host) {
-		ssusb_mode_manual_switch(ssusb, 1);
-	} else if (!strncmp(buf, "device", 6) && ssusb->is_host) {
-		ssusb_mode_manual_switch(ssusb, 0);
-	} else {
-		dev_err(ssusb->dev, "wrong or duplicated setting\n");
-		return -EINVAL;
-	}
-
-	return count;
-}
-
-static const struct file_operations ssusb_mode_fops = {
-	.open = ssusb_mode_open,
-	.write = ssusb_mode_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int ssusb_vbus_show(struct seq_file *sf, void *unused)
-{
-	struct ssusb_mtk *ssusb = sf->private;
-	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
-
-	seq_printf(sf, "vbus state: %s\n(echo on/off)\n",
-		regulator_is_enabled(otg_sx->vbus) ? "on" : "off");
-
-	return 0;
-}
-
-static int ssusb_vbus_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ssusb_vbus_show, inode->i_private);
-}
-
-static ssize_t ssusb_vbus_write(struct file *file,
-	const char __user *ubuf, size_t count, loff_t *ppos)
-{
-	struct seq_file *sf = file->private_data;
-	struct ssusb_mtk *ssusb = sf->private;
-	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
-	char buf[16];
-	bool enable;
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	if (kstrtobool(buf, &enable)) {
-		dev_err(ssusb->dev, "wrong setting\n");
-		return -EINVAL;
-	}
-
-	ssusb_set_vbus(otg_sx, enable);
-
-	return count;
-}
-
-static const struct file_operations ssusb_vbus_fops = {
-	.open = ssusb_vbus_open,
-	.write = ssusb_vbus_write,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static void ssusb_debugfs_init(struct ssusb_mtk *ssusb)
-{
-	struct dentry *root = ssusb->dbgfs_root;
-
-	debugfs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
-	debugfs_create_file("vbus", 0644, root, ssusb, &ssusb_vbus_fops);
 }
 
 void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
@@ -417,7 +310,7 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 	INIT_WORK(&otg_sx->vbus_work, ssusb_vbus_work);
 
 	if (otg_sx->manual_drd_enabled)
-		ssusb_debugfs_init(ssusb);
+		ssusb_dr_debugfs_init(ssusb);
 	else
 		ret = ssusb_extcon_register(otg_sx);
 
