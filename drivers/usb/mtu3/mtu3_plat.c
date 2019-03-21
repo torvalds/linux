@@ -16,6 +16,7 @@
 
 #include "mtu3.h"
 #include "mtu3_dr.h"
+#include "mtu3_debug.h"
 
 /* u2-port0 should be powered on and enabled; */
 int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
@@ -232,7 +233,7 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	int i;
 	int ret;
 
-	ssusb->vusb33 = devm_regulator_get(&pdev->dev, "vusb33");
+	ssusb->vusb33 = devm_regulator_get(dev, "vusb33");
 	if (IS_ERR(ssusb->vusb33)) {
 		dev_err(dev, "failed to get vusb33\n");
 		return PTR_ERR(ssusb->vusb33);
@@ -353,6 +354,8 @@ static int mtu3_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ssusb_debugfs_create_root(ssusb);
+
 	/* enable power domain */
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
@@ -423,6 +426,7 @@ comm_exit:
 comm_init_err:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
+	ssusb_debugfs_remove_root(ssusb);
 
 	return ret;
 }
@@ -450,6 +454,7 @@ static int mtu3_remove(struct platform_device *pdev)
 	ssusb_rscs_exit(ssusb);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	ssusb_debugfs_remove_root(ssusb);
 
 	return 0;
 }

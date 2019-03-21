@@ -379,18 +379,10 @@ static const struct file_operations ssusb_vbus_fops = {
 
 static void ssusb_debugfs_init(struct ssusb_mtk *ssusb)
 {
-	struct dentry *root;
-
-	root = debugfs_create_dir(dev_name(ssusb->dev), usb_debug_root);
-	ssusb->dbgfs_root = root;
+	struct dentry *root = ssusb->dbgfs_root;
 
 	debugfs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
 	debugfs_create_file("vbus", 0644, root, ssusb, &ssusb_vbus_fops);
-}
-
-static void ssusb_debugfs_exit(struct ssusb_mtk *ssusb)
-{
-	debugfs_remove_recursive(ssusb->dbgfs_root);
 }
 
 void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
@@ -435,9 +427,6 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
-
-	if (otg_sx->manual_drd_enabled)
-		ssusb_debugfs_exit(ssusb);
 
 	cancel_work_sync(&otg_sx->id_work);
 	cancel_work_sync(&otg_sx->vbus_work);
