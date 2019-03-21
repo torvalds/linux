@@ -2110,6 +2110,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int tmp = cmd->scan_begin_arg;
+
 		cmd->scan_begin_arg =
 		    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 						       cmd->scan_begin_arg,
@@ -2120,6 +2121,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (!devpriv->is_611x && !devpriv->is_6143) {
 			unsigned int tmp = cmd->convert_arg;
+
 			cmd->convert_arg =
 			    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 							       cmd->convert_arg,
