@@ -382,16 +382,13 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	void __iomem *mbase = mtu->mac_base;
 	struct qmu_gpd *gpd_current = NULL;
-	struct usb_request *req = NULL;
 	struct mtu3_request *mreq;
 	dma_addr_t cur_gpd_dma;
 	u32 txcsr = 0;
 	int ret;
 
 	mreq = next_request(mep);
-	if (mreq && mreq->request.length == 0)
-		req = &mreq->request;
-	else
+	if (mreq && mreq->request.length != 0)
 		return;
 
 	cur_gpd_dma = read_txq_cur_addr(mbase, epnum);
@@ -402,7 +399,7 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 		return;
 	}
 
-	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, req);
+	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, mreq);
 
 	mtu3_clrbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_DMAREQEN);
 
