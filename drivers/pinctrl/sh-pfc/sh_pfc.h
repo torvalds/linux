@@ -609,6 +609,24 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 #define PINMUX_DATA_GP_ALL()		CPU_ALL_GP(_GP_DATA, unused)
 
 /*
+ * GP_ASSIGN_LAST() - Expand to an enum definition for the last GP pin
+ *
+ * The largest GP pin index is obtained by taking the size of a union,
+ * containing one array per GP pin, sized by the corresponding pin index.
+ * As the fields in the CPU_ALL_GP() macro definition are separated by commas,
+ * while the members of a union must be terminated by semicolons, the commas
+ * are absorbed by wrapping them inside dummy attributes.
+ */
+#define _GP_ENTRY(bank, pin, name, sfx, cfg)				\
+	deprecated)); char name[(bank * 32) + pin] __attribute__((deprecated
+#define GP_ASSIGN_LAST()						\
+	GP_LAST = sizeof(union {					\
+		char dummy[0] __attribute__((deprecated,		\
+		CPU_ALL_GP(_GP_ENTRY, unused),				\
+		deprecated));						\
+	})
+
+/*
  * PORT style (linear pin space)
  */
 
@@ -673,6 +691,24 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 		    PORT##pfx##_OUT, PORT##pfx##_IN)
 #define PINMUX_DATA_ALL()		CPU_ALL_PORT(_PORT_DATA, , unused)
 
+/*
+ * PORT_ASSIGN_LAST() - Expand to an enum definition for the last PORT pin
+ *
+ * The largest PORT pin index is obtained by taking the size of a union,
+ * containing one array per PORT pin, sized by the corresponding pin index.
+ * As the fields in the CPU_ALL_PORT() macro definition are separated by
+ * commas, while the members of a union must be terminated by semicolons, the
+ * commas are absorbed by wrapping them inside dummy attributes.
+ */
+#define _PORT_ENTRY(pn, pfx, sfx)					\
+	deprecated)); char pfx[pn] __attribute__((deprecated
+#define PORT_ASSIGN_LAST()						\
+	PORT_LAST = sizeof(union {					\
+		char dummy[0] __attribute__((deprecated,		\
+		CPU_ALL_PORT(_PORT_ENTRY, PORT, unused),		\
+		deprecated));						\
+	})
+
 /* GPIO_FN(name) - Expand to a sh_pfc_pin entry for a function GPIO */
 #define PINMUX_GPIO_FN(gpio, base, data_or_mark)			\
 	[gpio - (base)] = {						\
@@ -681,6 +717,26 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	}
 #define GPIO_FN(str)							\
 	PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
+
+/*
+ * Pins not associated with a GPIO port
+ */
+
+#define PIN_NOGP_CFG(pin, name, fn, cfg)	fn(pin, name, cfg)
+#define PIN_NOGP(pin, name, fn)			fn(pin, name, 0)
+
+/* NOGP_ALL - Expand to a list of PIN_id */
+#define _NOGP_ALL(pin, name, cfg)		PIN_##pin
+#define NOGP_ALL()				CPU_ALL_NOGP(_NOGP_ALL)
+
+/* PINMUX_NOGP_ALL - Expand to a list of sh_pfc_pin entries */
+#define _NOGP_PINMUX(_pin, _name, cfg)					\
+	{								\
+		.pin = PIN_##_pin,					\
+		.name = "PIN_" _name,					\
+		.configs = SH_PFC_PIN_CFG_NO_GPIO | cfg,		\
+	}
+#define PINMUX_NOGP_ALL()		CPU_ALL_NOGP(_NOGP_PINMUX)
 
 /*
  * PORTnCR helper macro for SH-Mobile/R-Mobile
