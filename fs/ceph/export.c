@@ -59,7 +59,7 @@ static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
 	return type;
 }
 
-static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
+struct inode *ceph_lookup_inode(struct super_block *sb, u64 ino)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
@@ -91,12 +91,22 @@ static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
 			ihold(inode);
 		ceph_mdsc_put_request(req);
 		if (!inode)
-			return ERR_PTR(-ESTALE);
+			return err < 0 ? ERR_PTR(err) : ERR_PTR(-ESTALE);
 		if (inode->i_nlink == 0) {
 			iput(inode);
 			return ERR_PTR(-ESTALE);
 		}
 	}
+
+	return inode;
+}
+
+static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
+{
+	struct inode *inode = ceph_lookup_inode(sb, ino);
+
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 	return d_obtain_alias(inode);
 }
