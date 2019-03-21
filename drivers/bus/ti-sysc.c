@@ -959,6 +959,42 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 #endif
 };
 
+/*
+ * Early quirks based on module base and register offsets only that are
+ * needed before the module revision can be read
+ */
+static void sysc_init_early_quirks(struct sysc *ddata)
+{
+	const struct sysc_revision_quirk *q;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sysc_revision_quirks); i++) {
+		q = &sysc_revision_quirks[i];
+
+		if (!q->base)
+			continue;
+
+		if (q->base != ddata->module_pa)
+			continue;
+
+		if (q->rev_offset >= 0 &&
+		    q->rev_offset != ddata->offsets[SYSC_REVISION])
+			continue;
+
+		if (q->sysc_offset >= 0 &&
+		    q->sysc_offset != ddata->offsets[SYSC_SYSCONFIG])
+			continue;
+
+		if (q->syss_offset >= 0 &&
+		    q->syss_offset != ddata->offsets[SYSC_SYSSTATUS])
+			continue;
+
+		ddata->name = q->name;
+		ddata->cfg.quirks |= q->quirks;
+	}
+}
+
+/* Quirks that also consider the revision register value */
 static void sysc_init_revision_quirks(struct sysc *ddata)
 {
 	const struct sysc_revision_quirk *q;
@@ -1829,10 +1865,6 @@ static int sysc_probe(struct platform_device *pdev)
 	if (error)
 		goto unprepare;
 
-	error = sysc_get_clocks(ddata);
-	if (error)
-		return error;
-
 	error = sysc_map_and_check_registers(ddata);
 	if (error)
 		goto unprepare;
@@ -1852,6 +1884,12 @@ static int sysc_probe(struct platform_device *pdev)
 	error = sysc_init_pdata(ddata);
 	if (error)
 		goto unprepare;
+
+	sysc_init_early_quirks(ddata);
+
+	error = sysc_get_clocks(ddata);
+	if (error)
+		return error;
 
 	error = sysc_init_resets(ddata);
 	if (error)
