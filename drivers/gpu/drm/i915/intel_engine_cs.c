@@ -581,7 +581,6 @@ int intel_engine_setup_common(struct intel_engine_cs *engine)
 
 	err = i915_timeline_init(engine->i915,
 				 &engine->timeline,
-				 engine->name,
 				 engine->status_page.vma);
 	if (err)
 		goto err_hwsp;
@@ -660,7 +659,7 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 		return -ENOMEM;
 
 	if (i915_timeline_init(engine->i915,
-			       &frame->timeline, "measure",
+			       &frame->timeline,
 			       engine->status_page.vma))
 		goto out_frame;
 

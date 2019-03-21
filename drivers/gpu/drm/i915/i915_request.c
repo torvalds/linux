@@ -66,7 +66,7 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return "signaled";
 
-	return to_request(fence)->timeline->name;
+	return to_request(fence)->gem_context->name ?: "[i915]";
 }
 
 static bool i915_fence_signaled(struct dma_fence *fence)
@@ -167,7 +167,6 @@ static void advance_ring(struct i915_request *request)
 		 * is just about to be. Either works, if we miss the last two
 		 * noops - they are safe to be replayed on a reset.
 		 */
-		GEM_TRACE("marking %s as inactive\n", ring->timeline->name);
 		tail = READ_ONCE(request->tail);
 		list_del(&ring->active_link);
 	} else {
@@ -1064,10 +1063,8 @@ void i915_request_add(struct i915_request *request)
 	__i915_active_request_set(&timeline->last_request, request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
-	if (list_is_first(&request->ring_link, &ring->request_list)) {
-		GEM_TRACE("marking %s as active\n", ring->timeline->name);
+	if (list_is_first(&request->ring_link, &ring->request_list))
 		list_add(&ring->active_link, &request->i915->gt.active_rings);
-	}
 	request->i915->gt.active_engines |= request->engine->mask;
 	request->emitted_jiffies = jiffies;
 

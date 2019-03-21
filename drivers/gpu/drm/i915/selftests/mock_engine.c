@@ -50,9 +50,7 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	if (!ring)
 		return NULL;
 
-	if (i915_timeline_init(engine->i915,
-			       &ring->timeline, engine->name,
-			       NULL)) {
+	if (i915_timeline_init(engine->i915, &ring->timeline, NULL)) {
 		kfree(ring);
 		return NULL;
 	}
@@ -259,10 +257,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.reset.finish = mock_reset_finish;
 	engine->base.cancel_requests = mock_cancel_requests;
 
-	if (i915_timeline_init(i915,
-			       &engine->base.timeline,
-			       engine->base.name,
-			       NULL))
+	if (i915_timeline_init(i915, &engine->base.timeline, NULL))
 		goto err_free;
 	i915_timeline_set_subclass(&engine->base.timeline, TIMELINE_ENGINE);
 

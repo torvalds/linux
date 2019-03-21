@@ -71,7 +71,6 @@ struct i915_timeline {
 	struct i915_active_request barrier;
 
 	struct list_head link;
-	const char *name;
 	struct drm_i915_private *i915;
 
 	struct kref kref;

@@ -1553,9 +1553,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (err)
 		return err;
 
-	timeline = i915_timeline_create(engine->i915,
-					engine->name,
-					engine->status_page.vma);
+	timeline = i915_timeline_create(engine->i915, engine->status_page.vma);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;

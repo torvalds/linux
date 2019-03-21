@@ -2805,7 +2805,7 @@ err_unpin_ctx:
 
 static struct i915_timeline *get_timeline(struct i915_gem_context *ctx)
 {
-	return i915_timeline_create(ctx->i915, ctx->name, NULL);
+	return i915_timeline_create(ctx->i915, NULL);
 }
 
 static int execlists_context_deferred_alloc(struct intel_context *ce,
