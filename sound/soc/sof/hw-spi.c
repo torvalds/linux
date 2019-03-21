@@ -268,11 +268,6 @@ static int spi_sof_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-static int spi_cmd_done(struct snd_sof_dev *sof_dev __maybe_unused, int dir __maybe_unused)
-{
-	return 0;
-}
-
 /* SPI SOF ops */
 const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	/* device init */
@@ -294,7 +289,6 @@ const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	/* ipc */
 	.send_msg	= spi_send_msg,
 	.fw_ready	= spi_fw_ready,
-	.cmd_done	= spi_cmd_done,
 
 	/* debug */
 	.debug_map	= NULL/*spi_debugfs*/,
