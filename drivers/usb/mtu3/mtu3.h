@@ -63,6 +63,15 @@ struct mtu3_request;
 #define MTU3_U2_IP_SLOT_DEFAULT 1
 
 /**
+ * IP TRUNK version
+ * from 0x1003 version, USB3 Gen2 is supported, two changes affect driver:
+ * 1. MAXPKT and MULTI bits layout of TXCSR1 and RXCSR1 are adjusted,
+ *    but not backward compatible
+ * 2. QMU extend buffer length supported
+ */
+#define MTU3_TRUNK_VERS_1003	0x1003
+
+/**
  * Normally the device works on HS or SS, to simplify fifo management,
  * devide fifo into some 512B parts, use bitmap to manage it; And
  * 128 bits size of bitmap is large enough, that means it can manage
@@ -316,6 +325,7 @@ static inline struct ssusb_mtk *dev_to_ssusb(struct device *dev)
  * @may_wakeup: means device's remote wakeup is enabled
  * @is_self_powered: is reported in device status and the config descriptor
  * @delayed_status: true when function drivers ask for delayed status
+ * @gen2cp: compatible with USB3 Gen2 IP
  * @ep0_req: dummy request used while handling standard USB requests
  *		for GET_STATUS and SET_SEL
  * @setup_buf: ep0 response buffer for GET_STATUS and SET_SEL requests
@@ -356,6 +366,7 @@ struct mtu3 {
 	unsigned u2_enable:1;
 	unsigned is_u3_ip:1;
 	unsigned delayed_status:1;
+	unsigned gen2cp:1;
 
 	u8 address;
 	u8 test_mode_nr;

@@ -133,11 +133,23 @@
 #define TX_W1C_BITS		(~(TX_SENTSTALL))
 
 /* U3D_TX1CSR1 */
-#define TX_MULT(x)		(((x) & 0x3) << 22)
-#define TX_MAX_PKT(x)		(((x) & 0x3f) << 16)
+#define TX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define TX_MULT_G2(x)		(((x) & 0x7) << 21)
+#define TX_MULT_OG(x)		(((x) & 0x3) << 22)
+#define TX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
 #define TX_SLOT(x)		(((x) & 0x3f) << 8)
 #define TX_TYPE(x)		(((x) & 0x3) << 4)
 #define TX_SS_BURST(x)		(((x) & 0xf) << 0)
+#define TX_MULT(g2c, x)		\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? TX_MULT_G2(x_) : TX_MULT_OG(x_);	\
+})
+#define TX_MAX_PKT(g2c, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? TX_MAX_PKT_G2(x_) : TX_MAX_PKT_OG(x_);	\
+})
 
 /* for TX_TYPE & RX_TYPE */
 #define TYPE_BULK		(0x0)
@@ -160,11 +172,23 @@
 #define RX_W1C_BITS		(~(RX_SENTSTALL | RX_RXPKTRDY))
 
 /* U3D_RX1CSR1 */
-#define RX_MULT(x)		(((x) & 0x3) << 22)
-#define RX_MAX_PKT(x)		(((x) & 0x3f) << 16)
+#define RX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define RX_MULT_G2(x)		(((x) & 0x7) << 21)
+#define RX_MULT_OG(x)		(((x) & 0x3) << 22)
+#define RX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
 #define RX_SLOT(x)		(((x) & 0x3f) << 8)
 #define RX_TYPE(x)		(((x) & 0x3) << 4)
 #define RX_SS_BURST(x)		(((x) & 0xf) << 0)
+#define RX_MULT(g2c, x)		\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? RX_MULT_G2(x_) : RX_MULT_OG(x_);	\
+})
+#define RX_MAX_PKT(g2c, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? RX_MAX_PKT_G2(x_) : RX_MAX_PKT_OG(x_);	\
+})
 
 /* U3D_RX1CSR2 */
 #define RX_BINTERVAL(x)		(((x) & 0xff) << 24)
@@ -419,6 +443,7 @@
 #define U3D_SSUSB_DEV_RST_CTRL	(SSUSB_SIFSLV_IPPC_BASE + 0x0098)
 #define U3D_SSUSB_HW_ID		(SSUSB_SIFSLV_IPPC_BASE + 0x00A0)
 #define U3D_SSUSB_HW_SUB_ID	(SSUSB_SIFSLV_IPPC_BASE + 0x00A4)
+#define U3D_SSUSB_IP_TRUNK_VERS	(U3D_SSUSB_HW_SUB_ID)
 #define U3D_SSUSB_IP_SPARE0	(SSUSB_SIFSLV_IPPC_BASE + 0x00C8)
 
 /*---------------- SSUSB_SIFSLV_IPPC FIELD DEFINITION ----------------*/
@@ -482,5 +507,8 @@
 
 /* U3D_SSUSB_DEV_RST_CTRL */
 #define SSUSB_DEV_SW_RST		BIT(0)
+
+/* U3D_SSUSB_IP_TRUNK_VERS */
+#define IP_TRUNK_VERS(x)		(((x) >> 16) & 0xffff)
 
 #endif	/* _SSUSB_HW_REGS_H_ */
