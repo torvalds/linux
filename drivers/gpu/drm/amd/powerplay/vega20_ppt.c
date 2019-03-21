@@ -132,7 +132,8 @@ static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
-	if (index > SMU_MSG_MAX_COUNT)
+
+	if (index >= SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
 	val = vega20_message_map[index];
