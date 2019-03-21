@@ -252,4 +252,6 @@ bool dc_submit_i2c(
 		uint32_t link_index,
 		struct i2c_command *cmd);
 
+uint32_t dc_bandwidth_in_kbps_from_timing(
+	const struct dc_crtc_timing *timing);
 #endif /* DC_LINK_H_ */
