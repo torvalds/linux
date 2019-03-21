@@ -1039,15 +1039,22 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		ret = stm32_dfsdm_set_osrs(fl, 0, val);
 		if (!ret)
 			adc->oversamp = val;
-
+		iio_device_release_direct_mode(indio_dev);
 		return ret;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (!val)
 			return -EINVAL;
+
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 
 		switch (ch->src) {
 		case DFSDM_CHANNEL_SPI_CLOCK_INTERNAL:
@@ -1070,9 +1077,11 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 		if (ret < 0) {
 			dev_err(&indio_dev->dev,
 				"Not able to find parameter that match!\n");
+			iio_device_release_direct_mode(indio_dev);
 			return ret;
 		}
 		adc->sample_freq = val;
+		iio_device_release_direct_mode(indio_dev);
 
 		return 0;
 	}
@@ -1089,11 +1098,15 @@ static int stm32_dfsdm_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		ret = iio_hw_consumer_enable(adc->hwc);
 		if (ret < 0) {
 			dev_err(&indio_dev->dev,
 				"%s: IIO enable failed (channel %d)\n",
 				__func__, chan->channel);
+			iio_device_release_direct_mode(indio_dev);
 			return ret;
 		}
 		ret = stm32_dfsdm_single_conv(indio_dev, chan, val);
@@ -1102,8 +1115,10 @@ static int stm32_dfsdm_read_raw(struct iio_dev *indio_dev,
 			dev_err(&indio_dev->dev,
 				"%s: Conversion failed (channel %d)\n",
 				__func__, chan->channel);
+			iio_device_release_direct_mode(indio_dev);
 			return ret;
 		}
+		iio_device_release_direct_mode(indio_dev);
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
