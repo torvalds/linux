@@ -3241,9 +3241,10 @@ static int omap_hwmod_init_regbits(struct device *dev,
  * @sysc_offs: sysc register offset
  * @syss_offs: syss register offset
  */
-int omap_hwmod_init_reg_offs(struct device *dev,
-			     const struct ti_sysc_module_data *data,
-			     s32 *rev_offs, s32 *sysc_offs, s32 *syss_offs)
+static int omap_hwmod_init_reg_offs(struct device *dev,
+				    const struct ti_sysc_module_data *data,
+				    s32 *rev_offs, s32 *sysc_offs,
+				    s32 *syss_offs)
 {
 	*rev_offs = -ENODEV;
 	*sysc_offs = 0;
@@ -3267,9 +3268,9 @@ int omap_hwmod_init_reg_offs(struct device *dev,
  * @data: module data
  * @sysc_flags: module configuration
  */
-int omap_hwmod_init_sysc_flags(struct device *dev,
-			       const struct ti_sysc_module_data *data,
-			       u32 *sysc_flags)
+static int omap_hwmod_init_sysc_flags(struct device *dev,
+				      const struct ti_sysc_module_data *data,
+				      u32 *sysc_flags)
 {
 	*sysc_flags = 0;
 
@@ -3341,9 +3342,9 @@ int omap_hwmod_init_sysc_flags(struct device *dev,
  * @data: module data
  * @idlemodes: module supported idle modes
  */
-int omap_hwmod_init_idlemodes(struct device *dev,
-			      const struct ti_sysc_module_data *data,
-			      u32 *idlemodes)
+static int omap_hwmod_init_idlemodes(struct device *dev,
+				     const struct ti_sysc_module_data *data,
+				     u32 *idlemodes)
 {
 	*idlemodes = 0;
 
@@ -3434,11 +3435,12 @@ static int omap_hwmod_check_module(struct device *dev,
  *
  * Note that the allocations here cannot use devm as ti-sysc can rebind.
  */
-int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
-			       const struct ti_sysc_module_data *data,
-			       struct sysc_regbits *sysc_fields,
-			       s32 rev_offs, s32 sysc_offs, s32 syss_offs,
-			       u32 sysc_flags, u32 idlemodes)
+static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
+				      const struct ti_sysc_module_data *data,
+				      struct sysc_regbits *sysc_fields,
+				      s32 rev_offs, s32 sysc_offs,
+				      s32 syss_offs, u32 sysc_flags,
+				      u32 idlemodes)
 {
 	struct omap_hwmod_class_sysconfig *sysc;
 	struct omap_hwmod_class *class;
