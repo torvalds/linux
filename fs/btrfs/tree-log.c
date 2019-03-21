@@ -225,6 +225,17 @@ void btrfs_end_log_trans(struct btrfs_root *root)
 	}
 }
 
+static int btrfs_write_tree_block(struct extent_buffer *buf)
+{
+	return filemap_fdatawrite_range(buf->pages[0]->mapping, buf->start,
+					buf->start + buf->len - 1);
+}
+
+static void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
+{
+	filemap_fdatawait_range(buf->pages[0]->mapping,
+			        buf->start, buf->start + buf->len - 1);
+}
 
 /*
  * the walk control struct is used to pass state down the chain when

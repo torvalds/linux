@@ -1078,19 +1078,6 @@ struct extent_buffer *btrfs_find_create_tree_block(
 	return alloc_extent_buffer(fs_info, bytenr);
 }
 
-
-int btrfs_write_tree_block(struct extent_buffer *buf)
-{
-	return filemap_fdatawrite_range(buf->pages[0]->mapping, buf->start,
-					buf->start + buf->len - 1);
-}
-
-void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
-{
-	filemap_fdatawait_range(buf->pages[0]->mapping,
-			        buf->start, buf->start + buf->len - 1);
-}
-
 /*
  * Read tree block at logical address @bytenr and do variant basic but critical
  * verification.
