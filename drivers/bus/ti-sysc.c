@@ -783,10 +783,8 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 
 	if (ddata->legacy_mode) {
 		error = sysc_runtime_suspend_legacy(dev, ddata);
-		if (!error)
-			ddata->enabled = false;
-
-		return error;
+		if (error)
+			return error;
 	}
 
 	sysc_disable_main_clocks(ddata);
@@ -809,14 +807,6 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 	if (ddata->enabled)
 		return 0;
 
-	if (ddata->legacy_mode) {
-		error = sysc_runtime_resume_legacy(dev, ddata);
-		if (!error)
-			ddata->enabled = true;
-
-		return error;
-	}
-
 	if (sysc_opt_clks_needed(ddata)) {
 		error = sysc_enable_opt_clocks(ddata);
 		if (error)
@@ -825,13 +815,21 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 
 	error = sysc_enable_main_clocks(ddata);
 	if (error)
-		goto err_main_clocks;
+		goto err_opt_clocks;
+
+	if (ddata->legacy_mode) {
+		error = sysc_runtime_resume_legacy(dev, ddata);
+		if (error)
+			goto err_main_clocks;
+	}
 
 	ddata->enabled = true;
 
 	return 0;
 
 err_main_clocks:
+	sysc_disable_main_clocks(ddata);
+err_opt_clocks:
 	if (sysc_opt_clks_needed(ddata))
 		sysc_disable_opt_clocks(ddata);
 
