@@ -175,9 +175,9 @@ struct pno_ssid {
 	u8 SSID[32];
 };
 
-typedef struct pno_ssid_list {
+struct pno_ssid_list {
 	struct pno_ssid	node[MAX_PNO_LIST_COUNT];
-}pno_ssid_list_t;
+};
 
 typedef struct pno_scan_channel_info
 {
@@ -281,7 +281,7 @@ struct pwrctrl_priv
 	u8 pno_inited;
 	struct pno_nlo_info *pnlo_info;
 	pno_scan_info_t	*pscan_info;
-	pno_ssid_list_t	*pno_ssid_list;
+	struct pno_ssid_list *pno_ssid_list;
 #endif
 	u32 	wowlan_pattern_context[8][5];
 	u64		wowlan_fw_iv;
