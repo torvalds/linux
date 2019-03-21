@@ -19,7 +19,6 @@
 
 #include <linux/io.h>
 #include <linux/power/smartreflex.h>
-#include <linux/platform_data/i2c-omap.h>
 
 #include <linux/omap-dma.h>
 
@@ -28,7 +27,6 @@
 #include "cm1_7xx.h"
 #include "cm2_7xx.h"
 #include "prm7xx.h"
-#include "i2c.h"
 #include "wd_timer.h"
 #include "soc.h"
 
@@ -1055,109 +1053,6 @@ static struct omap_hwmod dra7xx_hdq1w_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER_HDQ1W_CLKCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L4PER_HDQ1W_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
- * 'i2c' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_i2c_sysc = {
-	.rev_offs	= 0,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0090,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_i2c_hwmod_class = {
-	.name	= "i2c",
-	.sysc	= &dra7xx_i2c_sysc,
-	.reset	= &omap_i2c_reset,
-};
-
-/* i2c1 */
-static struct omap_hwmod dra7xx_i2c1_hwmod = {
-	.name		= "i2c1",
-	.class		= &dra7xx_i2c_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
-	.main_clk	= "func_96m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_I2C1_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_I2C1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* i2c2 */
-static struct omap_hwmod dra7xx_i2c2_hwmod = {
-	.name		= "i2c2",
-	.class		= &dra7xx_i2c_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
-	.main_clk	= "func_96m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_I2C2_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_I2C2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* i2c3 */
-static struct omap_hwmod dra7xx_i2c3_hwmod = {
-	.name		= "i2c3",
-	.class		= &dra7xx_i2c_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
-	.main_clk	= "func_96m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_I2C3_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_I2C3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* i2c4 */
-static struct omap_hwmod dra7xx_i2c4_hwmod = {
-	.name		= "i2c4",
-	.class		= &dra7xx_i2c_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
-	.main_clk	= "func_96m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_I2C4_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_I2C4_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* i2c5 */
-static struct omap_hwmod dra7xx_i2c5_hwmod = {
-	.name		= "i2c5",
-	.class		= &dra7xx_i2c_hwmod_class,
-	.clkdm_name	= "ipu_clkdm",
-	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
-	.main_clk	= "func_96m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_IPU_I2C5_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_IPU_I2C5_CONTEXT_OFFSET,
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
@@ -3075,46 +2970,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per1__hdq1w = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per1 -> i2c1 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__i2c1 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_i2c1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> i2c2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__i2c2 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_i2c2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> i2c3 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__i2c3 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_i2c3_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> i2c4 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__i2c4 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_i2c4_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> i2c5 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__i2c5 = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_i2c5_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> mailbox1 */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mailbox1 = {
 	.master		= &dra7xx_l4_cfg_hwmod,
@@ -3726,11 +3581,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per1__gpio8,
 	&dra7xx_l3_main_1__gpmc,
 	&dra7xx_l4_per1__hdq1w,
-	&dra7xx_l4_per1__i2c1,
-	&dra7xx_l4_per1__i2c2,
-	&dra7xx_l4_per1__i2c3,
-	&dra7xx_l4_per1__i2c4,
-	&dra7xx_l4_per1__i2c5,
 	&dra7xx_l4_cfg__mailbox1,
 	&dra7xx_l4_per3__mailbox2,
 	&dra7xx_l4_per3__mailbox3,
