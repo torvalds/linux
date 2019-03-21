@@ -360,4 +360,9 @@ static struct platform_driver ufs_mtk_pltform = {
 	},
 };
 
+MODULE_AUTHOR("Stanley Chu <stanley.chu@mediatek.com>");
+MODULE_AUTHOR("Peter Wang <peter.wang@mediatek.com>");
+MODULE_DESCRIPTION("MediaTek UFS Host Driver");
+MODULE_LICENSE("GPL v2");
+
 module_platform_driver(ufs_mtk_pltform);
