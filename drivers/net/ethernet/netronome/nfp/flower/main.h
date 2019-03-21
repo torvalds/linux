@@ -35,7 +35,6 @@ struct nfp_app;
 #define NFP_FL_MASK_ID_LOCATION		1
 
 #define NFP_FL_VXLAN_PORT		4789
-#define NFP_FL_GENEVE_PORT		6081
 
 /* Extra features bitmap. */
 #define NFP_FL_FEATS_GENEVE		BIT(0)
