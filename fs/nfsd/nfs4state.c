@@ -1879,6 +1879,24 @@ err_no_name:
 	return NULL;
 }
 
+static void __free_client(struct kref *k)
+{
+	struct nfs4_client *clp = container_of(k, struct nfs4_client, cl_ref);
+
+	free_svc_cred(&clp->cl_cred);
+	kfree(clp->cl_ownerstr_hashtbl);
+	kfree(clp->cl_name.data);
+	idr_destroy(&clp->cl_stateids);
+	if (clp->cl_nfsd_dentry)
+		nfsd_client_rmdir(clp->cl_nfsd_dentry);
+	kmem_cache_free(client_slab, clp);
+}
+
+void drop_client(struct nfs4_client *clp)
+{
+	kref_put(&clp->cl_ref, __free_client);
+}
+
 static void
 free_client(struct nfs4_client *clp)
 {
@@ -1891,11 +1909,7 @@ free_client(struct nfs4_client *clp)
 		free_session(ses);
 	}
 	rpc_destroy_wait_queue(&clp->cl_cb_waitq);
-	free_svc_cred(&clp->cl_cred);
-	kfree(clp->cl_ownerstr_hashtbl);
-	kfree(clp->cl_name.data);
-	idr_destroy(&clp->cl_stateids);
-	kmem_cache_free(client_slab, clp);
+	drop_client(clp);
 }
 
 /* must be called under the client_lock */
@@ -2216,6 +2230,8 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 		free_client(clp);
 		return NULL;
 	}
+
+	kref_init(&clp->cl_ref);
 	nfsd4_init_cb(&clp->cl_cb_null, clp, NULL, NFSPROC4_CLNT_CB_NULL);
 	clp->cl_time = get_seconds();
 	clear_bit(0, &clp->cl_cb_slot_busy);
