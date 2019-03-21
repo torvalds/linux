@@ -235,6 +235,7 @@ static struct omap_hwmod_soc_ops soc_ops;
 
 /* omap_hwmod_list contains all registered struct omap_hwmods */
 static LIST_HEAD(omap_hwmod_list);
+static DEFINE_MUTEX(list_lock);
 
 /* mpu_oh: used to add/remove MPU initiator from sleepdep list */
 static struct omap_hwmod *mpu_oh;
@@ -2624,7 +2625,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
  * that the copy process would be relatively complex due to the large number
  * of substructures.
  */
-static int __init _register(struct omap_hwmod *oh)
+static int _register(struct omap_hwmod *oh)
 {
 	if (!oh || !oh->name || !oh->class || !oh->class->name ||
 	    (oh->_state != _HWMOD_STATE_UNKNOWN))
@@ -2663,7 +2664,7 @@ static int __init _register(struct omap_hwmod *oh)
  * locking in this code.  Changes to this assumption will require
  * additional locking.  Returns 0.
  */
-static int __init _add_link(struct omap_hwmod_ocp_if *oi)
+static int _add_link(struct omap_hwmod_ocp_if *oi)
 {
 	pr_debug("omap_hwmod: %s -> %s: adding link\n", oi->master->name,
 		 oi->slave->name);
@@ -3444,6 +3445,9 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 {
 	struct omap_hwmod_class_sysconfig *sysc;
 	struct omap_hwmod_class *class = NULL;
+	struct omap_hwmod_ocp_if *oi = NULL;
+	struct clockdomain *clkdm = NULL;
+	struct clk *clk = NULL;
 	void __iomem *regs = NULL;
 	unsigned long flags;
 
@@ -3476,13 +3480,62 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 			return -ENOMEM;
 	}
 
+	if (list_empty(&oh->slave_ports)) {
+		oi = kcalloc(1, sizeof(*oi), GFP_KERNEL);
+		if (!oi)
+			return -ENOMEM;
+
+		/*
+		 * Note that we assume interconnect interface clocks will be
+		 * managed by the interconnect driver for OCPIF_SWSUP_IDLE case
+		 * on omap24xx and omap3.
+		 */
+		oi->slave = oh;
+		oi->user = OCP_USER_MPU | OCP_USER_SDMA;
+	}
+
+	if (!oh->_clk) {
+		struct clk_hw_omap *hwclk;
+
+		clk = of_clk_get_by_name(dev->of_node, "fck");
+		if (!IS_ERR(clk))
+			clk_prepare(clk);
+		else
+			clk = NULL;
+
+		/*
+		 * Populate clockdomain based on dts clock. It is needed for
+		 * clkdm_deny_idle() and clkdm_allow_idle() until we have have
+		 * interconnect driver and reset driver capable of blocking
+		 * clockdomain idle during reset, enable and idle.
+		 */
+		if (clk) {
+			hwclk = to_clk_hw_omap(__clk_get_hw(clk));
+			if (hwclk && hwclk->clkdm_name)
+				clkdm = clkdm_lookup(hwclk->clkdm_name);
+		}
+
+		/*
+		 * Note that we assume interconnect driver manages the clocks
+		 * and do not need to populate oh->_clk for dynamically
+		 * allocated modules.
+		 */
+		clk_unprepare(clk);
+		clk_put(clk);
+	}
+
 	spin_lock_irqsave(&oh->_lock, flags);
 	if (regs)
 		oh->_mpu_rt_va = regs;
 	if (class)
 		oh->class = class;
 	oh->class->sysc = sysc;
+	if (oi)
+		_add_link(oi);
+	if (clkdm)
+		oh->clkdm = clkdm;
 	oh->_state = _HWMOD_STATE_INITIALIZED;
+	oh->_postsetup_state = _HWMOD_STATE_DEFAULT;
 	_setup(oh, NULL);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
@@ -3509,8 +3562,29 @@ int omap_hwmod_init_module(struct device *dev,
 		return -EINVAL;
 
 	oh = _lookup(data->name);
-	if (!oh)
-		return -ENODEV;
+	if (!oh) {
+		oh = kzalloc(sizeof(*oh), GFP_KERNEL);
+		if (!oh)
+			return -ENOMEM;
+
+		oh->name = data->name;
+		oh->_state = _HWMOD_STATE_UNKNOWN;
+		lockdep_register_key(&oh->hwmod_key);
+
+		/* Unused, can be handled by PRM driver handling resets */
+		oh->prcm.omap4.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT;
+
+		oh->class = kzalloc(sizeof(*oh->class), GFP_KERNEL);
+		if (!oh->class) {
+			kfree(oh);
+			return -ENOMEM;
+		}
+
+		oh->class->name = data->name;
+		mutex_lock(&list_lock);
+		error = _register(oh);
+		mutex_unlock(&list_lock);
+	}
 
 	cookie->data = oh;
 
