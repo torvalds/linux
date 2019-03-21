@@ -337,15 +337,13 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 }
 
 static struct i915_gem_context *
-__create_hw_context(struct drm_i915_private *dev_priv,
-		    struct drm_i915_file_private *file_priv)
+__create_context(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
-	int ret;
 	int i;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (ctx == NULL)
+	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&ctx->ref);
@@ -361,29 +359,6 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
 	INIT_LIST_HEAD(&ctx->hw_id_link);
-
-	/* Default context will never have a file_priv */
-	ret = DEFAULT_CONTEXT_HANDLE;
-	if (file_priv) {
-		ret = idr_alloc(&file_priv->context_idr, ctx,
-				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
-		if (ret < 0)
-			goto err_lut;
-	}
-	ctx->user_handle = ret;
-
-	ctx->file_priv = file_priv;
-	if (file_priv) {
-		ctx->pid = get_task_pid(current, PIDTYPE_PID);
-		ctx->name = kasprintf(GFP_KERNEL, "%s[%d]/%x",
-				      current->comm,
-				      pid_nr(ctx->pid),
-				      ctx->user_handle);
-		if (!ctx->name) {
-			ret = -ENOMEM;
-			goto err_pid;
-		}
-	}
 
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
@@ -401,25 +376,10 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
 
 	return ctx;
-
-err_pid:
-	put_pid(ctx->pid);
-	idr_remove(&file_priv->context_idr, ctx->user_handle);
-err_lut:
-	context_close(ctx);
-	return ERR_PTR(ret);
-}
-
-static void __destroy_hw_context(struct i915_gem_context *ctx,
-				 struct drm_i915_file_private *file_priv)
-{
-	idr_remove(&file_priv->context_idr, ctx->user_handle);
-	context_close(ctx);
 }
 
 static struct i915_gem_context *
-i915_gem_create_context(struct drm_i915_private *dev_priv,
-			struct drm_i915_file_private *file_priv)
+i915_gem_create_context(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
 
@@ -428,18 +388,18 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 	/* Reap the most stale context */
 	contexts_free_first(dev_priv);
 
-	ctx = __create_hw_context(dev_priv, file_priv);
+	ctx = __create_context(dev_priv);
 	if (IS_ERR(ctx))
 		return ctx;
 
 	if (HAS_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
-		ppgtt = i915_ppgtt_create(dev_priv, file_priv);
+		ppgtt = i915_ppgtt_create(dev_priv);
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
-			__destroy_hw_context(ctx, file_priv);
+			context_close(ctx);
 			return ERR_CAST(ppgtt);
 		}
 
@@ -475,7 +435,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = i915_gem_create_context(to_i915(dev), NULL);
+	ctx = i915_gem_create_context(to_i915(dev));
 	if (IS_ERR(ctx))
 		goto out;
 
@@ -511,7 +471,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 	struct i915_gem_context *ctx;
 	int err;
 
-	ctx = i915_gem_create_context(i915, NULL);
+	ctx = i915_gem_create_context(i915);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -625,25 +585,74 @@ static int context_idr_cleanup(int id, void *p, void *data)
 	return 0;
 }
 
+static int gem_context_register(struct i915_gem_context *ctx,
+				struct drm_i915_file_private *fpriv)
+{
+	int ret;
+
+	ctx->file_priv = fpriv;
+	if (ctx->ppgtt)
+		ctx->ppgtt->vm.file = fpriv;
+
+	ctx->pid = get_task_pid(current, PIDTYPE_PID);
+	ctx->name = kasprintf(GFP_KERNEL, "%s[%d]",
+			      current->comm, pid_nr(ctx->pid));
+	if (!ctx->name) {
+		ret = -ENOMEM;
+		goto err_pid;
+	}
+
+	/* And finally expose ourselves to userspace via the idr */
+	ret = idr_alloc(&fpriv->context_idr, ctx,
+			DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
+	if (ret < 0)
+		goto err_name;
+
+	ctx->user_handle = ret;
+
+	return 0;
+
+err_name:
+	kfree(fetch_and_zero(&ctx->name));
+err_pid:
+	put_pid(fetch_and_zero(&ctx->pid));
+	return ret;
+}
+
 int i915_gem_context_open(struct drm_i915_private *i915,
 			  struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
+	int err;
 
 	idr_init(&file_priv->context_idr);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	ctx = i915_gem_create_context(i915, file_priv);
-	mutex_unlock(&i915->drm.struct_mutex);
+
+	ctx = i915_gem_create_context(i915);
 	if (IS_ERR(ctx)) {
-		idr_destroy(&file_priv->context_idr);
-		return PTR_ERR(ctx);
+		err = PTR_ERR(ctx);
+		goto err;
 	}
 
+	err = gem_context_register(ctx, file_priv);
+	if (err)
+		goto err_ctx;
+
+	GEM_BUG_ON(ctx->user_handle != DEFAULT_CONTEXT_HANDLE);
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 
+	mutex_unlock(&i915->drm.struct_mutex);
+
 	return 0;
+
+err_ctx:
+	context_close(ctx);
+err:
+	mutex_unlock(&i915->drm.struct_mutex);
+	idr_destroy(&file_priv->context_idr);
+	return PTR_ERR(ctx);
 }
 
 void i915_gem_context_close(struct drm_file *file)
@@ -835,17 +844,28 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(i915, file_priv);
-	mutex_unlock(&dev->struct_mutex);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	ctx = i915_gem_create_context(i915);
+	if (IS_ERR(ctx)) {
+		ret = PTR_ERR(ctx);
+		goto err_unlock;
+	}
 
-	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
+	ret = gem_context_register(ctx, file_priv);
+	if (ret)
+		goto err_ctx;
+
+	mutex_unlock(&dev->struct_mutex);
 
 	args->ctx_id = ctx->user_handle;
 	DRM_DEBUG("HW context %d created\n", args->ctx_id);
 
 	return 0;
+
+err_ctx:
+	context_close(ctx);
+err_unlock:
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
@@ -870,7 +890,9 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	__destroy_hw_context(ctx, file_priv);
+	idr_remove(&file_priv->context_idr, ctx->user_handle);
+	context_close(ctx);
+
 	mutex_unlock(&dev->struct_mutex);
 
 out:

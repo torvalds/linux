@@ -76,7 +76,7 @@ static int live_nop_switch(void *arg)
 	}
 
 	for (n = 0; n < nctx; n++) {
-		ctx[n] = i915_gem_create_context(i915, file->driver_priv);
+		ctx[n] = live_context(i915, file);
 		if (IS_ERR(ctx[n])) {
 			err = PTR_ERR(ctx[n]);
 			goto out_unlock;
@@ -513,7 +513,7 @@ static int igt_ctx_exec(void *arg)
 		struct i915_gem_context *ctx;
 		unsigned int id;
 
-		ctx = i915_gem_create_context(i915, file->driver_priv);
+		ctx = live_context(i915, file);
 		if (IS_ERR(ctx)) {
 			err = PTR_ERR(ctx);
 			goto out_unlock;
@@ -962,7 +962,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	ctx = i915_gem_create_context(i915, file->driver_priv);
+	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
 		goto out_unlock;
@@ -1072,7 +1072,7 @@ static int igt_ctx_readonly(void *arg)
 	if (err)
 		goto out_unlock;
 
-	ctx = i915_gem_create_context(i915, file->driver_priv);
+	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out_unlock;
@@ -1397,13 +1397,13 @@ static int igt_vm_isolation(void *arg)
 	if (err)
 		goto out_unlock;
 
-	ctx_a = i915_gem_create_context(i915, file->driver_priv);
+	ctx_a = live_context(i915, file);
 	if (IS_ERR(ctx_a)) {
 		err = PTR_ERR(ctx_a);
 		goto out_unlock;
 	}
 
-	ctx_b = i915_gem_create_context(i915, file->driver_priv);
+	ctx_b = live_context(i915, file);
 	if (IS_ERR(ctx_b)) {
 		err = PTR_ERR(ctx_b);
 		goto out_unlock;

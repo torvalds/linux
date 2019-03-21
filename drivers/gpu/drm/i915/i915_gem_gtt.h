@@ -603,15 +603,17 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv);
-void i915_ppgtt_release(struct kref *kref);
-struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
-					struct drm_i915_file_private *fpriv);
+
+struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
 void i915_ppgtt_close(struct i915_address_space *vm);
+void i915_ppgtt_release(struct kref *kref);
+
 static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)
 		kref_get(&ppgtt->ref);
 }
+
 static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)
