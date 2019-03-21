@@ -187,6 +187,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 	LIST_HEAD(journal);
 	struct jset *j = NULL;
 	unsigned i;
+	bool run_gc = c->opts.fsck ||
+		!(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO));
 	int ret;
 
 	mutex_lock(&c->sb_lock);
@@ -282,6 +284,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 				goto err;
 
 			mustfix_fsck_err(c, "error reading btree root");
+			run_gc = true;
 		}
 	}
 
@@ -302,8 +305,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
-	if (!(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
-	    c->opts.fsck) {
+	if (run_gc) {
 		bch_verbose(c, "starting mark and sweep:");
 		err = "error in recovery";
 		ret = bch2_gc(c, &journal, true);
