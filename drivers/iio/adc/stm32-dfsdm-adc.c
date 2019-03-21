@@ -429,12 +429,10 @@ static ssize_t dfsdm_adc_audio_set_spiclk(struct iio_dev *indio_dev,
 }
 
 static int stm32_dfsdm_start_conv(struct stm32_dfsdm_adc *adc,
-				  const struct iio_chan_spec *chan,
-				  bool dma)
+				  const struct iio_chan_spec *chan)
 {
 	struct regmap *regmap = adc->dfsdm->regmap;
 	int ret;
-	unsigned int dma_en = 0;
 
 	ret = stm32_dfsdm_start_channel(adc->dfsdm, chan->channel);
 	if (ret < 0)
@@ -444,25 +442,12 @@ static int stm32_dfsdm_start_conv(struct stm32_dfsdm_adc *adc,
 	if (ret < 0)
 		goto stop_channels;
 
-	if (dma) {
-		/* Enable DMA transfer*/
-		dma_en =  DFSDM_CR1_RDMAEN(1);
-	}
-	/* Enable DMA transfer*/
-	ret = regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
-				 DFSDM_CR1_RDMAEN_MASK, dma_en);
+	ret = stm32_dfsdm_start_filter(adc->dfsdm, adc->fl_id);
 	if (ret < 0)
 		goto filter_unconfigure;
 
-	ret = stm32_dfsdm_start_filter(adc->dfsdm, adc->fl_id);
-	if (ret < 0)
-		goto stop_dma;
-
 	return 0;
 
-stop_dma:
-	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
-			   DFSDM_CR1_RDMAEN_MASK, 0);
 filter_unconfigure:
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
 			   DFSDM_CR1_CFG_MASK, 0);
@@ -478,10 +463,6 @@ static void stm32_dfsdm_stop_conv(struct stm32_dfsdm_adc *adc,
 	struct regmap *regmap = adc->dfsdm->regmap;
 
 	stm32_dfsdm_stop_filter(adc->dfsdm, adc->fl_id);
-
-	/* Clean conversion options */
-	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
-			   DFSDM_CR1_RDMAEN_MASK, 0);
 
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
 			   DFSDM_CR1_CFG_MASK, 0);
@@ -599,15 +580,36 @@ static int stm32_dfsdm_adc_dma_start(struct iio_dev *indio_dev)
 
 	cookie = dmaengine_submit(desc);
 	ret = dma_submit_error(cookie);
-	if (ret) {
-		dmaengine_terminate_all(adc->dma_chan);
-		return ret;
-	}
+	if (ret)
+		goto err_stop_dma;
 
 	/* Issue pending DMA requests */
 	dma_async_issue_pending(adc->dma_chan);
 
+	/* Enable DMA transfer*/
+	ret = regmap_update_bits(adc->dfsdm->regmap, DFSDM_CR1(adc->fl_id),
+				 DFSDM_CR1_RDMAEN_MASK, DFSDM_CR1_RDMAEN_MASK);
+	if (ret < 0)
+		goto err_stop_dma;
+
 	return 0;
+
+err_stop_dma:
+	dmaengine_terminate_all(adc->dma_chan);
+
+	return ret;
+}
+
+static void stm32_dfsdm_adc_dma_stop(struct iio_dev *indio_dev)
+{
+	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+
+	if (!adc->dma_chan)
+		return;
+
+	regmap_update_bits(adc->dfsdm->regmap, DFSDM_CR1(adc->fl_id),
+			   DFSDM_CR1_RDMAEN_MASK, 0);
+	dmaengine_terminate_all(adc->dma_chan);
 }
 
 static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
@@ -623,24 +625,22 @@ static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	ret = stm32_dfsdm_start_conv(adc, chan, true);
+	ret = stm32_dfsdm_adc_dma_start(indio_dev);
 	if (ret) {
-		dev_err(&indio_dev->dev, "Can't start conversion\n");
+		dev_err(&indio_dev->dev, "Can't start DMA\n");
 		goto stop_dfsdm;
 	}
 
-	if (adc->dma_chan) {
-		ret = stm32_dfsdm_adc_dma_start(indio_dev);
-		if (ret) {
-			dev_err(&indio_dev->dev, "Can't start DMA\n");
-			goto err_stop_conv;
-		}
+	ret = stm32_dfsdm_start_conv(adc, chan);
+	if (ret) {
+		dev_err(&indio_dev->dev, "Can't start conversion\n");
+		goto err_stop_dma;
 	}
 
 	return 0;
 
-err_stop_conv:
-	stm32_dfsdm_stop_conv(adc, chan);
+err_stop_dma:
+	stm32_dfsdm_adc_dma_stop(indio_dev);
 stop_dfsdm:
 	stm32_dfsdm_stop_dfsdm(adc->dfsdm);
 
@@ -652,10 +652,9 @@ static int stm32_dfsdm_predisable(struct iio_dev *indio_dev)
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 	const struct iio_chan_spec *chan = &indio_dev->channels[0];
 
-	if (adc->dma_chan)
-		dmaengine_terminate_all(adc->dma_chan);
-
 	stm32_dfsdm_stop_conv(adc, chan);
+
+	stm32_dfsdm_adc_dma_stop(indio_dev);
 
 	stm32_dfsdm_stop_dfsdm(adc->dfsdm);
 
@@ -736,7 +735,7 @@ static int stm32_dfsdm_single_conv(struct iio_dev *indio_dev,
 	if (ret < 0)
 		goto stop_dfsdm;
 
-	ret = stm32_dfsdm_start_conv(adc, chan, false);
+	ret = stm32_dfsdm_start_conv(adc, chan);
 	if (ret < 0) {
 		regmap_update_bits(adc->dfsdm->regmap, DFSDM_CR2(adc->fl_id),
 				   DFSDM_CR2_REOCIE_MASK, DFSDM_CR2_REOCIE(0));
