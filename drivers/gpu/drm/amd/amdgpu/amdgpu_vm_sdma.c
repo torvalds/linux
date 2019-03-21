@@ -29,6 +29,25 @@
 #define AMDGPU_VM_SDMA_MAX_NUM_DW	(16u * 1024u)
 
 /**
+ * amdgpu_vm_sdma_map_table - make sure new PDs/PTs are GTT mapped
+ *
+ * @table: newly allocated or validated PD/PT
+ */
+static int amdgpu_vm_sdma_map_table(struct amdgpu_bo *table)
+{
+	int r;
+
+	r = amdgpu_ttm_alloc_gart(&table->tbo);
+	if (r)
+		return r;
+
+	if (table->shadow)
+		r = amdgpu_ttm_alloc_gart(&table->shadow->tbo);
+
+	return r;
+}
+
+/**
  * amdgpu_vm_sdma_prepare - prepare SDMA command submission
  *
  * @p: see amdgpu_vm_update_params definition
@@ -242,6 +261,7 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 }
 
 const struct amdgpu_vm_update_funcs amdgpu_vm_sdma_funcs = {
+	.map_table = amdgpu_vm_sdma_map_table,
 	.prepare = amdgpu_vm_sdma_prepare,
 	.update = amdgpu_vm_sdma_update,
 	.commit = amdgpu_vm_sdma_commit

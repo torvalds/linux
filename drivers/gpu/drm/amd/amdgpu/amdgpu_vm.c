@@ -659,17 +659,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		if (bo->tbo.type != ttm_bo_type_kernel) {
 			amdgpu_vm_bo_moved(bo_base);
 		} else {
-			if (vm->use_cpu_for_update)
-				r = amdgpu_bo_kmap(bo, NULL);
-			else
-				r = amdgpu_ttm_alloc_gart(&bo->tbo);
-			if (r)
-				break;
-			if (bo->shadow) {
-				r = amdgpu_ttm_alloc_gart(&bo->shadow->tbo);
-				if (r)
-					break;
-			}
+			vm->update_funcs->map_table(bo);
 			amdgpu_vm_bo_relocated(bo_base);
 		}
 	}
@@ -751,21 +741,16 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	r = amdgpu_ttm_alloc_gart(&bo->tbo);
-	if (r)
-		return r;
-
 	if (bo->shadow) {
 		r = ttm_bo_validate(&bo->shadow->tbo, &bo->shadow->placement,
 				    &ctx);
 		if (r)
 			return r;
-
-		r = amdgpu_ttm_alloc_gart(&bo->shadow->tbo);
-		if (r)
-			return r;
-
 	}
+
+	r = vm->update_funcs->map_table(bo);
+	if (r)
+		return r;
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -876,12 +861,6 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	r = amdgpu_bo_create(adev, &bp, &pt);
 	if (r)
 		return r;
-
-	if (vm->use_cpu_for_update) {
-		r = amdgpu_bo_kmap(pt, NULL);
-		if (r)
-			goto error_free_pt;
-	}
 
 	/* Keep a reference to the root directory to avoid
 	 * freeing them up in the wrong order.

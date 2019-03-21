@@ -215,7 +215,7 @@ struct amdgpu_vm_update_params {
 };
 
 struct amdgpu_vm_update_funcs {
-
+	int (*map_table)(struct amdgpu_bo *bo);
 	int (*prepare)(struct amdgpu_vm_update_params *p, void * owner,
 		       struct dma_fence *exclusive);
 	int (*update)(struct amdgpu_vm_update_params *p,

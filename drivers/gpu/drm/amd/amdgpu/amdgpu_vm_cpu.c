@@ -25,6 +25,16 @@
 #include "amdgpu_trace.h"
 
 /**
+ * amdgpu_vm_cpu_map_table - make sure new PDs/PTs are kmapped
+ *
+ * @table: newly allocated or validated PD/PT
+ */
+static int amdgpu_vm_cpu_map_table(struct amdgpu_bo *table)
+{
+	return amdgpu_bo_kmap(table, NULL);
+}
+
+/**
  * amdgpu_vm_cpu_prepare - prepare page table update with the CPU
  *
  * @p: see amdgpu_vm_update_params definition
@@ -110,6 +120,7 @@ static int amdgpu_vm_cpu_commit(struct amdgpu_vm_update_params *p,
 }
 
 const struct amdgpu_vm_update_funcs amdgpu_vm_cpu_funcs = {
+	.map_table = amdgpu_vm_cpu_map_table,
 	.prepare = amdgpu_vm_cpu_prepare,
 	.update = amdgpu_vm_cpu_update,
 	.commit = amdgpu_vm_cpu_commit
