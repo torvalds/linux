@@ -129,15 +129,6 @@ struct i915_gem_context {
 	struct list_head active_engines;
 	struct mutex mutex;
 
-	/**
-	 * @user_handle: userspace identifier
-	 *
-	 * A unique per-file identifier is generated from
-	 * &drm_i915_file_private.contexts.
-	 */
-	u32 user_handle;
-#define DEFAULT_CONTEXT_HANDLE 0
-
 	struct i915_sched_attr sched;
 
 	/** hw_contexts: per-engine logical HW state */

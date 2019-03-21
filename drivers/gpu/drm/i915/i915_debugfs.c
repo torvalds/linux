@@ -409,9 +409,8 @@ static void print_context_stats(struct seq_file *m,
 
 			rcu_read_lock();
 			task = pid_task(ctx->pid ?: file->pid, PIDTYPE_PID);
-			snprintf(name, sizeof(name), "%s/%d",
-				 task ? task->comm : "<unknown>",
-				 ctx->user_handle);
+			snprintf(name, sizeof(name), "%s",
+				 task ? task->comm : "<unknown>");
 			rcu_read_unlock();
 
 			print_file_stats(m, name, stats);

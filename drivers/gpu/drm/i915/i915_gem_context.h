@@ -126,11 +126,6 @@ static inline void i915_gem_context_unpin_hw_id(struct i915_gem_context *ctx)
 	atomic_dec(&ctx->hw_id_pin_count);
 }
 
-static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
-{
-	return c->user_handle == DEFAULT_CONTEXT_HANDLE;
-}
-
 static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 {
 	return !ctx->file_priv;
