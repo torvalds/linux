@@ -883,7 +883,7 @@ static void SwLedControlMode1(struct _adapter *padapter,
 	case LED_CTL_NO_LINK:
 		if (!pLed->bLedNoLinkBlinkInProgress) {
 			if (pLed->CurrLedState == LED_SCAN_BLINK ||
-			  IS_LED_WPS_BLINKING(pLed))
+			    IS_LED_WPS_BLINKING(pLed))
 				return;
 			if (pLed->bLedLinkBlinkInProgress) {
 				del_timer(&pLed->BlinkTimer);
@@ -1124,7 +1124,7 @@ static void SwLedControlMode2(struct _adapter *padapter,
 		if (!pLed->bLedBlinkInProgress &&
 		    check_fwstate(pmlmepriv, _FW_LINKED)) {
 			if (pLed->CurrLedState == LED_SCAN_BLINK ||
-			   IS_LED_WPS_BLINKING(pLed))
+			    IS_LED_WPS_BLINKING(pLed))
 				return;
 			pLed->bLedBlinkInProgress = true;
 			pLed->CurrLedState = LED_TXRX_BLINK;
