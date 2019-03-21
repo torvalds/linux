@@ -1229,7 +1229,9 @@ struct dc_state *dc_create_state(struct dc *dc)
 	 * initialize and obtain IP and SOC the base DML instance from DC is
 	 * initially copied into every context
 	 */
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
+#endif
 
 	kref_init(&context->refcount);
 
