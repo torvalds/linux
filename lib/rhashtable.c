@@ -197,6 +197,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 		return NULL;
 	}
 
+	rcu_head_init(&tbl->rcu);
 	INIT_LIST_HEAD(&tbl->walkers);
 
 	tbl->hash_rnd = get_random_u32();
@@ -280,10 +281,9 @@ static int rhashtable_rehash_chain(struct rhashtable *ht,
 	while (!(err = rhashtable_rehash_one(ht, old_hash)))
 		;
 
-	if (err == -ENOENT) {
-		old_tbl->rehash++;
+	if (err == -ENOENT)
 		err = 0;
-	}
+
 	spin_unlock_bh(old_bucket_lock);
 
 	return err;
@@ -330,13 +330,16 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 	spin_lock(&ht->lock);
 	list_for_each_entry(walker, &old_tbl->walkers, list)
 		walker->tbl = NULL;
-	spin_unlock(&ht->lock);
 
 	/* Wait for readers. All new readers will see the new
 	 * table, and thus no references to the old table will
 	 * remain.
+	 * We do this inside the locked region so that
+	 * rhashtable_walk_stop() can use rcu_head_after_call_rcu()
+	 * to check if it should not re-link the table.
 	 */
 	call_rcu(&old_tbl->rcu, bucket_table_free_rcu);
+	spin_unlock(&ht->lock);
 
 	return rht_dereference(new_tbl->future_tbl, ht) ? -EAGAIN : 0;
 }
@@ -578,46 +581,22 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 	struct bucket_table *new_tbl;
 	struct bucket_table *tbl;
 	unsigned int hash;
-	spinlock_t *lock;
 	void *data;
 
-	tbl = rcu_dereference(ht->tbl);
+	new_tbl = rcu_dereference(ht->tbl);
 
-	/* All insertions must grab the oldest table containing
-	 * the hashed bucket that is yet to be rehashed.
-	 */
-	for (;;) {
-		hash = rht_head_hashfn(ht, tbl, obj, ht->p);
-		lock = rht_bucket_lock(tbl, hash);
-		spin_lock_bh(lock);
-
-		if (tbl->rehash <= hash)
-			break;
-
-		spin_unlock_bh(lock);
-		tbl = rht_dereference_rcu(tbl->future_tbl, ht);
-	}
-
-	data = rhashtable_lookup_one(ht, tbl, hash, key, obj);
-	new_tbl = rhashtable_insert_one(ht, tbl, hash, obj, data);
-	if (PTR_ERR(new_tbl) != -EEXIST)
-		data = ERR_CAST(new_tbl);
-
-	while (!IS_ERR_OR_NULL(new_tbl)) {
+	do {
 		tbl = new_tbl;
 		hash = rht_head_hashfn(ht, tbl, obj, ht->p);
-		spin_lock_nested(rht_bucket_lock(tbl, hash),
-				 SINGLE_DEPTH_NESTING);
+		spin_lock_bh(rht_bucket_lock(tbl, hash));
 
 		data = rhashtable_lookup_one(ht, tbl, hash, key, obj);
 		new_tbl = rhashtable_insert_one(ht, tbl, hash, obj, data);
 		if (PTR_ERR(new_tbl) != -EEXIST)
 			data = ERR_CAST(new_tbl);
 
-		spin_unlock(rht_bucket_lock(tbl, hash));
-	}
-
-	spin_unlock_bh(lock);
+		spin_unlock_bh(rht_bucket_lock(tbl, hash));
+	} while (!IS_ERR_OR_NULL(new_tbl));
 
 	if (PTR_ERR(data) == -EAGAIN)
 		data = ERR_PTR(rhashtable_insert_rehash(ht, tbl) ?:
@@ -939,10 +918,11 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	ht = iter->ht;
 
 	spin_lock(&ht->lock);
-	if (tbl->rehash < tbl->size)
-		list_add(&iter->walker.list, &tbl->walkers);
-	else
+	if (rcu_head_after_call_rcu(&tbl->rcu, bucket_table_free_rcu))
+		/* This bucket table is being freed, don't re-link it. */
 		iter->walker.tbl = NULL;
+	else
+		list_add(&iter->walker.list, &tbl->walkers);
 	spin_unlock(&ht->lock);
 
 out:
