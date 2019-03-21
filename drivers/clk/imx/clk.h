@@ -138,11 +138,6 @@ static inline struct clk_hw *imx_clk_hw_fixed(const char *name, int rate)
 	return clk_hw_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
-static inline struct clk_hw *imx_get_clk_hw_fixed(const char *name, int rate)
-{
-	return clk_hw_register_fixed_rate(NULL, name, NULL, 0, rate);
-}
-
 static inline struct clk *imx_clk_mux_ldb(const char *name, void __iomem *reg,
 			u8 shift, u8 width, const char * const *parents,
 			int num_parents)
