@@ -592,3 +592,7 @@
 &adc {
 	status = "okay";
 };
+
+&vhub {
+	status = "okay";
+};
