@@ -159,7 +159,7 @@ enum PS_DENY_REASON {
 };
 
 #ifdef CONFIG_PNO_SUPPORT
-typedef struct pno_nlo_info
+struct pno_nlo_info
 {
 	u32 fast_scan_period;				/* Fast scan period */
 	u32 ssid_num;				/* number of entry */
@@ -168,7 +168,7 @@ typedef struct pno_nlo_info
 	u8 ssid_length[MAX_PNO_LIST_COUNT];	/* SSID Length Array */
 	u8 ssid_cipher_info[MAX_PNO_LIST_COUNT];	/* Cipher information for security */
 	u8 ssid_channel_info[MAX_PNO_LIST_COUNT];	/* channel information */
-}pno_nlo_info_t;
+};
 
 typedef struct pno_ssid {
 	u32 	SSID_len;
@@ -279,7 +279,7 @@ struct pwrctrl_priv
 #ifdef CONFIG_PNO_SUPPORT
 	u8 pno_in_resume;
 	u8 pno_inited;
-	pno_nlo_info_t	*pnlo_info;
+	struct pno_nlo_info *pnlo_info;
 	pno_scan_info_t	*pscan_info;
 	pno_ssid_list_t	*pno_ssid_list;
 #endif
