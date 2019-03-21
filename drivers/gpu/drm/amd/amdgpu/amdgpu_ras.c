@@ -157,50 +157,10 @@ static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 	return s;
 }
 
-static ssize_t amdgpu_ras_debugfs_write(struct file *f, const char __user *buf,
-		size_t size, loff_t *pos)
-{
-	struct ras_manager *obj = (struct ras_manager *)file_inode(f)->i_private;
-	struct ras_inject_if info = {
-		.head = obj->head,
-	};
-	ssize_t s = min_t(u64, 64, size);
-	char val[64];
-	char *str = val;
-	memset(val, 0, sizeof(val));
-
-	if (*pos)
-		return -EINVAL;
-
-	if (copy_from_user(str, buf, s))
-		return -EINVAL;
-
-	/* only care ue/ce for now. */
-	if (memcmp(str, "ue", 2) == 0) {
-		info.head.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		str += 2;
-	} else if (memcmp(str, "ce", 2) == 0) {
-		info.head.type = AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
-		str += 2;
-	}
-
-	if (sscanf(str, "0x%llx 0x%llx", &info.address, &info.value) != 2) {
-		if (sscanf(str, "%llu %llu", &info.address, &info.value) != 2)
-			return -EINVAL;
-	}
-
-	*pos = s;
-
-	if (amdgpu_ras_error_inject(obj->adev, &info))
-		return -EINVAL;
-
-	return size;
-}
-
 static const struct file_operations amdgpu_ras_debugfs_ops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_ras_debugfs_read,
-	.write = amdgpu_ras_debugfs_write,
+	.write = NULL,
 	.llseek = default_llseek
 };
 
