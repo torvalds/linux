@@ -1827,6 +1827,7 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 
 struct pedit_headers {
 	struct ethhdr  eth;
+	struct vlan_hdr vlan;
 	struct iphdr   ip4;
 	struct ipv6hdr ip6;
 	struct tcphdr  tcp;
@@ -1884,6 +1885,7 @@ static struct mlx5_fields fields[] = {
 	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0),
 	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0),
 	OFFLOAD(ETHERTYPE,  2, eth.h_proto, 0),
+	OFFLOAD(FIRST_VID,  2, vlan.h_vlan_TCI, 0),
 
 	OFFLOAD(IP_TTL, 1, ip4.ttl,   0),
 	OFFLOAD(SIPV4,  4, ip4.saddr, 0),
