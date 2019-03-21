@@ -556,6 +556,11 @@ static void stm32_dfsdm_audio_dma_buffer_done(void *data)
 static int stm32_dfsdm_adc_dma_start(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+	struct dma_slave_config config = {
+		.src_addr = (dma_addr_t)adc->dfsdm->phys_base +
+			DFSDM_RDATAR(adc->fl_id),
+		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+	};
 	struct dma_async_tx_descriptor *desc;
 	dma_cookie_t cookie;
 	int ret;
@@ -565,6 +570,10 @@ static int stm32_dfsdm_adc_dma_start(struct iio_dev *indio_dev)
 
 	dev_dbg(&indio_dev->dev, "%s size=%d watermark=%d\n", __func__,
 		adc->buf_sz, adc->buf_sz / 2);
+
+	ret = dmaengine_slave_config(adc->dma_chan, &config);
+	if (ret)
+		return ret;
 
 	/* Prepare a DMA cyclic transaction */
 	desc = dmaengine_prep_dma_cyclic(adc->dma_chan,
@@ -925,12 +934,6 @@ static void stm32_dfsdm_dma_release(struct iio_dev *indio_dev)
 static int stm32_dfsdm_dma_request(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
-	struct dma_slave_config config = {
-		.src_addr = (dma_addr_t)adc->dfsdm->phys_base +
-			DFSDM_RDATAR(adc->fl_id),
-		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
-	};
-	int ret;
 
 	adc->dma_chan = dma_request_slave_channel(&indio_dev->dev, "rx");
 	if (!adc->dma_chan)
@@ -940,23 +943,11 @@ static int stm32_dfsdm_dma_request(struct iio_dev *indio_dev)
 					 DFSDM_DMA_BUFFER_SIZE,
 					 &adc->dma_buf, GFP_KERNEL);
 	if (!adc->rx_buf) {
-		ret = -ENOMEM;
-		goto err_release;
+		dma_release_channel(adc->dma_chan);
+		return -ENOMEM;
 	}
 
-	ret = dmaengine_slave_config(adc->dma_chan, &config);
-	if (ret)
-		goto err_free;
-
 	return 0;
-
-err_free:
-	dma_free_coherent(adc->dma_chan->device->dev, DFSDM_DMA_BUFFER_SIZE,
-			  adc->rx_buf, adc->dma_buf);
-err_release:
-	dma_release_channel(adc->dma_chan);
-
-	return ret;
 }
 
 static int stm32_dfsdm_adc_chan_init_one(struct iio_dev *indio_dev,
