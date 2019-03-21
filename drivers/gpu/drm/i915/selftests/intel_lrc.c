@@ -10,6 +10,7 @@
 
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
+#include "igt_live_test.h"
 #include "igt_spinner.h"
 #include "i915_random.h"
 
@@ -113,10 +114,16 @@ static int live_preempt(void *arg)
 		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
 
 	for_each_engine(engine, i915, id) {
+		struct igt_live_test t;
 		struct i915_request *rq;
 
 		if (!intel_engine_has_preemption(engine))
 			continue;
+
+		if (igt_live_test_begin(&t, i915, __func__, engine->name)) {
+			err = -EIO;
+			goto err_ctx_lo;
+		}
 
 		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
 						MI_ARB_CHECK);
@@ -153,7 +160,8 @@ static int live_preempt(void *arg)
 
 		igt_spinner_end(&spin_hi);
 		igt_spinner_end(&spin_lo);
-		if (igt_flush_test(i915, I915_WAIT_LOCKED)) {
+
+		if (igt_live_test_end(&t)) {
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -207,10 +215,16 @@ static int live_late_preempt(void *arg)
 		goto err_ctx_hi;
 
 	for_each_engine(engine, i915, id) {
+		struct igt_live_test t;
 		struct i915_request *rq;
 
 		if (!intel_engine_has_preemption(engine))
 			continue;
+
+		if (igt_live_test_begin(&t, i915, __func__, engine->name)) {
+			err = -EIO;
+			goto err_ctx_lo;
+		}
 
 		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
 						MI_ARB_CHECK);
@@ -250,7 +264,8 @@ static int live_late_preempt(void *arg)
 
 		igt_spinner_end(&spin_hi);
 		igt_spinner_end(&spin_lo);
-		if (igt_flush_test(i915, I915_WAIT_LOCKED)) {
+
+		if (igt_live_test_end(&t)) {
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -615,6 +630,7 @@ static int live_chain_preempt(void *arg)
 		struct i915_sched_attr attr = {
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
 		};
+		struct igt_live_test t;
 		struct i915_request *rq;
 		int ring_size, count, i;
 
@@ -638,6 +654,11 @@ static int live_chain_preempt(void *arg)
 		igt_spinner_end(&lo.spin);
 		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 2) < 0) {
 			pr_err("Timed out waiting to flush %s\n", engine->name);
+			goto err_wedged;
+		}
+
+		if (igt_live_test_begin(&t, i915, __func__, engine->name)) {
+			err = -EIO;
 			goto err_wedged;
 		}
 
@@ -698,6 +719,11 @@ static int live_chain_preempt(void *arg)
 						  "%s\n", engine->name);
 				goto err_wedged;
 			}
+		}
+
+		if (igt_live_test_end(&t)) {
+			err = -EIO;
+			goto err_wedged;
 		}
 	}
 
@@ -1022,6 +1048,7 @@ static int live_preempt_smoke(void *arg)
 	};
 	const unsigned int phase[] = { 0, BATCH };
 	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	int err = -ENOMEM;
 	u32 *cs;
 	int n;
@@ -1055,6 +1082,11 @@ static int live_preempt_smoke(void *arg)
 	i915_gem_object_flush_map(smoke.batch);
 	i915_gem_object_unpin_map(smoke.batch);
 
+	if (igt_live_test_begin(&t, smoke.i915, __func__, "all")) {
+		err = -EIO;
+		goto err_batch;
+	}
+
 	for (n = 0; n < smoke.ncontext; n++) {
 		smoke.contexts[n] = kernel_context(smoke.i915);
 		if (!smoke.contexts[n])
@@ -1072,7 +1104,7 @@ static int live_preempt_smoke(void *arg)
 	}
 
 err_ctx:
-	if (igt_flush_test(smoke.i915, I915_WAIT_LOCKED))
+	if (igt_live_test_end(&t))
 		err = -EIO;
 
 	for (n = 0; n < smoke.ncontext; n++) {
