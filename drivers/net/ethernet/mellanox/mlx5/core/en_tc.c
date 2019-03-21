@@ -2664,7 +2664,17 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			break;
 		case FLOW_ACTION_VLAN_PUSH:
 		case FLOW_ACTION_VLAN_POP:
-			err = parse_tc_vlan_action(priv, act, attr, &action);
+			if (act->id == FLOW_ACTION_VLAN_PUSH &&
+			    (action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP)) {
+				/* Replace vlan pop+push with vlan modify */
+				action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+				err = add_vlan_rewrite_action(priv,
+							      MLX5_FLOW_NAMESPACE_FDB,
+							      act, parse_attr, hdrs,
+							      &action, extack);
+			} else {
+				err = parse_tc_vlan_action(priv, act, attr, &action);
+			}
 			if (err)
 				return err;
 
