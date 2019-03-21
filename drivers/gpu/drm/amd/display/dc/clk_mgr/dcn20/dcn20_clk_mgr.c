@@ -249,6 +249,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		bool safe_to_lower)
 {
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
+	/* Min fclk = 1GHz since all the extra scemi logic seems to run off of it */
+	int fclk_adj = new_clocks->fclk_khz > 1000000 ? new_clocks->fclk_khz : 1000000;
 
 	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr->clks.phyclk_khz)) {
 		clk_mgr->clks.phyclk_khz = new_clocks->phyclk_khz;
@@ -275,9 +277,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		clk_mgr->clks.dppclk_khz = new_clocks->dppclk_khz;
 	}
 
-	/* Add 250MHz as safety margin */
-	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz + 250000, clk_mgr->clks.fclk_khz)) {
-		clk_mgr->clks.fclk_khz = new_clocks->fclk_khz + 250000;
+	if (should_set_clock(safe_to_lower, fclk_adj, clk_mgr->clks.fclk_khz)) {
+		clk_mgr->clks.fclk_khz = fclk_adj;
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr->clks.dispclk_khz)) {
@@ -289,6 +290,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 	 */
 	if (clk_mgr->clks.fclk_khz > clk_mgr->clks.dppclk_khz)
 		clk_mgr->clks.dppclk_khz = clk_mgr->clks.fclk_khz;
+	if (clk_mgr->clks.dppclk_khz > clk_mgr->clks.fclk_khz)
+		clk_mgr->clks.fclk_khz = clk_mgr->clks.dppclk_khz;
 
 	dm_set_dcn_clocks(clk_mgr->ctx, &clk_mgr->clks);
 }
