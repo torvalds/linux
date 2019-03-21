@@ -3953,7 +3953,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 	WARN_ON(ret);
 
 	for (level = 0; level <= max_level; level++) {
-		skl_compute_plane_wm(crtc_state, 7, &wp, &wm, &wm);
+		skl_compute_plane_wm(crtc_state, level, &wp, &wm, &wm);
 		if (wm.min_ddb_alloc == U16_MAX)
 			break;
 
