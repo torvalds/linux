@@ -91,7 +91,6 @@ struct mt76_tx_info {
 
 struct mt76u_buf {
 	struct urb *urb;
-	bool done;
 };
 
 struct mt76_queue_entry {
@@ -105,6 +104,7 @@ struct mt76_queue_entry {
 	};
 	enum mt76_txq_id qid;
 	bool schedule;
+	bool done;
 };
 
 struct mt76_queue_regs {

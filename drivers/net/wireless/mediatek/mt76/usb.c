@@ -615,7 +615,6 @@ static void mt76u_tx_tasklet(unsigned long data)
 	struct mt76_dev *dev = (struct mt76_dev *)data;
 	struct mt76_queue_entry entry;
 	struct mt76_sw_queue *sq;
-	struct mt76u_buf *buf;
 	struct mt76_queue *q;
 	bool wake;
 	int i;
@@ -626,8 +625,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 
 		spin_lock_bh(&q->lock);
 		while (true) {
-			buf = &q->entry[q->head].ubuf;
-			if (!buf->done || !q->queued)
+			if (!q->entry[q->head].done || !q->queued)
 				break;
 
 			if (q->entry[q->head].schedule) {
@@ -693,11 +691,11 @@ static void mt76u_tx_status_data(struct work_struct *work)
 static void mt76u_complete_tx(struct urb *urb)
 {
 	struct mt76_dev *dev = dev_get_drvdata(&urb->dev->dev);
-	struct mt76u_buf *buf = urb->context;
+	struct mt76_queue_entry *e = urb->context;
 
 	if (mt76u_urb_error(urb))
 		dev_err(dev->dev, "tx urb failed: %d\n", urb->status);
-	buf->done = true;
+	e->done = true;
 
 	tasklet_schedule(&dev->usb.tx_tasklet);
 }
@@ -738,15 +736,14 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (err < 0)
 		return err;
 
+	q->entry[idx].done = false;
 	buf = &q->entry[idx].ubuf;
 	err = mt76u_tx_setup_buffers(dev, skb, buf->urb);
 	if (err < 0)
 		return err;
 
-	buf->done = false;
-
 	mt76u_fill_bulk_urb(dev, USB_DIR_OUT, q2ep(q->hw_idx),
-			    buf, mt76u_complete_tx, buf);
+			    buf, mt76u_complete_tx, &q->entry[idx]);
 
 	q->tail = (q->tail + 1) % q->ndesc;
 	q->entry[idx].skb = skb;
