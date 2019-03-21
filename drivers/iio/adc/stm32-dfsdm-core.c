@@ -199,7 +199,7 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct resource *res;
-	unsigned long clk_freq;
+	unsigned long clk_freq, divider;
 	unsigned int spi_freq, rem;
 	int ret;
 
@@ -243,13 +243,20 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 		return 0;
 	}
 
-	priv->spi_clk_out_div = div_u64_rem(clk_freq, spi_freq, &rem) - 1;
-	if (!priv->spi_clk_out_div) {
-		/* spi_clk_out_div == 0 means ckout is OFF */
+	divider = div_u64_rem(clk_freq, spi_freq, &rem);
+	/* Round up divider when ckout isn't precise, not to exceed spi_freq */
+	if (rem)
+		divider++;
+
+	/* programmable divider is in range of [2:256] */
+	if (divider < 2 || divider > 256) {
 		dev_err(&pdev->dev, "spi-max-frequency not achievable\n");
 		return -EINVAL;
 	}
-	priv->dfsdm.spi_master_freq = spi_freq;
+
+	/* SPI clock output divider is: divider = CKOUTDIV + 1 */
+	priv->spi_clk_out_div = divider - 1;
+	priv->dfsdm.spi_master_freq = clk_freq / (priv->spi_clk_out_div + 1);
 
 	if (rem) {
 		dev_warn(&pdev->dev, "SPI clock not accurate\n");
