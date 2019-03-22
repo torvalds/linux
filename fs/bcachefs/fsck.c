@@ -174,7 +174,8 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 	bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
 		      tmp, BCH_HASH_SET_MUST_CREATE);
 	ret = bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL);
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW);
 err:
 	kfree(tmp);
 	return ret;
@@ -204,7 +205,8 @@ retry:
 	ret   = bch2_hash_delete_at(&trans, desc, info, iter) ?:
 		bch2_trans_commit(&trans, NULL, NULL,
 				  BTREE_INSERT_ATOMIC|
-				  BTREE_INSERT_NOFAIL);
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_LAZY_RW);
 err:
 	if (ret == -EINTR)
 		goto retry;
@@ -365,7 +367,9 @@ static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
 		     buf, strlen(buf), d->v.d_name, len)) {
 		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &d->k_i));
 
-		ret = bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
+		ret = bch2_trans_commit(trans, NULL, NULL,
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_LAZY_RW);
 		if (ret)
 			goto err;
 
@@ -630,7 +634,8 @@ static int check_dirents(struct bch_fs *c)
 				BTREE_INSERT_ENTRY(iter, &n->k_i));
 
 			ret = bch2_trans_commit(&trans, NULL, NULL,
-						BTREE_INSERT_NOFAIL);
+						BTREE_INSERT_NOFAIL|
+						BTREE_INSERT_LAZY_RW);
 			kfree(n);
 			if (ret)
 				goto err;
@@ -1268,7 +1273,8 @@ static int check_inode(struct btree_trans *trans,
 		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &p.inode.k_i));
 
 		ret = bch2_trans_commit(trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL);
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_LAZY_RW);
 		if (ret && ret != -EINTR)
 			bch_err(c, "error in fs gc: error %i "
 				"updating inode", ret);

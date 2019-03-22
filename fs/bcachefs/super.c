@@ -258,8 +258,10 @@ static void bch2_writes_disabled(struct percpu_ref *writes)
 
 void bch2_fs_read_only(struct bch_fs *c)
 {
-	if (c->state == BCH_FS_RO)
+	if (!test_bit(BCH_FS_RW, &c->flags)) {
+		cancel_delayed_work_sync(&c->journal.reclaim_work);
 		return;
+	}
 
 	BUG_ON(test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags));
 
@@ -301,10 +303,9 @@ void bch2_fs_read_only(struct bch_fs *c)
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
 	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags) &&
 	    test_bit(BCH_FS_STARTED, &c->flags))
-		bch2_fs_mark_clean(c, true);
+		bch2_fs_mark_clean(c);
 
-	if (c->state != BCH_FS_STOPPING)
-		c->state = BCH_FS_RO;
+	clear_bit(BCH_FS_RW, &c->flags);
 }
 
 static void bch2_fs_read_only_work(struct work_struct *work)
@@ -333,55 +334,106 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 	return ret;
 }
 
-const char *bch2_fs_read_write(struct bch_fs *c)
+static int bch2_fs_read_write_late(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	const char *err = NULL;
 	unsigned i;
+	int ret;
 
-	if (c->state == BCH_FS_RW)
-		return NULL;
+	ret = bch2_gc_thread_start(c);
+	if (ret) {
+		bch_err(c, "error starting gc thread");
+		return ret;
+	}
 
-	bch2_fs_mark_clean(c, false);
+	for_each_rw_member(ca, c, i) {
+		ret = bch2_copygc_start(c, ca);
+		if (ret) {
+			bch_err(c, "error starting copygc threads");
+			percpu_ref_put(&ca->io_ref);
+			return ret;
+		}
+	}
+
+	ret = bch2_rebalance_start(c);
+	if (ret) {
+		bch_err(c, "error starting rebalance thread");
+		return ret;
+	}
+
+	schedule_delayed_work(&c->pd_controllers_update, 5 * HZ);
+
+	return 0;
+}
+
+static int __bch2_fs_read_write(struct bch_fs *c, bool early)
+{
+	struct bch_dev *ca;
+	unsigned i;
+	int ret;
+
+	if (test_bit(BCH_FS_RW, &c->flags))
+		return 0;
+
+	ret = bch2_fs_mark_dirty(c);
+	if (ret)
+		goto err;
 
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
-	err = "error starting allocator thread";
-	for_each_rw_member(ca, c, i)
-		if (bch2_dev_allocator_start(ca)) {
+	if (!test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags)) {
+		ret = bch2_fs_allocator_start(c);
+		if (ret) {
+			bch_err(c, "error initializing allocator");
+			goto err;
+		}
+
+		set_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags);
+	}
+
+	for_each_rw_member(ca, c, i) {
+		ret = bch2_dev_allocator_start(ca);
+		if (ret) {
+			bch_err(c, "error starting allocator threads");
 			percpu_ref_put(&ca->io_ref);
 			goto err;
 		}
+	}
 
 	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
 
-	err = "error starting btree GC thread";
-	if (bch2_gc_thread_start(c))
-		goto err;
-
-	err = "error starting copygc thread";
-	for_each_rw_member(ca, c, i)
-		if (bch2_copygc_start(c, ca)) {
-			percpu_ref_put(&ca->io_ref);
+	if (!early) {
+		ret = bch2_fs_read_write_late(c);
+		if (ret)
 			goto err;
-		}
+	}
 
-	err = "error starting rebalance thread";
-	if (bch2_rebalance_start(c))
-		goto err;
+	percpu_ref_reinit(&c->writes);
+	set_bit(BCH_FS_RW, &c->flags);
 
-	schedule_delayed_work(&c->pd_controllers_update, 5 * HZ);
-
-	if (c->state != BCH_FS_STARTING)
-		percpu_ref_reinit(&c->writes);
-
-	c->state = BCH_FS_RW;
-	return NULL;
+	queue_delayed_work(c->journal_reclaim_wq,
+			   &c->journal.reclaim_work, 0);
+	return 0;
 err:
 	__bch2_fs_read_only(c);
-	return err;
+	return ret;
+}
+
+int bch2_fs_read_write(struct bch_fs *c)
+{
+	return __bch2_fs_read_write(c, false);
+}
+
+int bch2_fs_read_write_early(struct bch_fs *c)
+{
+	lockdep_assert_held(&c->state_lock);
+
+	if (c->opts.read_only)
+		return -EROFS;
+
+	return __bch2_fs_read_write(c, true);
 }
 
 /* Filesystem startup/shutdown: */
@@ -638,7 +690,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
 	    !(c->journal_reclaim_wq = alloc_workqueue("bcache_journal",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
-	    percpu_ref_init(&c->writes, bch2_writes_disabled, 0, GFP_KERNEL) ||
+	    percpu_ref_init(&c->writes, bch2_writes_disabled,
+			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
 	    mempool_init_kmalloc_pool(&c->btree_reserve_pool, 1,
 				      sizeof(struct btree_reserve)) ||
 	    mempool_init_kmalloc_pool(&c->btree_interior_update_pool, 1,
@@ -712,7 +765,7 @@ const char *bch2_fs_start(struct bch_fs *c)
 
 	mutex_lock(&c->state_lock);
 
-	BUG_ON(c->state != BCH_FS_STARTING);
+	BUG_ON(test_bit(BCH_FS_STARTED, &c->flags));
 
 	mutex_lock(&c->sb_lock);
 
@@ -746,9 +799,12 @@ const char *bch2_fs_start(struct bch_fs *c)
 	if (c->opts.read_only) {
 		bch2_fs_read_only(c);
 	} else {
-		err = bch2_fs_read_write(c);
-		if (err)
+		if (!test_bit(BCH_FS_RW, &c->flags)
+		    ? bch2_fs_read_write(c)
+		    : bch2_fs_read_write_late(c)) {
+			err = "error going read write";
 			goto err;
+		}
 	}
 
 	set_bit(BCH_FS_STARTED, &c->flags);

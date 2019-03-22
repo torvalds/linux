@@ -141,7 +141,8 @@ bch2_journal_super_entries_add_common(struct bch_fs *,
 
 void bch2_sb_clean_renumber(struct bch_sb_field_clean *, int);
 
-void bch2_fs_mark_clean(struct bch_fs *, bool);
+int bch2_fs_mark_dirty(struct bch_fs *);
+void bch2_fs_mark_clean(struct bch_fs *);
 
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
 			   struct bch_sb_field *);

@@ -486,6 +486,7 @@ enum {
 	BCH_FS_INITIAL_GC_DONE,
 	BCH_FS_FSCK_DONE,
 	BCH_FS_STARTED,
+	BCH_FS_RW,
 
 	/* shutdown: */
 	BCH_FS_EMERGENCY_RO,
@@ -510,13 +511,6 @@ struct btree_debug {
 	struct dentry		*failed;
 };
 
-enum bch_fs_state {
-	BCH_FS_STARTING		= 0,
-	BCH_FS_STOPPING,
-	BCH_FS_RO,
-	BCH_FS_RW,
-};
-
 struct bch_fs_pcpu {
 	u64			sectors_available;
 };
@@ -538,7 +532,6 @@ struct bch_fs {
 
 	/* ro/rw, add/remove devices: */
 	struct mutex		state_lock;
-	enum bch_fs_state	state;
 
 	/* Counts outstanding writes, for clean transition to read-only */
 	struct percpu_ref	writes;
@@ -798,11 +791,6 @@ static inline void bch2_set_ra_pages(struct bch_fs *c, unsigned ra_pages)
 	if (c->vfs_sb)
 		c->vfs_sb->s_bdi->ra_pages = ra_pages;
 #endif
-}
-
-static inline bool bch2_fs_running(struct bch_fs *c)
-{
-	return c->state == BCH_FS_RO || c->state == BCH_FS_RW;
 }
 
 static inline unsigned bucket_bytes(const struct bch_dev *ca)

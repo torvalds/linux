@@ -345,6 +345,7 @@ int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
 
 	ret = bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW|
 				BTREE_INSERT_JOURNAL_REPLAY|
 				BTREE_INSERT_NOMARK);
 err:
@@ -1626,7 +1627,7 @@ static bool bch2_fs_allocator_start_fast(struct bch_fs *c)
 	return ret;
 }
 
-static int __bch2_fs_allocator_start(struct bch_fs *c)
+int bch2_fs_allocator_start(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned dev_iter;
@@ -1634,6 +1635,10 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 	bool wrote;
 	long bu;
 	int ret = 0;
+
+	if (!test_alloc_startup(c) &&
+	    bch2_fs_allocator_start_fast(c))
+		return 0;
 
 	pr_debug("not enough empty buckets; scanning for reclaimable buckets");
 
@@ -1707,31 +1712,6 @@ err:
 			   flush_held_btree_writes(c));
 
 	return ret;
-}
-
-int bch2_fs_allocator_start(struct bch_fs *c)
-{
-	struct bch_dev *ca;
-	unsigned i;
-	int ret;
-
-	ret = bch2_fs_allocator_start_fast(c) ? 0 :
-		__bch2_fs_allocator_start(c);
-	if (ret)
-		return ret;
-
-	set_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags);
-
-	for_each_rw_member(ca, c, i) {
-		ret = bch2_dev_allocator_start(ca);
-		if (ret) {
-			percpu_ref_put(&ca->io_ref);
-			return ret;
-		}
-	}
-
-	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
-	return 0;
 }
 
 void bch2_fs_allocator_background_init(struct bch_fs *c)

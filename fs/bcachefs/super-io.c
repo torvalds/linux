@@ -886,7 +886,7 @@ void bch2_sb_clean_renumber(struct bch_sb_field_clean *clean, int write)
 		bch2_bkey_renumber(BKEY_TYPE_BTREE, bkey_to_packed(entry->start), write);
 }
 
-static void bch2_fs_mark_dirty(struct bch_fs *c)
+int bch2_fs_mark_dirty(struct bch_fs *c)
 {
 	mutex_lock(&c->sb_lock);
 	if (BCH_SB_CLEAN(c->disk_sb.sb) ||
@@ -896,6 +896,8 @@ static void bch2_fs_mark_dirty(struct bch_fs *c)
 		bch2_write_super(c);
 	}
 	mutex_unlock(&c->sb_lock);
+
+	return 0;
 }
 
 struct jset_entry *
@@ -997,16 +999,11 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 	return entry;
 }
 
-void bch2_fs_mark_clean(struct bch_fs *c, bool clean)
+void bch2_fs_mark_clean(struct bch_fs *c)
 {
 	struct bch_sb_field_clean *sb_clean;
 	struct jset_entry *entry;
 	unsigned u64s;
-
-	if (!clean) {
-		bch2_fs_mark_dirty(c);
-		return;
-	}
 
 	mutex_lock(&c->sb_lock);
 	if (BCH_SB_CLEAN(c->disk_sb.sb))

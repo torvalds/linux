@@ -1027,8 +1027,6 @@ void bch2_fs_journal_start(struct journal *j)
 	 * only have to go down with the next journal entry we write:
 	 */
 	bch2_journal_seq_blacklist_write(j);
-
-	queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work, 0);
 }
 
 /* init/exit: */

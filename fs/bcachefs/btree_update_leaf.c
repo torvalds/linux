@@ -849,8 +849,23 @@ int bch2_trans_commit(struct btree_trans *trans,
 		btree_insert_entry_checks(trans, i);
 
 	if (unlikely(!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
-		     !percpu_ref_tryget(&c->writes)))
-		return -EROFS;
+		     !percpu_ref_tryget(&c->writes))) {
+		if (likely(!(trans->flags & BTREE_INSERT_LAZY_RW)))
+			return -EROFS;
+
+		btree_trans_unlock(trans);
+
+		ret = bch2_fs_read_write_early(c);
+		if (ret)
+			return ret;
+
+		percpu_ref_get(&c->writes);
+
+		if (!btree_trans_relock(trans)) {
+			ret = -EINTR;
+			goto err;
+		}
+	}
 retry:
 	ret = bch2_trans_journal_preres_get(trans);
 	if (ret)

@@ -289,7 +289,7 @@ static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
 	    compressed_sectors_compressed = 0,
 	    compressed_sectors_uncompressed = 0;
 
-	if (!bch2_fs_running(c))
+	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EPERM;
 
 	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS_MIN, 0, k)
@@ -482,7 +482,7 @@ STORE(__bch2_fs)
 	BCH_DEBUG_PARAMS()
 #undef BCH_DEBUG_PARAM
 
-	if (!bch2_fs_running(c))
+	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EPERM;
 
 	/* Debugging: */

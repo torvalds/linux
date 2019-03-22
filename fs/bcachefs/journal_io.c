@@ -861,6 +861,7 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 		ret = bch2_trans_commit(&trans, &disk_res, NULL,
 					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_LAZY_RW|
 					BTREE_INSERT_JOURNAL_REPLAY);
 	} while ((!ret || ret == -EINTR) &&
 		 bkey_cmp(k->k.p, iter->pos));
@@ -906,6 +907,7 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 				ret = bch2_btree_insert(c, entry->btree_id, k,
 						NULL, NULL,
 						BTREE_INSERT_NOFAIL|
+						BTREE_INSERT_LAZY_RW|
 						BTREE_INSERT_JOURNAL_REPLAY|
 						BTREE_INSERT_NOMARK);
 				break;

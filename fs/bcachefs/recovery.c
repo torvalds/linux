@@ -119,8 +119,13 @@ static int verify_superblock_clean(struct bch_fs *c,
 	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
 			"superblock journal seq (%llu) doesn't match journal (%llu) after clean shutdown",
 			le64_to_cpu(clean->journal_seq),
-			le64_to_cpu(j->seq)))
-		bch2_fs_mark_clean(c, false);
+			le64_to_cpu(j->seq))) {
+		ret = bch2_fs_mark_dirty(c);
+		if (ret) {
+			bch_err(c, "error going rw");
+			return ret;
+		}
+	}
 
 	mustfix_fsck_err_on(j->read_clock != clean->read_clock, c,
 			"superblock read clock doesn't match journal after clean shutdown");
@@ -332,23 +337,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto out;
 
 	/*
-	 * Mark dirty before journal replay, fsck:
-	 * XXX: after a clean shutdown, this could be done lazily only when fsck
-	 * finds an error
-	 */
-	bch2_fs_mark_clean(c, false);
-
-	/*
 	 * bch2_fs_journal_start() can't happen sooner, or btree_gc_finish()
 	 * will give spurious errors about oldest_gen > bucket_gen -
 	 * this is a hack but oh well.
 	 */
 	bch2_fs_journal_start(&c->journal);
-
-	err = "error starting allocator";
-	ret = bch2_fs_allocator_start(c);
-	if (ret)
-		goto err;
 
 	bch_verbose(c, "starting journal replay:");
 	err = "journal replay failed";
@@ -436,8 +429,8 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_fs_journal_start(&c->journal);
 	bch2_journal_set_replay_done(&c->journal);
 
-	err = "error starting allocator";
-	ret = bch2_fs_allocator_start(c);
+	err = "error going read write";
+	ret = bch2_fs_read_write_early(c);
 	if (ret)
 		goto err;
 
