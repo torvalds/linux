@@ -878,22 +878,24 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 	unsigned int logical_vdbox = 0;
 	unsigned int i;
 	u32 media_fuse;
+	u16 vdbox_mask;
+	u16 vebox_mask;
 
 	if (INTEL_GEN(dev_priv) < 11)
 		return;
 
 	media_fuse = ~I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
 
-	RUNTIME_INFO(dev_priv)->vdbox_enable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	RUNTIME_INFO(dev_priv)->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-		GEN11_GT_VEBOX_DISABLE_SHIFT;
+	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+		      GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", RUNTIME_INFO(dev_priv)->vdbox_enable);
+	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", vdbox_mask);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
 
-		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vdbox_enable)) {
+		if (!(BIT(i) & vdbox_mask)) {
 			info->engine_mask &= ~BIT(_VCS(i));
 			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
 			continue;
@@ -907,12 +909,12 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 
-	DRM_DEBUG_DRIVER("vebox enable: %04x\n", RUNTIME_INFO(dev_priv)->vebox_enable);
+	DRM_DEBUG_DRIVER("vebox enable: %04x\n", vebox_mask);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
 
-		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vebox_enable)) {
+		if (!(BIT(i) & vebox_mask)) {
 			info->engine_mask &= ~BIT(_VECS(i));
 			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
 		}
