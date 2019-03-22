@@ -146,6 +146,11 @@ enum adis16400_chip_variant {
 	ADIS16448,
 };
 
+static struct adis_burst adis16400_burst = {
+	.en = true,
+	.reg_cmd = ADIS16400_GLOB_CMD,
+};
+
 static int adis16334_get_freq(struct adis16400_state *st)
 {
 	int ret;
@@ -972,6 +977,9 @@ static int adis16400_probe(struct spi_device *spi)
 	if (!(st->variant->flags & ADIS16400_NO_BURST)) {
 		adis16400_setup_chan_mask(st);
 		indio_dev->available_scan_masks = st->avail_scan_mask;
+		st->adis.burst = &adis16400_burst;
+		if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
+			st->adis.burst->extra_len = sizeof(u16);
 	}
 
 	ret = adis_init(&st->adis, indio_dev, spi, &adis16400_data);

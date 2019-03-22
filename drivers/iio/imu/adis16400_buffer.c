@@ -22,7 +22,7 @@ int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 	unsigned int burst_length;
 	u8 *tx;
 
-	if (st->variant->flags & ADIS16400_NO_BURST)
+	if (!adis->burst || !adis->burst->en)
 		return adis_update_scan_mode(indio_dev, scan_mask);
 
 	kfree(adis->xfer);
@@ -30,8 +30,7 @@ int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 
 	/* All but the timestamp channel */
 	burst_length = (indio_dev->num_channels - 1) * sizeof(u16);
-	if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
-		burst_length += sizeof(u16);
+	burst_length += adis->burst->extra_len;
 
 	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
 	if (!adis->xfer)
@@ -42,7 +41,7 @@ int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 		return -ENOMEM;
 
 	tx = adis->buffer + burst_length;
-	tx[0] = ADIS_READ_REG(ADIS16400_GLOB_CMD);
+	tx[0] = ADIS_READ_REG(adis->burst->reg_cmd);
 	tx[1] = 0;
 
 	adis->xfer[0].tx_buf = tx;
