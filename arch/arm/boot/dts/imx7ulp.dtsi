@@ -365,5 +365,11 @@
 			compatible = "fsl,imx7ulp-sim", "syscon";
 			reg = <0x410a3000 0x1000>;
 		};
+
+		ocotp: ocotp-ctrl@410a6000 {
+			compatible = "fsl,imx7ulp-ocotp", "syscon";
+			reg = <0x410a6000 0x4000>;
+			clocks = <&scg1 IMX7ULP_CLK_DUMMY>;
+		};
 	};
 };
