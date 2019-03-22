@@ -89,7 +89,7 @@ struct mt76x02_dev {
 
 	struct sk_buff *rx_head;
 
-	struct tasklet_struct tx_tasklet;
+	struct napi_struct tx_napi;
 	struct tasklet_struct pre_tbtt_tasklet;
 	struct delayed_work cal_work;
 	struct delayed_work wdt_work;
