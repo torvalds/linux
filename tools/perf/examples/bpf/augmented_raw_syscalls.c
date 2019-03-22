@@ -15,6 +15,7 @@
  */
 
 #include <unistd.h>
+#include <linux/limits.h>
 #include <pid_filter.h>
 
 /* bpf-output associated map */
@@ -41,7 +42,7 @@ struct syscall_exit_args {
 struct augmented_filename {
 	unsigned int	size;
 	int		reserved;
-	char		value[256];
+	char		value[PATH_MAX];
 };
 
 /* syscalls where the first arg is a string */
@@ -119,23 +120,32 @@ struct augmented_filename {
 
 pid_filter(pids_filtered);
 
+struct augmented_args_filename {
+       struct syscall_enter_args args;
+       struct augmented_filename filename;
+};
+
+bpf_map(augmented_filename_map, PERCPU_ARRAY, int, struct augmented_args_filename, 1);
+
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
-	struct {
-		struct syscall_enter_args args;
-		struct augmented_filename filename;
-	} augmented_args;
-	struct syscall *syscall;
-	unsigned int len = sizeof(augmented_args);
+	struct augmented_args_filename *augmented_args;
+	unsigned int len = sizeof(*augmented_args);
 	const void *filename_arg = NULL;
+	struct syscall *syscall;
+	int key = 0;
+
+        augmented_args = bpf_map_lookup_elem(&augmented_filename_map, &key);
+        if (augmented_args == NULL)
+                return 1;
 
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
 
-	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
+	probe_read(&augmented_args->args, sizeof(augmented_args->args), args);
 
-	syscall = bpf_map_lookup_elem(&syscalls, &augmented_args.args.syscall_nr);
+	syscall = bpf_map_lookup_elem(&syscalls, &augmented_args->args.syscall_nr);
 	if (syscall == NULL || !syscall->enabled)
 		return 0;
 	/*
@@ -191,7 +201,7 @@ int sys_enter(struct syscall_enter_args *args)
 	 * processor architecture, making the kernel part the same no matter what
 	 * kernel version or processor architecture it runs on.
 	 */
-	switch (augmented_args.args.syscall_nr) {
+	switch (augmented_args->args.syscall_nr) {
 	case SYS_ACCT:
 	case SYS_ADD_KEY:
 	case SYS_CHDIR:
@@ -263,20 +273,20 @@ int sys_enter(struct syscall_enter_args *args)
 	}
 
 	if (filename_arg != NULL) {
-		augmented_args.filename.reserved = 0;
-		augmented_args.filename.size = probe_read_str(&augmented_args.filename.value,
-							      sizeof(augmented_args.filename.value),
+		augmented_args->filename.reserved = 0;
+		augmented_args->filename.size = probe_read_str(&augmented_args->filename.value,
+							      sizeof(augmented_args->filename.value),
 							      filename_arg);
-		if (augmented_args.filename.size < sizeof(augmented_args.filename.value)) {
-			len -= sizeof(augmented_args.filename.value) - augmented_args.filename.size;
-			len &= sizeof(augmented_args.filename.value) - 1;
+		if (augmented_args->filename.size < sizeof(augmented_args->filename.value)) {
+			len -= sizeof(augmented_args->filename.value) - augmented_args->filename.size;
+			len &= sizeof(augmented_args->filename.value) - 1;
 		}
 	} else {
-		len = sizeof(augmented_args.args);
+		len = sizeof(augmented_args->args);
 	}
 
 	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
-	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, &augmented_args, len);
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, augmented_args, len);
 }
 
 SEC("raw_syscalls:sys_exit")
