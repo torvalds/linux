@@ -16,6 +16,7 @@
 #include <linux/sunrpc/gss_krb5_enctypes.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/module.h>
+#include <linux/fsnotify.h>
 
 #include "idmap.h"
 #include "nfsd.h"
@@ -53,6 +54,7 @@ enum {
 	NFSD_RecoveryDir,
 	NFSD_V4EndGrace,
 #endif
+	NFSD_MaxReserved
 };
 
 /*
@@ -1147,8 +1149,99 @@ static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size)
  *	populating the filesystem.
  */
 
+/* Basically copying rpc_get_inode. */
+static struct inode *nfsd_get_inode(struct super_block *sb, umode_t mode)
+{
+	struct inode *inode = new_inode(sb);
+	if (!inode)
+		return NULL;
+	/* Following advice from simple_fill_super documentation: */
+	inode->i_ino = iunique(sb, NFSD_MaxReserved);
+	inode->i_mode = mode;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	switch (mode & S_IFMT) {
+	case S_IFDIR:
+		inode->i_fop = &simple_dir_operations;
+		inode->i_op = &simple_dir_inode_operations;
+		inc_nlink(inode);
+	default:
+		break;
+	}
+	return inode;
+}
+
+static int __nfsd_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	struct inode *inode;
+
+	inode = nfsd_get_inode(dir->i_sb, mode);
+	if (!inode)
+		return -ENOMEM;
+	d_add(dentry, inode);
+	inc_nlink(dir);
+	fsnotify_mkdir(dir, dentry);
+	return 0;
+}
+
+static struct dentry *nfsd_mkdir(struct dentry *parent, struct nfsdfs_client *ncl, char *name)
+{
+	struct inode *dir = parent->d_inode;
+	struct dentry *dentry;
+	int ret = -ENOMEM;
+
+	inode_lock(dir);
+	dentry = d_alloc_name(parent, name);
+	if (!dentry)
+		goto out_err;
+	ret = __nfsd_mkdir(d_inode(parent), dentry, S_IFDIR | 0600);
+	if (ret)
+		goto out_err;
+	if (ncl) {
+		d_inode(dentry)->i_private = ncl;
+		kref_get(&ncl->cl_ref);
+	}
+out:
+	inode_unlock(dir);
+	return dentry;
+out_err:
+	dentry = ERR_PTR(ret);
+	goto out;
+}
+
+/* on success, returns positive number unique to that client. */
+struct dentry *nfsd_client_mkdir(struct nfsd_net *nn, struct nfsdfs_client *ncl, u32 id)
+{
+	char name[11];
+
+	sprintf(name, "%d", id++);
+
+	return nfsd_mkdir(nn->nfsd_client_dir, ncl, name);
+}
+
+/* Taken from __rpc_rmdir: */
+void nfsd_client_rmdir(struct dentry *dentry)
+{
+	struct inode *dir = d_inode(dentry->d_parent);
+	struct inode *inode = d_inode(dentry);
+	struct nfsdfs_client *ncl = inode->i_private;
+	int ret;
+
+	inode->i_private = NULL;
+	synchronize_rcu();
+	kref_put(&ncl->cl_ref, ncl->cl_release);
+	dget(dentry);
+	ret = simple_rmdir(dir, dentry);
+	WARN_ON_ONCE(ret);
+	d_delete(dentry);
+}
+
 static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 {
+	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
+							nfsd_net_id);
+	struct dentry *dentry;
+	int ret;
+
 	static const struct tree_descr nfsd_files[] = {
 		[NFSD_List] = {"exports", &exports_nfsd_operations, S_IRUGO},
 		[NFSD_Export_features] = {"export_features",
@@ -1178,7 +1271,15 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		/* last one */ {""}
 	};
 	get_net(sb->s_fs_info);
-	return simple_fill_super(sb, 0x6e667364, nfsd_files);
+	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
+	if (ret)
+		return ret;
+	dentry = nfsd_mkdir(sb->s_root, NULL, "clients");
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	nn->nfsd_client_dir = dentry;
+	return 0;
+
 }
 
 static struct dentry *nfsd_mount(struct file_system_type *fs_type,

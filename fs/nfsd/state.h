@@ -39,6 +39,7 @@
 #include <linux/refcount.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include "nfsfh.h"
+#include "nfsd.h"
 
 typedef struct {
 	u32             cl_boot;
@@ -348,8 +349,11 @@ struct nfs4_client {
 	u32			cl_exchange_flags;
 	/* number of rpc's in progress over an associated session: */
 	atomic_t		cl_rpc_users;
-	struct kref		cl_ref;
+	struct nfsdfs_client	cl_nfsdfs;
 	struct nfs4_op_map      cl_spo_must_allow;
+
+	/* debugging info directory under nfsd/clients/ : */
+	struct dentry		*cl_nfsd_dentry;
 
 	/* for nfs41 callbacks */
 	/* We currently support a single back channel with a single slot */

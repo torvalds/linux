@@ -22,6 +22,7 @@
 
 #include <uapi/linux/nfsd/debug.h>
 
+#include "netns.h"
 #include "stats.h"
 #include "export.h"
 
@@ -85,6 +86,14 @@ int		nfsd_pool_stats_open(struct inode *, struct file *);
 int		nfsd_pool_stats_release(struct inode *, struct file *);
 
 void		nfsd_destroy(struct net *net);
+
+struct nfsdfs_client {
+	struct kref cl_ref;
+	void (*cl_release)(struct kref *kref);
+};
+
+struct dentry *nfsd_client_mkdir(struct nfsd_net *nn, struct nfsdfs_client *ncl, u32 id);
+void nfsd_client_rmdir(struct dentry *dentry);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
