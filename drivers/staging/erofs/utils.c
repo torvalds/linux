@@ -61,7 +61,7 @@ struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
 repeat:
 	rcu_read_lock();
 	grp = radix_tree_lookup(&sbi->workstn_tree, index);
-	if (grp != NULL) {
+	if (grp) {
 		*tag = xa_pointer_tag(grp);
 		grp = xa_untag_pointer(grp);
 

@@ -469,7 +469,7 @@ erofs_grab_bio(struct super_block *sb,
 	do {
 		if (nr_pages == 1) {
 			bio = bio_alloc(gfp | (nofail ? __GFP_NOFAIL : 0), 1);
-			if (unlikely(bio == NULL)) {
+			if (unlikely(!bio)) {
 				DBG_BUGON(nofail);
 				return ERR_PTR(-ENOMEM);
 			}
@@ -477,7 +477,7 @@ erofs_grab_bio(struct super_block *sb,
 		}
 		bio = bio_alloc(gfp, nr_pages);
 		nr_pages /= 2;
-	} while (unlikely(bio == NULL));
+	} while (unlikely(!bio));
 
 	bio->bi_end_io = endio;
 	bio_set_dev(bio, sb->s_bdev);
@@ -565,7 +565,7 @@ static inline void *erofs_vmap(struct page **pages, unsigned int count)
 	while (1) {
 		void *addr = vm_map_ram(pages, count, -1, PAGE_KERNEL);
 		/* retry two more times (totally 3 times) */
-		if (addr != NULL || ++i >= 3)
+		if (addr || ++i >= 3)
 			return addr;
 		vm_unmap_aliases();
 	}

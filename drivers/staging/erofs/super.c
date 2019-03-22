@@ -240,7 +240,7 @@ static int parse_options(struct super_block *sb, char *options)
 	if (!options)
 		return 0;
 
-	while ((p = strsep(&options, ",")) != NULL) {
+	while ((p = strsep(&options, ","))) {
 		int token;
 
 		if (!*p)

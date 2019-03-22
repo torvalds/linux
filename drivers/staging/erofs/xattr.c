@@ -36,7 +36,7 @@ static inline void xattr_iter_end(struct xattr_iter *it, bool atomic)
 
 static inline void xattr_iter_end_final(struct xattr_iter *it)
 {
-	if (it->page == NULL)
+	if (!it->page)
 		return;
 
 	xattr_iter_end(it, true);
@@ -107,7 +107,7 @@ static int init_inode_xattrs(struct inode *inode)
 	vi->xattr_shared_count = ih->h_shared_count;
 	vi->xattr_shared_xattrs = kmalloc_array(vi->xattr_shared_count,
 						sizeof(uint), GFP_KERNEL);
-	if (vi->xattr_shared_xattrs == NULL) {
+	if (!vi->xattr_shared_xattrs) {
 		xattr_iter_end(&it, atomic_map);
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -235,7 +235,7 @@ static int xattr_foreach(struct xattr_iter *it,
 	 *    therefore entry should be in the page
 	 */
 	entry = *(struct erofs_xattr_entry *)(it->kaddr + it->ofs);
-	if (tlimit != NULL) {
+	if (tlimit) {
 		unsigned int entry_sz = EROFS_XATTR_ENTRY_SIZE(&entry);
 
 		BUG_ON(*tlimit < entry_sz);
@@ -282,7 +282,7 @@ static int xattr_foreach(struct xattr_iter *it,
 	/* 3. handle xattr value */
 	processed = 0;
 
-	if (op->alloc_buffer != NULL) {
+	if (op->alloc_buffer) {
 		err = op->alloc_buffer(it, value_sz);
 		if (err) {
 			it->ofs += value_sz;
@@ -345,7 +345,7 @@ static int xattr_checkbuffer(struct xattr_iter *_it,
 	int err = it->buffer_size < value_sz ? -ERANGE : 0;
 
 	it->buffer_size = value_sz;
-	return it->buffer == NULL ? 1 : err;
+	return !it->buffer ? 1 : err;
 }
 
 static void xattr_copyvalue(struct xattr_iter *_it,
@@ -437,7 +437,7 @@ int erofs_getxattr(struct inode *inode, int index,
 	int ret;
 	struct getxattr_iter it;
 
-	if (unlikely(name == NULL))
+	if (unlikely(!name))
 		return -EINVAL;
 
 	ret = init_inode_xattrs(inode);
@@ -539,13 +539,13 @@ static int xattr_entrylist(struct xattr_iter *_it,
 	const struct xattr_handler *h =
 		erofs_xattr_handler(entry->e_name_index);
 
-	if (h == NULL || (h->list != NULL && !h->list(it->dentry)))
+	if (!h || (h->list && !h->list(it->dentry)))
 		return 1;
 
 	prefix = xattr_prefix(h);
 	prefix_len = strlen(prefix);
 
-	if (it->buffer == NULL) {
+	if (!it->buffer) {
 		it->buffer_ofs += prefix_len + entry->e_name_len + 1;
 		return 1;
 	}
