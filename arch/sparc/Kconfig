@@ -191,14 +191,6 @@ config NR_CPUS
 
 source "kernel/Kconfig.hz"
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y if SPARC32
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default y if SPARC64
-
 config GENERIC_HWEIGHT
 	bool
 	default y

@@ -60,9 +60,6 @@ config GENERIC_LOCKBREAK
         def_bool y
 	depends on PREEMPT
 
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 

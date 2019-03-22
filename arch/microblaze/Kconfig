@@ -58,14 +58,8 @@ config CPU_LITTLE_ENDIAN
 
 endchoice
 
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
 config ZONE_DMA
 	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n

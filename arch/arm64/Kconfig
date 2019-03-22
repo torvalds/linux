@@ -237,9 +237,6 @@ config LOCKDEP_SUPPORT
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
-
 config GENERIC_BUG
 	def_bool y
 	depends on BUG

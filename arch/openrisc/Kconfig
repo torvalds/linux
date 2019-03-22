@@ -43,12 +43,6 @@ config CPU_BIG_ENDIAN
 config MMU
 	def_bool y
 
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool n
-
 config GENERIC_HWEIGHT
 	def_bool y
 

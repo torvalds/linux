@@ -22,10 +22,6 @@
 
 struct rw_semaphore;
 
-#ifdef CONFIG_RWSEM_GENERIC_SPINLOCK
-#include <linux/rwsem-spinlock.h> /* use a generic implementation */
-#define __RWSEM_INIT_COUNT(name)	.count = RWSEM_UNLOCKED_VALUE
-#else
 /* All arch specific implementations share the same struct */
 struct rw_semaphore {
 	atomic_long_t count;
@@ -65,7 +61,6 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 
 #define RWSEM_UNLOCKED_VALUE		0L
 #define __RWSEM_INIT_COUNT(name)	.count = ATOMIC_LONG_INIT(RWSEM_UNLOCKED_VALUE)
-#endif
 
 /* Common initializer macros and functions */
 

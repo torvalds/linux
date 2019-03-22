@@ -65,12 +65,6 @@ config GENERIC_CSUM
 config GENERIC_IRQ_PROBE
 	def_bool y
 
-config RWSEM_GENERIC_SPINLOCK
-	def_bool n
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 
