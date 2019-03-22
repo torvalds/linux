@@ -113,6 +113,9 @@ struct Qdisc {
 
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 	spinlock_t		seqlock;
+
+	/* for NOLOCK qdisc, true if there are no enqueued skbs */
+	bool			empty;
 	struct rcu_head		rcu;
 };
 
@@ -143,11 +146,19 @@ static inline bool qdisc_is_running(struct Qdisc *qdisc)
 	return (raw_read_seqcount(&qdisc->running) & 1) ? true : false;
 }
 
+static inline bool qdisc_is_empty(const struct Qdisc *qdisc)
+{
+	if (qdisc->flags & TCQ_F_NOLOCK)
+		return qdisc->empty;
+	return !qdisc->q.qlen;
+}
+
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		if (!spin_trylock(&qdisc->seqlock))
 			return false;
+		qdisc->empty = false;
 	} else if (qdisc_is_running(qdisc)) {
 		return false;
 	}
