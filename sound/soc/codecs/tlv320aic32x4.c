@@ -57,7 +57,7 @@ struct aic32x4_rate_divs {
 	u8 aosr;
 	unsigned long nadc_rate;
 	unsigned long madc_rate;
-	u8 blck_N;
+	unsigned long bdiv_rate;
 	u8 r_block;
 	u8 p_block;
 };
@@ -310,53 +310,53 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 static const struct aic32x4_rate_divs aic32x4_divs[] = {
 	/* 8k rate */
 	{ 12000000, 8000, 57120000, 768, 18432000, 6144000, 128, 18432000,
-		1024000, 24, 1, 1 },
+		1024000, 256000, 1, 1 },
 	{ 24000000, 8000, 57120000, 768, 6144000, 6144000, 64, 2048000,
-		512000, 24, 1, 1 },
+		512000, 256000, 1, 1 },
 	{ 25000000, 8000, 32620000, 768, 6144000, 6144000, 64, 2048000,
-		512000, 24, 1, 1 },
+		512000, 256000, 1, 1 },
 	/* 11.025k rate */
 	{ 12000000, 11025, 44217600, 512, 11289600, 5644800, 128, 11289600,
-		1411200, 16, 1, 1 },
+		1411200, 352800, 1, 1 },
 	{ 24000000, 11025, 44217600, 512, 5644800, 5644800, 64, 2822400,
-		705600, 16, 1, 1 },
+		705600, 352800, 1, 1 },
 	/* 16k rate */
 	{ 12000000, 16000, 57120000, 384, 18432000, 6144000, 128, 18432000,
-		2048000, 12, 1, 1 },
+		2048000, 512000, 1, 1 },
 	{ 24000000, 16000, 57120000, 384, 6144000, 6144000, 64, 5120000,
-		1024000, 12, 1, 1 },
+		1024000, 512000, 1, 1 },
 	{ 25000000, 16000, 32620000, 384, 6144000, 6144000, 64, 5120000,
-		1024000, 12, 1, 1 },
+		1024000, 512000, 1, 1 },
 	/* 22.05k rate */
 	{ 12000000, 22050, 44217600, 256, 22579200, 5644800, 128, 22579200,
-		2822400, 8, 1, 1 },
+		2822400, 705600, 1, 1 },
 	{ 24000000, 22050, 44217600, 256, 5644800, 5644800, 64, 5644800,
-		1411200, 8, 1, 1 },
+		1411200, 705600, 1, 1 },
 	{ 25000000, 22050, 19713750, 256, 5644800, 5644800, 64, 5644800,
-		1411200, 8, 1, 1 },
+		1411200, 705600, 1, 1 },
 	/* 32k rate */
 	{ 12000000, 32000, 14112000, 192, 43008000, 6144000, 64, 43008000,
-		2048000, 6, 1, 1 },
+		2048000, 1024000, 1, 1 },
 	{ 24000000, 32000, 14112000, 192, 12288000, 6144000, 64, 12288000,
-		2048000, 6, 1, 1 },
+		2048000, 1024000, 1, 1 },
 	/* 44.1k rate */
 	{ 12000000, 44100, 44217600, 128, 45158400, 5644800, 128, 45158400,
-		5644800, 4, 1, 1 },
+		5644800, 1411200, 1, 1 },
 	{ 24000000, 44100, 44217600, 128, 11289600, 5644800, 64, 11289600,
-		2822400, 4, 1, 1 },
+		2822400, 1411200, 1, 1 },
 	{ 25000000, 44100, 19713750, 128, 11289600, 5644800, 64, 11289600,
-		2822400, 4, 1, 1 },
+		2822400, 1411200, 1, 1 },
 	/* 48k rate */
 	{ 12000000, 48000, 18432000, 128, 49152000, 6144000, 128, 49152000,
-		6144000, 4, 1, 1 },
+		6144000, 1536000, 1, 1 },
 	{ 24000000, 48000, 18432000, 128, 12288000, 6144000, 64, 12288000,
-		3072000, 4, 1, 1 },
+		3072000, 1536000, 1, 1 },
 	{ 25000000, 48000, 75626250, 128, 12288000, 6144000, 64, 12288000,
-		3072000, 4, 1, 1 },
+		3072000, 1536000, 1, 1 },
 
 	/* 96k rate */
 	{ 25000000, 96000, 75626250, 64, 24576000, 6144000, 64, 24576000,
-		6144000, 1, 1, 9 },
+		6144000, 3072000, 1, 9 },
 };
 
 static const struct snd_kcontrol_new hpl_output_mixer_controls[] = {
@@ -743,6 +743,7 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 		{ .id = "madc" },
 		{ .id = "ndac" },
 		{ .id = "mdac" },
+		{ .id = "bdiv" },
 	};
 
 	i = aic32x4_get_divs(parent_rate, sample_rate);
@@ -760,13 +761,9 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	clk_set_rate(clocks[2].clk, aic32x4_divs[i].madc_rate);
 	clk_set_rate(clocks[3].clk, aic32x4_divs[i].ndac_rate);
 	clk_set_rate(clocks[4].clk, aic32x4_divs[i].mdac_rate);
+	clk_set_rate(clocks[5].clk, aic32x4_divs[i].bdiv_rate);
 
 	aic32x4_set_processing_blocks(component, aic32x4_divs[i].r_block, aic32x4_divs[i].p_block);
-
-	/* DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_component_update_bits(component, AIC32X4_IFACE3,
-				AIC32X4_BDIVCLK_MASK,
-				AIC32X4_DACMOD2BCLK << AIC32X4_BDIVCLK_SHIFT);
 
 	/* DOSR MSB & LSB values */
 	snd_soc_component_write(component, AIC32X4_DOSRMSB, aic32x4_divs[i].dosr >> 8);
@@ -774,10 +771,6 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 
 	/* AOSR value */
 	snd_soc_component_write(component, AIC32X4_AOSR, aic32x4_divs[i].aosr);
-
-	/* BCLK N divider */
-	snd_soc_component_update_bits(component, AIC32X4_BCLKN,
-				AIC32X4_BCLK_MASK, aic32x4_divs[i].blck_N);
 
 	return 0;
 }
@@ -1001,6 +994,8 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	struct clk_bulk_data clocks[] = {
 		{ .id = "codec_clkin" },
 		{ .id = "pll" },
+		{ .id = "bdiv" },
+		{ .id = "mdac" },
 	};
 
 	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
@@ -1019,6 +1014,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 		aic32x4_setup_gpios(component);
 
 	clk_set_parent(clocks[0].clk, clocks[1].clk);
+	clk_set_parent(clocks[2].clk, clocks[3].clk);
 
 	/* Power platform configuration */
 	if (aic32x4->power_cfg & AIC32X4_PWR_MICBIAS_2075_LDOIN) {
