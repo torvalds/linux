@@ -39,7 +39,7 @@ retry:
 
 static int sun4v_read_time(struct device *dev, struct rtc_time *tm)
 {
-	rtc_time_to_tm(hypervisor_get_time(), tm);
+	rtc_time64_to_tm(hypervisor_get_time(), tm);
 	return 0;
 }
 
@@ -66,14 +66,7 @@ retry:
 
 static int sun4v_set_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long secs;
-	int err;
-
-	err = rtc_tm_to_time(tm, &secs);
-	if (err)
-		return err;
-
-	return hypervisor_set_time(secs);
+	return hypervisor_set_time(rtc_tm_to_time64(tm));
 }
 
 static const struct rtc_class_ops sun4v_rtc_ops = {
