@@ -1629,24 +1629,17 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 	ddi_dotclock_get(pipe_config);
 }
 
-static int bxt_calc_pll_link(struct intel_crtc_state *crtc_state)
+static int bxt_calc_pll_link(const struct intel_dpll_hw_state *pll_state)
 {
-	struct intel_dpll_hw_state *state;
 	struct dpll clock;
 
-	/* For DDI ports we always use a shared PLL. */
-	if (WARN_ON(!crtc_state->shared_dpll))
-		return 0;
-
-	state = &crtc_state->dpll_hw_state;
-
 	clock.m1 = 2;
-	clock.m2 = (state->pll0 & PORT_PLL_M2_MASK) << 22;
-	if (state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
-		clock.m2 |= state->pll2 & PORT_PLL_M2_FRAC_MASK;
-	clock.n = (state->pll1 & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
-	clock.p1 = (state->ebb0 & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
-	clock.p2 = (state->ebb0 & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
+	clock.m2 = (pll_state->pll0 & PORT_PLL_M2_MASK) << 22;
+	if (pll_state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
+		clock.m2 |= pll_state->pll2 & PORT_PLL_M2_FRAC_MASK;
+	clock.n = (pll_state->pll1 & PORT_PLL_N_MASK) >> PORT_PLL_N_SHIFT;
+	clock.p1 = (pll_state->ebb0 & PORT_PLL_P1_MASK) >> PORT_PLL_P1_SHIFT;
+	clock.p2 = (pll_state->ebb0 & PORT_PLL_P2_MASK) >> PORT_PLL_P2_SHIFT;
 
 	return chv_calc_dpll_params(100000, &clock);
 }
@@ -1654,7 +1647,8 @@ static int bxt_calc_pll_link(struct intel_crtc_state *crtc_state)
 static void bxt_ddi_clock_get(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config)
 {
-	pipe_config->port_clock = bxt_calc_pll_link(pipe_config);
+	pipe_config->port_clock =
+		bxt_calc_pll_link(&pipe_config->dpll_hw_state);
 
 	ddi_dotclock_get(pipe_config);
 }
