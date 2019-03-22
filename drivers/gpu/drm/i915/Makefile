@@ -46,6 +46,7 @@ i915-y := i915_drv.o \
 	  i915_sw_fence.o \
 	  i915_syncmap.o \
 	  i915_sysfs.o \
+	  i915_user_extensions.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pm.o \
