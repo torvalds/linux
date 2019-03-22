@@ -203,12 +203,10 @@ ssize_t adis16400_read_data_from_ring(struct device *dev,
 
 int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask);
-irqreturn_t adis16400_trigger_handler(int irq, void *p);
 
 #else /* CONFIG_IIO_BUFFER */
 
 #define adis16400_update_scan_mode NULL
-#define adis16400_trigger_handler NULL
 
 #endif /* CONFIG_IIO_BUFFER */
 
