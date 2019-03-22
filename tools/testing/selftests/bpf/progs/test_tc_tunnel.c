@@ -72,7 +72,7 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, bool with_gre)
 	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
 
 	/* add room between mac and network header */
-	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_NET, 0))
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, 0))
 		return TC_ACT_SHOT;
 
 	/* prepare new outer network header */
@@ -91,12 +91,6 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, bool with_gre)
 
 	/* store new outer network header */
 	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
-				BPF_F_INVALIDATE_HASH) < 0)
-		return TC_ACT_SHOT;
-
-	/* bpf_skb_adjust_room has moved header to start of room: restore */
-	if (bpf_skb_store_bytes(skb, ETH_HLEN + olen,
-				&iph_inner, sizeof(iph_inner),
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
 
@@ -125,7 +119,7 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, bool with_gre)
 	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
 
 	/* add room between mac and network header */
-	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_NET, 0))
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, 0))
 		return TC_ACT_SHOT;
 
 	/* prepare new outer network header */
@@ -142,12 +136,6 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, bool with_gre)
 
 	/* store new outer network header */
 	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
-				BPF_F_INVALIDATE_HASH) < 0)
-		return TC_ACT_SHOT;
-
-	/* bpf_skb_adjust_room has moved header to start of room: restore */
-	if (bpf_skb_store_bytes(skb, ETH_HLEN + olen,
-				&iph_inner, sizeof(iph_inner),
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
 
@@ -207,14 +195,7 @@ static int decap_internal(struct __sk_buff *skb, int off, int len, char proto)
 		return TC_ACT_OK;
 	}
 
-	if (bpf_skb_load_bytes(skb, off + olen, &buf, olen) < 0)
-		return TC_ACT_OK;
-
-	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_NET, 0))
-		return TC_ACT_SHOT;
-
-	/* bpf_skb_adjust_room has moved outer over inner header: restore */
-	if (bpf_skb_store_bytes(skb, off, buf, len, BPF_F_INVALIDATE_HASH) < 0)
+	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_MAC, 0))
 		return TC_ACT_SHOT;
 
 	return TC_ACT_OK;
