@@ -56,14 +56,14 @@
 
 #define SATA_PLL_SOFT_RESET	BIT(18)
 
-#define PIPE3_PHY_PWRCTL_CLK_CMD_MASK	0x003FC000
+#define PIPE3_PHY_PWRCTL_CLK_CMD_MASK	GENMASK(21, 14)
 #define PIPE3_PHY_PWRCTL_CLK_CMD_SHIFT	14
 
-#define PIPE3_PHY_PWRCTL_CLK_FREQ_MASK	0xFFC00000
+#define PIPE3_PHY_PWRCTL_CLK_FREQ_MASK	GENMASK(31, 22)
 #define PIPE3_PHY_PWRCTL_CLK_FREQ_SHIFT	22
 
-#define PIPE3_PHY_TX_RX_POWERON		0x3
-#define PIPE3_PHY_TX_RX_POWEROFF	0x0
+#define PIPE3_PHY_RX_POWERON       (0x1 << PIPE3_PHY_PWRCTL_CLK_CMD_SHIFT)
+#define PIPE3_PHY_TX_POWERON       (0x2 << PIPE3_PHY_PWRCTL_CLK_CMD_SHIFT)
 
 #define PCIE_PCS_MASK			0xFF0000
 #define PCIE_PCS_DELAY_COUNT_SHIFT	0x10
@@ -328,7 +328,6 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy);
 
 static int ti_pipe3_power_off(struct phy *x)
 {
-	u32 val;
 	int ret;
 	struct ti_pipe3 *phy = phy_get_drvdata(x);
 
@@ -337,10 +336,8 @@ static int ti_pipe3_power_off(struct phy *x)
 		return 0;
 	}
 
-	val = PIPE3_PHY_TX_RX_POWEROFF << PIPE3_PHY_PWRCTL_CLK_CMD_SHIFT;
-
 	ret = regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
-				 PIPE3_PHY_PWRCTL_CLK_CMD_MASK, val);
+				 PIPE3_PHY_PWRCTL_CLK_CMD_MASK, 0);
 	return ret;
 }
 
@@ -351,6 +348,7 @@ static int ti_pipe3_power_on(struct phy *x)
 	int ret;
 	unsigned long rate;
 	struct ti_pipe3 *phy = phy_get_drvdata(x);
+	bool rx_pending = false;
 
 	if (!phy->phy_power_syscon) {
 		omap_control_phy_power(phy->control_dev, 1);
@@ -363,14 +361,32 @@ static int ti_pipe3_power_on(struct phy *x)
 		return -EINVAL;
 	}
 	rate = rate / 1000000;
-	mask = OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_CMD_MASK |
-		  OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_MASK;
-	val = PIPE3_PHY_TX_RX_POWERON << PIPE3_PHY_PWRCTL_CLK_CMD_SHIFT;
-	val |= rate << OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_SHIFT;
-
+	mask = OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_MASK;
+	val = rate << OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_SHIFT;
 	ret = regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
 				 mask, val);
-	return ret;
+	/*
+	 * For PCIe, TX and RX must be powered on simultaneously.
+	 * For USB and SATA, TX must be powered on before RX
+	 */
+	mask = OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_CMD_MASK;
+	if (phy->mode == PIPE3_MODE_SATA || phy->mode == PIPE3_MODE_USBSS) {
+		val = PIPE3_PHY_TX_POWERON;
+		rx_pending = true;
+	} else {
+		val = PIPE3_PHY_TX_POWERON | PIPE3_PHY_RX_POWERON;
+	}
+
+	regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
+			   mask, val);
+
+	if (rx_pending) {
+		val = PIPE3_PHY_TX_POWERON | PIPE3_PHY_RX_POWERON;
+		regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
+				   mask, val);
+	}
+
+	return 0;
 }
 
 static int ti_pipe3_dpll_wait_lock(struct ti_pipe3 *phy)
