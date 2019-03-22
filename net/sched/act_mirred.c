@@ -159,11 +159,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+
+	m = to_mirred(*a);
+	if (ret == ACT_P_CREATED)
+		INIT_LIST_HEAD(&m->tcfm_list);
+
 	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
 	if (err < 0)
 		goto release_idr;
-
-	m = to_mirred(*a);
 
 	spin_lock_bh(&m->tcf_lock);
 
