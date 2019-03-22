@@ -18,6 +18,7 @@
 #include <net/lwtunnel.h>
 #include <net/gre.h>
 #include <net/ip6_route.h>
+#include <net/ipv6_stubs.h>
 
 struct bpf_lwt_prog {
 	struct bpf_prog *prog;

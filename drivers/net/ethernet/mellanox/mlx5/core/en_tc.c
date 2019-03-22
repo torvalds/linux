@@ -44,6 +44,7 @@
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/arp.h>
+#include <net/ipv6_stubs.h>
 #include "en.h"
 #include "en_rep.h"
 #include "en_tc.h"

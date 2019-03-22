@@ -22,7 +22,7 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
 #endif
-#include <net/addrconf.h>
+#include <net/ipv6_stubs.h>
 #include <net/nexthop.h>
 #include "internal.h"
 
