@@ -1,7 +1,7 @@
 {
 	"reference tracking: leak potential reference",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0), /* leak reference */
 	BPF_EXIT_INSN(),
 	},
@@ -12,7 +12,7 @@
 {
 	"reference tracking: leak potential reference on stack",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, -8),
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_0, 0),
@@ -26,7 +26,7 @@
 {
 	"reference tracking: leak potential reference on stack 2",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, -8),
 	BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_0, 0),
@@ -41,7 +41,7 @@
 {
 	"reference tracking: zero potential reference",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_IMM(BPF_REG_0, 0), /* leak reference */
 	BPF_EXIT_INSN(),
 	},
@@ -52,7 +52,7 @@
 {
 	"reference tracking: copy and zero potential references",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_7, BPF_REG_0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_MOV64_IMM(BPF_REG_7, 0), /* leak reference */
@@ -65,7 +65,7 @@
 {
 	"reference tracking: release reference without check",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	/* reference in r0 may be NULL */
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_MOV64_IMM(BPF_REG_2, 0),
@@ -79,7 +79,7 @@
 {
 	"reference tracking: release reference",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
 	BPF_EMIT_CALL(BPF_FUNC_sk_release),
@@ -91,7 +91,7 @@
 {
 	"reference tracking: release reference 2",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
@@ -104,7 +104,7 @@
 {
 	"reference tracking: release reference twice",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
@@ -120,7 +120,7 @@
 {
 	"reference tracking: release reference twice inside branch",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3), /* goto end */
@@ -147,7 +147,7 @@
 	BPF_EXIT_INSN(),
 	BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_2,
 		    offsetof(struct __sk_buff, mark)),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_6, 0, 1), /* mark == 0? */
 	/* Leak reference in R0 */
 	BPF_EXIT_INSN(),
@@ -175,7 +175,7 @@
 	BPF_EXIT_INSN(),
 	BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_2,
 		    offsetof(struct __sk_buff, mark)),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_6, 0, 4), /* mark == 0? */
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2), /* sk NULL? */
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
@@ -193,7 +193,7 @@
 {
 	"reference tracking in call: free reference in subprog",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0), /* unchecked reference */
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
@@ -211,7 +211,7 @@
 {
 	"reference tracking in call: free reference in subprog and outside",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0), /* unchecked reference */
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 3),
@@ -241,7 +241,7 @@
 
 	/* subprog 1 */
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_4),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	/* spill unchecked sk_ptr into stack of caller */
 	BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_0, 0),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
@@ -262,7 +262,7 @@
 	BPF_EXIT_INSN(),
 
 	/* subprog 1 */
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_EXIT_INSN(), /* return sk */
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
@@ -291,7 +291,7 @@
 	BPF_EXIT_INSN(),
 
 	/* subprog 2 */
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
@@ -324,7 +324,7 @@
 	BPF_EXIT_INSN(),
 
 	/* subprog 2 */
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
@@ -334,7 +334,7 @@
 	"reference tracking: allow LD_ABS",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
 	BPF_EMIT_CALL(BPF_FUNC_sk_release),
@@ -350,7 +350,7 @@
 	"reference tracking: forbid LD_ABS while holding reference",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_LD_ABS(BPF_B, 0),
 	BPF_LD_ABS(BPF_H, 0),
 	BPF_LD_ABS(BPF_W, 0),
@@ -367,7 +367,7 @@
 	"reference tracking: allow LD_IND",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
 	BPF_EMIT_CALL(BPF_FUNC_sk_release),
@@ -384,7 +384,7 @@
 	"reference tracking: forbid LD_IND while holding reference",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
 	BPF_MOV64_IMM(BPF_REG_7, 1),
 	BPF_LD_IND(BPF_W, BPF_REG_7, -0x200000),
@@ -402,7 +402,7 @@
 	"reference tracking: check reference or tail call",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_7, BPF_REG_1),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	/* if (sk) bpf_sk_release() */
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 7),
@@ -424,7 +424,7 @@
 	"reference tracking: release reference then tail call",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_7, BPF_REG_1),
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	/* if (sk) bpf_sk_release() */
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 1),
@@ -446,7 +446,7 @@
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_7, BPF_REG_1),
 	/* Look up socket and store in REG_6 */
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	/* bpf_tail_call() */
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_MOV64_IMM(BPF_REG_3, 2),
@@ -470,7 +470,7 @@
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_7, BPF_REG_1),
 	/* Look up socket and store in REG_6 */
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	/* if (!sk) goto end */
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 7),
@@ -492,7 +492,7 @@
 {
 	"reference tracking: mangle and release sock_or_null",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 5),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
@@ -506,7 +506,7 @@
 {
 	"reference tracking: mangle and release sock",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 5),
@@ -520,7 +520,7 @@
 {
 	"reference tracking: access member",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3),
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_0, 4),
@@ -534,7 +534,7 @@
 {
 	"reference tracking: write to member",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 5),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
@@ -553,7 +553,7 @@
 {
 	"reference tracking: invalid 64-bit access of member",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3),
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_0, 0),
@@ -568,7 +568,7 @@
 {
 	"reference tracking: access after release",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
 	BPF_EMIT_CALL(BPF_FUNC_sk_release),
@@ -608,7 +608,7 @@
 {
 	"reference tracking: use ptr from bpf_tcp_sock() after release",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
@@ -631,7 +631,7 @@
 {
 	"reference tracking: use ptr from bpf_sk_fullsock() after release",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
@@ -654,7 +654,7 @@
 {
 	"reference tracking: use ptr from bpf_sk_fullsock(tp) after release",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
@@ -681,7 +681,7 @@
 {
 	"reference tracking: use sk after bpf_sk_release(tp)",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
@@ -703,7 +703,7 @@
 {
 	"reference tracking: use ptr from bpf_get_listener_sock() after bpf_sk_release(sk)",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
@@ -725,7 +725,7 @@
 {
 	"reference tracking: bpf_sk_release(listen_sk)",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
@@ -750,7 +750,7 @@
 	/* !bpf_sk_fullsock(sk) is checked but !bpf_tcp_sock(sk) is not checked */
 	"reference tracking: tp->snd_cwnd after bpf_sk_fullsock(sk) and bpf_tcp_sock(sk)",
 	.insns = {
-	BPF_SK_LOOKUP,
+	BPF_SK_LOOKUP(sk_lookup_tcp),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 	BPF_EXIT_INSN(),
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
