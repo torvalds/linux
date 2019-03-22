@@ -931,9 +931,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
 
-#ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_init(&init_mm);
-#endif
 	irqstack_early_init();
 	exc_lvl_early_init();
 	emergency_stack_init();
