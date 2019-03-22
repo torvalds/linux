@@ -2583,6 +2583,10 @@ int tcp_disconnect(struct sock *sk, int flags)
 
 	tcp_clear_xmit_timers(sk);
 	__skb_queue_purge(&sk->sk_receive_queue);
+	if (sk->sk_rx_skb_cache) {
+		__kfree_skb(sk->sk_rx_skb_cache);
+		sk->sk_rx_skb_cache = NULL;
+	}
 	tp->copied_seq = tp->rcv_nxt;
 	tp->urg_data = 0;
 	tcp_write_queue_purge(sk);
