@@ -194,20 +194,4 @@ enum {
 	ADIS16400_SCAN_TIMESTAMP,
 };
 
-#ifdef CONFIG_IIO_BUFFER
-
-ssize_t adis16400_read_data_from_ring(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf);
-
-
-int adis16400_update_scan_mode(struct iio_dev *indio_dev,
-	const unsigned long *scan_mask);
-
-#else /* CONFIG_IIO_BUFFER */
-
-#define adis16400_update_scan_mode NULL
-
-#endif /* CONFIG_IIO_BUFFER */
-
 #endif /* SPI_ADIS16400_H_ */

@@ -886,7 +886,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 static const struct iio_info adis16400_info = {
 	.read_raw = &adis16400_read_raw,
 	.write_raw = &adis16400_write_raw,
-	.update_scan_mode = adis16400_update_scan_mode,
+	.update_scan_mode = adis_update_scan_mode,
 	.debugfs_reg_access = adis_debugfs_reg_access,
 };
 
