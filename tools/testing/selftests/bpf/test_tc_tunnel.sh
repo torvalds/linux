@@ -97,13 +97,11 @@ if [[ "$#" -eq "0" ]]; then
 	echo "ip6 gre"
 	$0 ipv6 ip6gre 100
 
-	# disabled until passes SKB_GSO_DODGY checks
-	# echo "ip gre gso"
-	# $0 ipv4 gre 2000
+	echo "ip gre gso"
+	$0 ipv4 gre 2000
 
-	# disabled until passes SKB_GSO_DODGY checks
-	# echo "ip6 gre gso"
-	# $0 ipv6 ip6gre 2000
+	echo "ip6 gre gso"
+	$0 ipv6 ip6gre 2000
 
 	echo "OK. All tests passed"
 	exit 0

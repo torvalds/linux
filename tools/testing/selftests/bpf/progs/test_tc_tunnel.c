@@ -70,8 +70,13 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, bool with_gre)
 	if (tcph.dest != __bpf_constant_htons(cfg_port))
 		return TC_ACT_OK;
 
-	flags = BPF_F_ADJ_ROOM_FIXED_GSO;
-	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
+	flags = BPF_F_ADJ_ROOM_FIXED_GSO | BPF_F_ADJ_ROOM_ENCAP_L3_IPV4;
+	if (with_gre) {
+		flags |= BPF_F_ADJ_ROOM_ENCAP_L4_GRE;
+		olen = sizeof(h_outer);
+	} else {
+		olen = sizeof(h_outer.ip);
+	}
 
 	/* add room between mac and network header */
 	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, flags))
@@ -119,8 +124,14 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, bool with_gre)
 	if (tcph.dest != __bpf_constant_htons(cfg_port))
 		return TC_ACT_OK;
 
-	flags = BPF_F_ADJ_ROOM_FIXED_GSO;
-	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
+	flags = BPF_F_ADJ_ROOM_FIXED_GSO | BPF_F_ADJ_ROOM_ENCAP_L3_IPV6;
+	if (with_gre) {
+		flags |= BPF_F_ADJ_ROOM_ENCAP_L4_GRE;
+		olen = sizeof(h_outer);
+	} else {
+		olen = sizeof(h_outer.ip);
+	}
+
 
 	/* add room between mac and network header */
 	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, flags))
