@@ -801,6 +801,80 @@ static int kvmppc_h_set_mode(struct kvm_vcpu *vcpu, unsigned long mflags,
 	}
 }
 
+/* Copy guest memory in place - must reside within a single memslot */
+static int kvmppc_copy_guest(struct kvm *kvm, gpa_t to, gpa_t from,
+				  unsigned long len)
+{
+	struct kvm_memory_slot *to_memslot = NULL;
+	struct kvm_memory_slot *from_memslot = NULL;
+	unsigned long to_addr, from_addr;
+	int r;
+
+	/* Get HPA for from address */
+	from_memslot = gfn_to_memslot(kvm, from >> PAGE_SHIFT);
+	if (!from_memslot)
+		return -EFAULT;
+	if ((from + len) >= ((from_memslot->base_gfn + from_memslot->npages)
+			     << PAGE_SHIFT))
+		return -EINVAL;
+	from_addr = gfn_to_hva_memslot(from_memslot, from >> PAGE_SHIFT);
+	if (kvm_is_error_hva(from_addr))
+		return -EFAULT;
+	from_addr |= (from & (PAGE_SIZE - 1));
+
+	/* Get HPA for to address */
+	to_memslot = gfn_to_memslot(kvm, to >> PAGE_SHIFT);
+	if (!to_memslot)
+		return -EFAULT;
+	if ((to + len) >= ((to_memslot->base_gfn + to_memslot->npages)
+			   << PAGE_SHIFT))
+		return -EINVAL;
+	to_addr = gfn_to_hva_memslot(to_memslot, to >> PAGE_SHIFT);
+	if (kvm_is_error_hva(to_addr))
+		return -EFAULT;
+	to_addr |= (to & (PAGE_SIZE - 1));
+
+	/* Perform copy */
+	r = raw_copy_in_user((void __user *)to_addr, (void __user *)from_addr,
+			     len);
+	if (r)
+		return -EFAULT;
+	mark_page_dirty(kvm, to >> PAGE_SHIFT);
+	return 0;
+}
+
+static long kvmppc_h_page_init(struct kvm_vcpu *vcpu, unsigned long flags,
+			       unsigned long dest, unsigned long src)
+{
+	u64 pg_sz = SZ_4K;		/* 4K page size */
+	u64 pg_mask = SZ_4K - 1;
+	int ret;
+
+	/* Check for invalid flags (H_PAGE_SET_LOANED covers all CMO flags) */
+	if (flags & ~(H_ICACHE_INVALIDATE | H_ICACHE_SYNCHRONIZE |
+		      H_ZERO_PAGE | H_COPY_PAGE | H_PAGE_SET_LOANED))
+		return H_PARAMETER;
+
+	/* dest (and src if copy_page flag set) must be page aligned */
+	if ((dest & pg_mask) || ((flags & H_COPY_PAGE) && (src & pg_mask)))
+		return H_PARAMETER;
+
+	/* zero and/or copy the page as determined by the flags */
+	if (flags & H_COPY_PAGE) {
+		ret = kvmppc_copy_guest(vcpu->kvm, dest, src, pg_sz);
+		if (ret < 0)
+			return H_PARAMETER;
+	} else if (flags & H_ZERO_PAGE) {
+		ret = kvm_clear_guest(vcpu->kvm, dest, pg_sz);
+		if (ret < 0)
+			return H_PARAMETER;
+	}
+
+	/* We can ignore the remaining flags */
+
+	return H_SUCCESS;
+}
+
 static int kvm_arch_vcpu_yield_to(struct kvm_vcpu *target)
 {
 	struct kvmppc_vcore *vcore = target->arch.vcore;
@@ -1003,6 +1077,11 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (nesting_enabled(vcpu->kvm))
 			ret = kvmhv_copy_tofrom_guest_nested(vcpu);
 		break;
+	case H_PAGE_INIT:
+		ret = kvmppc_h_page_init(vcpu, kvmppc_get_gpr(vcpu, 4),
+					 kvmppc_get_gpr(vcpu, 5),
+					 kvmppc_get_gpr(vcpu, 6));
+		break;
 	default:
 		return RESUME_HOST;
 	}
@@ -1047,6 +1126,7 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	case H_IPOLL:
 	case H_XIRR_X:
 #endif
+	case H_PAGE_INIT:
 		return 1;
 	}
 
