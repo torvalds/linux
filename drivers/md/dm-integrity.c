@@ -3616,7 +3616,7 @@ static struct target_type integrity_target = {
 	.io_hints		= dm_integrity_io_hints,
 };
 
-int __init dm_integrity_init(void)
+static int __init dm_integrity_init(void)
 {
 	int r;
 
@@ -3635,7 +3635,7 @@ int __init dm_integrity_init(void)
 	return r;
 }
 
-void dm_integrity_exit(void)
+static void __exit dm_integrity_exit(void)
 {
 	dm_unregister_target(&integrity_target);
 	kmem_cache_destroy(journal_io_cache);
