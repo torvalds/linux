@@ -355,6 +355,15 @@ static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		fsl_elbc_run_command(mtd);
 		return;
 
+	/* RNDOUT moves the pointer inside the page */
+	case NAND_CMD_RNDOUT:
+		dev_dbg(priv->dev,
+			"fsl_elbc_cmdfunc: NAND_CMD_RNDOUT, column: 0x%x.\n",
+			column);
+
+		elbc_fcm_ctrl->index = column;
+		return;
+
 	/* READOOB reads only the OOB because no ECC is performed. */
 	case NAND_CMD_READOOB:
 		dev_vdbg(priv->dev,
