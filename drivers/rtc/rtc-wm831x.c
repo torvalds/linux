@@ -436,12 +436,16 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	wm831x_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm831x",
-					      &wm831x_rtc_ops, THIS_MODULE);
-	if (IS_ERR(wm831x_rtc->rtc)) {
-		ret = PTR_ERR(wm831x_rtc->rtc);
-		goto err;
-	}
+	wm831x_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(wm831x_rtc->rtc))
+		return PTR_ERR(wm831x_rtc->rtc);
+
+	wm831x_rtc->rtc->ops = &wm831x_rtc_ops;
+	wm831x_rtc->rtc->range_max = U32_MAX;
+
+	ret = rtc_register_device(wm831x_rtc->rtc);
+	if (ret)
+		return ret;
 
 	ret = devm_request_threaded_irq(&pdev->dev, alm_irq, NULL,
 				wm831x_alm_irq,
