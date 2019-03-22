@@ -871,11 +871,6 @@ print_version:
 	return 0;
 }
 
-static bool hidpp_is_connected(struct hidpp_device *hidpp)
-{
-	return hidpp_root_get_protocol_version(hidpp) == 0;
-}
-
 /* -------------------------------------------------------------------------- */
 /* 0x0005: GetDeviceNameType                                                  */
 /* -------------------------------------------------------------------------- */
@@ -3125,7 +3120,7 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 	/* the device is already connected, we can ask for its name and
 	 * protocol */
 	if (!hidpp->protocol_major) {
-		ret = !hidpp_is_connected(hidpp);
+		ret = hidpp_root_get_protocol_version(hidpp);
 		if (ret) {
 			hid_err(hdev, "Can not get the protocol version.\n");
 			return;
@@ -3277,7 +3272,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hidpp->quirks & HIDPP_QUIRK_UNIFYING)
 		hidpp_unifying_init(hidpp);
 
-	connected = hidpp_is_connected(hidpp);
+	connected = hidpp_root_get_protocol_version(hidpp) == 0;
 	atomic_set(&hidpp->connected, connected);
 	if (!(hidpp->quirks & HIDPP_QUIRK_UNIFYING)) {
 		if (!connected) {
