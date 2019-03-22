@@ -2281,7 +2281,7 @@ hcall_real_table:
 #endif
 	.long	0		/* 0x24 - H_SET_SPRG0 */
 	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
-	.long	0		/* 0x2c */
+	.long	DOTSYM(kvmppc_rm_h_page_init) - hcall_real_table
 	.long	0		/* 0x30 */
 	.long	0		/* 0x34 */
 	.long	0		/* 0x38 */

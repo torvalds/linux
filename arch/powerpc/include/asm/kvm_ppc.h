@@ -665,6 +665,8 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
                         unsigned long pte_index);
 long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
                         unsigned long pte_index);
+long kvmppc_rm_h_page_init(struct kvm_vcpu *vcpu, unsigned long flags,
+			   unsigned long dest, unsigned long src);
 long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
                           unsigned long slb_v, unsigned int status, bool data);
 unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu);
