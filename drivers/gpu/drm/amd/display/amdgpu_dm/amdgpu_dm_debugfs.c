@@ -995,6 +995,35 @@ static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
 	{"amdgpu_target_backlight_pwm", &target_backlight_read},
 };
 
+/*
+ * Sets the DC visual confirm debug option from the given string.
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_visual_confirm
+ */
+static int visual_confirm_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.dc->debug.visual_confirm = (enum visual_confirm)val;
+
+	return 0;
+}
+
+/*
+ * Reads the DC visual confirm debug option value into the given buffer.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_visual_confirm
+ */
+static int visual_confirm_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dc->debug.visual_confirm;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
+			 visual_confirm_set, "%llu\n");
+
 int dtn_debugfs_init(struct amdgpu_device *adev)
 {
 	static const struct file_operations dtn_log_fops = {
@@ -1020,5 +1049,13 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 		adev,
 		&dtn_log_fops);
 
-	return PTR_ERR_OR_ZERO(ent);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	ent = debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root,
+					 adev, &visual_confirm_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	return 0;
 }
