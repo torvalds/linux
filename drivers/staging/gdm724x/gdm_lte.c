@@ -871,7 +871,6 @@ int register_lte_device(struct phy_dev *phy_dev,
 		net = alloc_netdev(sizeof(struct nic), pdn_dev_name,
 				   NET_NAME_UNKNOWN, ether_setup);
 		if (!net) {
-			pr_err("alloc_netdev failed\n");
 			ret = -ENOMEM;
 			goto err;
 		}
