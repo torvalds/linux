@@ -3468,6 +3468,15 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
 			__qdisc_drop(skb, &to_free);
 			rc = NET_XMIT_DROP;
+		} else if ((q->flags & TCQ_F_CAN_BYPASS) && q->empty &&
+			   qdisc_run_begin(q)) {
+			qdisc_bstats_cpu_update(q, skb);
+
+			if (sch_direct_xmit(skb, q, dev, txq, NULL, true))
+				__qdisc_run(q);
+
+			qdisc_run_end(q);
+			rc = NET_XMIT_SUCCESS;
 		} else {
 			rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
 			qdisc_run(q);
