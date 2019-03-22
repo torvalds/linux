@@ -30,11 +30,8 @@
 	pcie@1003000 {
 		status = "okay";
 
-		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
 		hvddio-pex-supply = <&vdd_1v8>;
 		dvddio-pex-supply = <&vdd_pex_1v05>;
-		dvdd-pex-pll-supply = <&vdd_pex_1v05>;
-		hvdd-pex-pll-e-supply = <&vdd_1v8>;
 		vddio-pex-ctl-supply = <&vdd_1v8>;
 
 		pci@1,0 {
@@ -446,11 +443,6 @@
 		avdd-usb-supply = <&vdd_3v3_sys>;
 		dvddio-pex-supply = <&vdd_pex_1v05>;
 		hvddio-pex-supply = <&vdd_1v8>;
-		/* these really belong to the XUSB pad controller */
-		avdd-pll-utmip-supply = <&vdd_1v8>;
-		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
-		dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
-		hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
 
 		status = "okay";
 	};
