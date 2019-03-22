@@ -159,6 +159,12 @@ properties:
 
       - description: Google Jerry (Hisense Chromebook C11 and more)
         items:
+          - const: google,veyron-jerry-rev15
+          - const: google,veyron-jerry-rev14
+          - const: google,veyron-jerry-rev13
+          - const: google,veyron-jerry-rev12
+          - const: google,veyron-jerry-rev11
+          - const: google,veyron-jerry-rev10
           - const: google,veyron-jerry-rev7
           - const: google,veyron-jerry-rev6
           - const: google,veyron-jerry-rev5
