@@ -2042,6 +2042,14 @@ struct drm_i915_private {
 		struct i915_vma *scratch;
 	} gt;
 
+	/* For i945gm vblank irq vs. C3 workaround */
+	struct {
+		struct work_struct work;
+		struct pm_qos_request pm_qos;
+		u8 c3_disable_latency;
+		u8 enabled;
+	} i945gm_vblank;
+
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
 
