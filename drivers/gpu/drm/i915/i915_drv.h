@@ -957,6 +957,7 @@ struct ddi_vbt_port_info {
 #define HDMI_LEVEL_SHIFT_UNKNOWN	0xff
 	u8 hdmi_level_shift;
 
+	u8 present:1;
 	u8 supports_dvi:1;
 	u8 supports_hdmi:1;
 	u8 supports_dp:1;
