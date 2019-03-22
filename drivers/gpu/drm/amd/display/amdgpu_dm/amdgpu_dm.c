@@ -6123,7 +6123,9 @@ dm_determine_update_type_for_commit(struct dc *dc,
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		struct dc_stream_update stream_update = { 0 };
+		struct dc_stream_update stream_update;
+
+		memset(&stream_update, 0, sizeof(stream_update));
 
 		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
