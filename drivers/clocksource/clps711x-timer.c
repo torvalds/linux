@@ -93,8 +93,9 @@ static int __init _clps711x_clkevt_init(struct clk *clock, void __iomem *base,
 			   "clps711x-timer", clkevt);
 }
 
-void __init clps711x_clksrc_init(void __iomem *tc1_base, void __iomem *tc2_base,
-				 unsigned int irq)
+static void __init clps711x_clksrc_init(void __iomem *tc1_base,
+					void __iomem *tc2_base,
+					unsigned int irq)
 {
 	struct clk *tc1 = clk_get_sys("clps711x-timer.0", NULL);
 	struct clk *tc2 = clk_get_sys("clps711x-timer.1", NULL);
