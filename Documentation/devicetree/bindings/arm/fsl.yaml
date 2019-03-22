@@ -155,6 +155,12 @@ properties:
           - const: compulab,cl-som-imx7
           - const: fsl,imx7d
 
+      - description: i.MX8MM based Boards
+        items:
+          - enum:
+              - fsl,imx8mm-evk            # i.MX8MM EVK Board
+          - const: fsl,imx8mm
+
       - description: i.MX8QXP based Boards
         items:
           - enum:
