@@ -289,6 +289,68 @@ static const struct clk_ops aic32x4_codec_clkin_ops = {
 	.get_parent = clk_aic32x4_codec_clkin_get_parent,
 };
 
+static int clk_aic32x4_div_prepare(struct clk_hw *hw)
+{
+	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
+
+	return regmap_update_bits(div->regmap, div->reg,
+				AIC32X4_DIVEN, AIC32X4_DIVEN);
+}
+
+static void clk_aic32x4_div_unprepare(struct clk_hw *hw)
+{
+	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
+
+	regmap_update_bits(div->regmap, div->reg,
+			AIC32X4_DIVEN, 0);
+}
+
+static int clk_aic32x4_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
+	u8 divisor;
+
+	divisor = DIV_ROUND_UP(parent_rate, rate);
+	if (divisor > 128)
+		return -EINVAL;
+
+	return regmap_update_bits(div->regmap, div->reg,
+				AIC32X4_DIV_MASK, divisor);
+}
+
+static long clk_aic32x4_div_round_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long *parent_rate)
+{
+	unsigned long divisor;
+
+	divisor = DIV_ROUND_UP(*parent_rate, rate);
+	if (divisor > 128)
+		return -EINVAL;
+
+	return DIV_ROUND_UP(*parent_rate, divisor);
+}
+
+static unsigned long clk_aic32x4_div_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
+{
+	struct clk_aic32x4 *div = to_clk_aic32x4(hw);
+
+	unsigned int val;
+
+	regmap_read(div->regmap, div->reg, &val);
+
+	return DIV_ROUND_UP(parent_rate, val & AIC32X4_DIV_MASK);
+}
+
+static const struct clk_ops aic32x4_div_ops = {
+	.prepare = clk_aic32x4_div_prepare,
+	.unprepare = clk_aic32x4_div_unprepare,
+	.set_rate = clk_aic32x4_div_set_rate,
+	.round_rate = clk_aic32x4_div_round_rate,
+	.recalc_rate = clk_aic32x4_div_recalc_rate,
+};
+
 static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 	{
 		.name = "pll",
@@ -305,6 +367,34 @@ static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 		.num_parents = 4,
 		.ops = &aic32x4_codec_clkin_ops,
 		.reg = 0,
+	},
+	{
+		.name = "ndac",
+		.parent_names = (const char * []) { "codec_clkin" },
+		.num_parents = 1,
+		.ops = &aic32x4_div_ops,
+		.reg = AIC32X4_NDAC,
+	},
+	{
+		.name = "mdac",
+		.parent_names = (const char * []) { "ndac" },
+		.num_parents = 1,
+		.ops = &aic32x4_div_ops,
+		.reg = AIC32X4_MDAC,
+	},
+	{
+		.name = "nadc",
+		.parent_names = (const char * []) { "codec_clkin" },
+		.num_parents = 1,
+		.ops = &aic32x4_div_ops,
+		.reg = AIC32X4_NADC,
+	},
+	{
+		.name = "madc",
+		.parent_names = (const char * []) { "nadc" },
+		.num_parents = 1,
+		.ops = &aic32x4_div_ops,
+		.reg = AIC32X4_MADC,
 	},
 };
 

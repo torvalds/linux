@@ -206,6 +206,10 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 #define AIC32X4_RMICPGANIN_IN1L_10K	0x10
 #define AIC32X4_RMICPGANIN_CM1R_10K	0x40
 
+/* Common mask and enable for all of the dividers */
+#define AIC32X4_DIVEN           BIT(7)
+#define AIC32X4_DIV_MASK        GENMASK(6, 0)
+
 /* Clock Limits */
 #define AIC32X4_MAX_PLL_CLKIN		20000000
 
