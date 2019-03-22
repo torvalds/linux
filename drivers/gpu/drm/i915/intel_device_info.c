@@ -156,9 +156,15 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 	u8 eu_en;
 	int s;
 
-	sseu->max_slices = 1;
-	sseu->max_subslices = 8;
-	sseu->max_eus_per_subslice = 8;
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		sseu->max_slices = 1;
+		sseu->max_subslices = 4;
+		sseu->max_eus_per_subslice = 8;
+	} else {
+		sseu->max_slices = 1;
+		sseu->max_subslices = 8;
+		sseu->max_eus_per_subslice = 8;
+	}
 
 	s_en = I915_READ(GEN11_GT_SLICE_ENABLE) & GEN11_GT_S_ENA_MASK;
 	ss_en = ~I915_READ(GEN11_GT_SUBSLICE_DISABLE);
