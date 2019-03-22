@@ -12,6 +12,9 @@ readonly ns2="${ns_prefix}2"
 
 readonly ns1_v4=192.168.1.1
 readonly ns2_v4=192.168.1.2
+readonly ns1_v6=fd::1
+readonly ns2_v6=fd::2
+
 
 setup() {
 	ip netns add "${ns1}"
@@ -25,6 +28,8 @@ setup() {
 
 	ip -netns "${ns1}" -4 addr add "${ns1_v4}/24" dev veth1
 	ip -netns "${ns2}" -4 addr add "${ns2_v4}/24" dev veth2
+	ip -netns "${ns1}" -6 addr add "${ns1_v6}/64" dev veth1 nodad
+	ip -netns "${ns2}" -6 addr add "${ns2_v6}/64" dev veth2 nodad
 
 	sleep 1
 }
@@ -35,16 +40,56 @@ cleanup() {
 }
 
 server_listen() {
-	ip netns exec "${ns2}" nc -l -p "${port}" &
+	ip netns exec "${ns2}" nc "${netcat_opt}" -l -p "${port}" &
 	sleep 0.2
 }
 
 client_connect() {
-	ip netns exec "${ns1}" nc -z -w 1 "${ns2_v4}" "${port}"
+	ip netns exec "${ns1}" nc "${netcat_opt}" -z -w 1 "${addr2}" "${port}"
 	echo $?
 }
 
 set -e
+
+# no arguments: automated test, run all
+if [[ "$#" -eq "0" ]]; then
+	echo "ipip"
+	$0 ipv4
+
+	echo "ip6ip6"
+	$0 ipv6
+
+	echo "OK. All tests passed"
+	exit 0
+fi
+
+if [[ "$#" -ne "1" ]]; then
+	echo "Usage: $0"
+	echo "   or: $0 <ipv4|ipv6>"
+	exit 1
+fi
+
+case "$1" in
+"ipv4")
+	readonly tuntype=ipip
+	readonly addr1="${ns1_v4}"
+	readonly addr2="${ns2_v4}"
+	readonly netcat_opt=-4
+	;;
+"ipv6")
+	readonly tuntype=ip6tnl
+	readonly addr1="${ns1_v6}"
+	readonly addr2="${ns2_v6}"
+	readonly netcat_opt=-6
+	;;
+*)
+	echo "unknown arg: $1"
+	exit 1
+	;;
+esac
+
+echo "encap ${addr1} to ${addr2}, type ${tuntype}"
+
 trap cleanup EXIT
 
 setup
@@ -66,8 +111,8 @@ server_listen
 # serverside, insert decap module
 # server is still running
 # client can connect again
-ip netns exec "${ns2}" ip link add dev testtun0 type ipip \
-	remote "${ns1_v4}" local "${ns2_v4}"
+ip netns exec "${ns2}" ip link add dev testtun0 type "${tuntype}" \
+	remote "${addr1}" local "${addr2}"
 ip netns exec "${ns2}" ip link set dev testtun0 up
 echo "test bpf encap with tunnel device decap"
 client_connect
