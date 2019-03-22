@@ -66,7 +66,7 @@ enum sof_ipc_ctrl_type {
 	/* component data - uses struct sof_ipc_ctrl_value_comp */
 	SOF_CTRL_TYPE_VALUE_COMP_GET,
 	SOF_CTRL_TYPE_VALUE_COMP_SET,
-	/* bespoke data - struct struct sof_abi_hdr */
+	/* bespoke data - uses struct sof_abi_hdr */
 	SOF_CTRL_TYPE_DATA_GET,
 	SOF_CTRL_TYPE_DATA_SET,
 };
