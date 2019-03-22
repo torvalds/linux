@@ -1240,24 +1240,15 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return (refclk * n * 100) / (p * r);
 }
 
-static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			       enum intel_dpll_id pll_id)
+static int skl_calc_wrpll_link(const struct intel_dpll_hw_state *pll_state)
 {
-	i915_reg_t cfgcr1_reg, cfgcr2_reg;
-	u32 cfgcr1_val, cfgcr2_val;
 	u32 p0, p1, p2, dco_freq;
 
-	cfgcr1_reg = DPLL_CFGCR1(pll_id);
-	cfgcr2_reg = DPLL_CFGCR2(pll_id);
+	p0 = pll_state->cfgcr2 & DPLL_CFGCR2_PDIV_MASK;
+	p2 = pll_state->cfgcr2 & DPLL_CFGCR2_KDIV_MASK;
 
-	cfgcr1_val = I915_READ(cfgcr1_reg);
-	cfgcr2_val = I915_READ(cfgcr2_reg);
-
-	p0 = cfgcr2_val & DPLL_CFGCR2_PDIV_MASK;
-	p2 = cfgcr2_val & DPLL_CFGCR2_KDIV_MASK;
-
-	if (cfgcr2_val &  DPLL_CFGCR2_QDIV_MODE(1))
-		p1 = (cfgcr2_val & DPLL_CFGCR2_QDIV_RATIO_MASK) >> 8;
+	if (pll_state->cfgcr2 &  DPLL_CFGCR2_QDIV_MODE(1))
+		p1 = (pll_state->cfgcr2 & DPLL_CFGCR2_QDIV_RATIO_MASK) >> 8;
 	else
 		p1 = 1;
 
@@ -1292,10 +1283,11 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	dco_freq = (cfgcr1_val & DPLL_CFGCR1_DCO_INTEGER_MASK) * 24 * 1000;
+	dco_freq = (pll_state->cfgcr1 & DPLL_CFGCR1_DCO_INTEGER_MASK)
+		* 24 * 1000;
 
-	dco_freq += (((cfgcr1_val & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9) * 24 *
-		1000) / 0x8000;
+	dco_freq += (((pll_state->cfgcr1 & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9)
+		     * 24 * 1000) / 0x8000;
 
 	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
 		return 0;
@@ -1544,22 +1536,20 @@ static void cnl_ddi_clock_get(struct intel_encoder *encoder,
 }
 
 static void skl_ddi_clock_get(struct intel_encoder *encoder,
-				struct intel_crtc_state *pipe_config)
+			      struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int link_clock = 0;
-	u32 dpll_ctl1;
-	enum intel_dpll_id pll_id;
+	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
+	int link_clock;
 
-	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
-
-	dpll_ctl1 = I915_READ(DPLL_CTRL1);
-
-	if (dpll_ctl1 & DPLL_CTRL1_HDMI_MODE(pll_id)) {
-		link_clock = skl_calc_wrpll_link(dev_priv, pll_id);
+	/*
+	 * ctrl1 register is already shifted for each pll, just use 0 to get
+	 * the internal shift for each field
+	 */
+	if (pll_state->ctrl1 & DPLL_CTRL1_HDMI_MODE(0)) {
+		link_clock = skl_calc_wrpll_link(pll_state);
 	} else {
-		link_clock = dpll_ctl1 & DPLL_CTRL1_LINK_RATE_MASK(pll_id);
-		link_clock >>= DPLL_CTRL1_LINK_RATE_SHIFT(pll_id);
+		link_clock = pll_state->ctrl1 & DPLL_CTRL1_LINK_RATE_MASK(0);
+		link_clock >>= DPLL_CTRL1_LINK_RATE_SHIFT(0);
 
 		switch (link_clock) {
 		case DPLL_CTRL1_LINK_RATE_810:
