@@ -406,6 +406,7 @@ technologic	Technologic Systems
 tempo	Tempo Semiconductor
 techstar	Shenzhen Techstar Electronics Co., Ltd.
 terasic	Terasic Inc.
+tfc	Three Five Corp
 thine	THine Electronics, Inc.
 ti	Texas Instruments
 tianma	Tianma Micro-electronics Co., Ltd.
