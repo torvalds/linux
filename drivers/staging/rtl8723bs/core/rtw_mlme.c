@@ -13,13 +13,13 @@
 
 extern u8 rtw_do_join(struct adapter *padapter);
 
-sint	_rtw_init_mlme_priv(struct adapter *padapter)
+int	rtw_init_mlme_priv(struct adapter *padapter)
 {
 	sint	i;
 	u8 *pbuf;
 	struct wlan_network	*pnetwork;
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
-	sint	res = _SUCCESS;
+	int	res = _SUCCESS;
 
 	pmlmepriv->nic_hdl = (u8 *)padapter;
 
@@ -348,15 +348,6 @@ u16 rtw_get_capability(struct wlan_bssid_ex *bss)
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
 {
 	return (ie + 8);
-}
-
-
-int	rtw_init_mlme_priv(struct adapter *padapter)/* struct	mlme_priv *pmlmepriv) */
-{
-	int	res;
-
-	res = _rtw_init_mlme_priv(padapter);/*  (pmlmepriv); */
-	return res;
 }
 
 void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
