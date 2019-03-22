@@ -3386,8 +3386,8 @@ static int selinux_inode_copy_up_xattr(const char *name)
 
 /* kernfs node operations */
 
-int selinux_kernfs_init_security(struct kernfs_node *kn_dir,
-				 struct kernfs_node *kn)
+static int selinux_kernfs_init_security(struct kernfs_node *kn_dir,
+					struct kernfs_node *kn)
 {
 	const struct task_security_struct *tsec = current_security();
 	u32 parent_sid, newsid, clen;
