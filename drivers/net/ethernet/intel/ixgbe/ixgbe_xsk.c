@@ -14,58 +14,10 @@ struct xdp_umem *ixgbe_xsk_umem(struct ixgbe_adapter *adapter,
 	bool xdp_on = READ_ONCE(adapter->xdp_prog);
 	int qid = ring->ring_idx;
 
-	if (!adapter->xsk_umems || !adapter->xsk_umems[qid] ||
-	    qid >= adapter->num_xsk_umems || !xdp_on ||
-	    !test_bit(qid, adapter->af_xdp_zc_qps))
+	if (!xdp_on || !test_bit(qid, adapter->af_xdp_zc_qps))
 		return NULL;
 
-	return adapter->xsk_umems[qid];
-}
-
-static int ixgbe_alloc_xsk_umems(struct ixgbe_adapter *adapter)
-{
-	if (adapter->xsk_umems)
-		return 0;
-
-	adapter->num_xsk_umems_used = 0;
-	adapter->num_xsk_umems = adapter->num_rx_queues;
-	adapter->xsk_umems = kcalloc(adapter->num_xsk_umems,
-				     sizeof(*adapter->xsk_umems),
-				     GFP_KERNEL);
-	if (!adapter->xsk_umems) {
-		adapter->num_xsk_umems = 0;
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static int ixgbe_add_xsk_umem(struct ixgbe_adapter *adapter,
-			      struct xdp_umem *umem,
-			      u16 qid)
-{
-	int err;
-
-	err = ixgbe_alloc_xsk_umems(adapter);
-	if (err)
-		return err;
-
-	adapter->xsk_umems[qid] = umem;
-	adapter->num_xsk_umems_used++;
-
-	return 0;
-}
-
-static void ixgbe_remove_xsk_umem(struct ixgbe_adapter *adapter, u16 qid)
-{
-	adapter->xsk_umems[qid] = NULL;
-	adapter->num_xsk_umems_used--;
-
-	if (adapter->num_xsk_umems == 0) {
-		kfree(adapter->xsk_umems);
-		adapter->xsk_umems = NULL;
-		adapter->num_xsk_umems = 0;
-	}
+	return xdp_get_umem_from_qid(adapter->netdev, qid);
 }
 
 static int ixgbe_xsk_umem_dma_map(struct ixgbe_adapter *adapter,
@@ -114,6 +66,7 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 				 struct xdp_umem *umem,
 				 u16 qid)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct xdp_umem_fq_reuse *reuseq;
 	bool if_running;
 	int err;
@@ -121,12 +74,9 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 	if (qid >= adapter->num_rx_queues)
 		return -EINVAL;
 
-	if (adapter->xsk_umems) {
-		if (qid >= adapter->num_xsk_umems)
-			return -EINVAL;
-		if (adapter->xsk_umems[qid])
-			return -EBUSY;
-	}
+	if (qid >= netdev->real_num_rx_queues ||
+	    qid >= netdev->real_num_tx_queues)
+		return -EINVAL;
 
 	reuseq = xsk_reuseq_prepare(adapter->rx_ring[0]->count);
 	if (!reuseq)
@@ -139,15 +89,12 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 		return err;
 
 	if_running = netif_running(adapter->netdev) &&
-		     READ_ONCE(adapter->xdp_prog);
+		     ixgbe_enabled_xdp_adapter(adapter);
 
 	if (if_running)
 		ixgbe_txrx_ring_disable(adapter, qid);
 
 	set_bit(qid, adapter->af_xdp_zc_qps);
-	err = ixgbe_add_xsk_umem(adapter, umem, qid);
-	if (err)
-		return err;
 
 	if (if_running) {
 		ixgbe_txrx_ring_enable(adapter, qid);
@@ -163,21 +110,21 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 
 static int ixgbe_xsk_umem_disable(struct ixgbe_adapter *adapter, u16 qid)
 {
+	struct xdp_umem *umem;
 	bool if_running;
 
-	if (!adapter->xsk_umems || qid >= adapter->num_xsk_umems ||
-	    !adapter->xsk_umems[qid])
+	umem = xdp_get_umem_from_qid(adapter->netdev, qid);
+	if (!umem)
 		return -EINVAL;
 
 	if_running = netif_running(adapter->netdev) &&
-		     READ_ONCE(adapter->xdp_prog);
+		     ixgbe_enabled_xdp_adapter(adapter);
 
 	if (if_running)
 		ixgbe_txrx_ring_disable(adapter, qid);
 
 	clear_bit(qid, adapter->af_xdp_zc_qps);
-	ixgbe_xsk_umem_dma_unmap(adapter, adapter->xsk_umems[qid]);
-	ixgbe_remove_xsk_umem(adapter, qid);
+	ixgbe_xsk_umem_dma_unmap(adapter, umem);
 
 	if (if_running)
 		ixgbe_txrx_ring_enable(adapter, qid);
@@ -756,7 +703,7 @@ int ixgbe_xsk_async_xmit(struct net_device *dev, u32 qid)
 	if (qid >= adapter->num_xdp_queues)
 		return -ENXIO;
 
-	if (!adapter->xsk_umems || !adapter->xsk_umems[qid])
+	if (!adapter->xdp_ring[qid]->xsk_umem)
 		return -ENXIO;
 
 	ring = adapter->xdp_ring[qid];
