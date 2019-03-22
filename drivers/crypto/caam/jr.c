@@ -371,9 +371,11 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 
 	/*
 	 * Ensure that all job information has been written before
-	 * notifying CAAM that a new job was added to the input ring.
+	 * notifying CAAM that a new job was added to the input ring
+	 * using a memory barrier. The wr_reg32() uses api iowrite32()
+	 * to do the register write. iowrite32() issues a memory barrier
+	 * before the write operation.
 	 */
-	wmb();
 
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
 
