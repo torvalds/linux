@@ -2204,7 +2204,7 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 		context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz =
 						pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-		context->res_ctx.pipe_ctx[i].plane_res.bw.dscclk_khz =
+		context->res_ctx.pipe_ctx[i].stream_res.dscclk_khz =
 				context->bw_ctx.dml.vba.DSCCLK_calculated[pipe_idx] * 1000;
 #endif
 		context->res_ctx.pipe_ctx[i].pipe_dlg_param = pipes[pipe_idx].pipe.dest;
