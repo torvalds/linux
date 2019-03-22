@@ -11,7 +11,10 @@
 
 / {
 	model = "Google Jerry";
-	compatible = "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
+	compatible = "google,veyron-jerry-rev15", "google,veyron-jerry-rev14",
+		     "google,veyron-jerry-rev13", "google,veyron-jerry-rev12",
+		     "google,veyron-jerry-rev11", "google,veyron-jerry-rev10",
+		     "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
 		     "google,veyron-jerry-rev5", "google,veyron-jerry-rev4",
 		     "google,veyron-jerry-rev3", "google,veyron-jerry",
 		     "google,veyron", "rockchip,rk3288";
