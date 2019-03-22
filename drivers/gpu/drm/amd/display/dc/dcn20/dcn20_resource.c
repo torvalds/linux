@@ -2611,11 +2611,14 @@ static bool init_soc_bounding_box(struct dc *dc,
 		if (pool->base.pp_smu->nv_funcs.get_maximum_sustainable_clocks) {
 			status = (*pool->base.pp_smu->nv_funcs.get_maximum_sustainable_clocks)
 					(&pool->base.pp_smu->nv_funcs.pp_smu, &max_clocks);
-
+			/* SMU cannot set DCF clock to anything equal to or higher than SOC clock
+			 */
+			if (max_clocks.dcfClockInKhz >= max_clocks.socClockInKhz)
+				max_clocks.dcfClockInKhz = max_clocks.socClockInKhz - 1000;
 			clock_limits_available = (status == PP_SMU_RESULT_OK);
 		}
 
-		if (clock_limits_available && uclk_states_available)
+		if (clock_limits_available && uclk_states_available && num_states)
 			update_bounding_box(dc, &dcn2_0_soc, &max_clocks, uclk_states, num_states);
 		else if (clock_limits_available)
 			cap_soc_clocks(&dcn2_0_soc, max_clocks);
