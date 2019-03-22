@@ -642,8 +642,7 @@ config CRYPTO_DEV_SUN4I_SS_PRNG
 	  the Pseudo-Random Number Generator found in the Security System.
 
 config CRYPTO_DEV_ROCKCHIP
-	tristate "Rockchip's Cryptographic Engine driver"
-	depends on OF && ARCH_ROCKCHIP
+	tristate
 	select CRYPTO_AES
 	select CRYPTO_DES
 	select CRYPTO_MD5
@@ -652,9 +651,24 @@ config CRYPTO_DEV_ROCKCHIP
 	select CRYPTO_HASH
 	select CRYPTO_BLKCIPHER
 
+config CRYPTO_DEV_ROCKCHIP_V1
+	tristate "Rockchip's Cryptographic Engine V1 driver"
+	depends on OF && ARCH_ROCKCHIP
+	select CRYPTO_DEV_ROCKCHIP
 	help
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
+	  It currently supports rk3288.
+
+config CRYPTO_DEV_ROCKCHIP_V2
+	tristate "Rockchip's Cryptographic Engine V2 driver"
+	depends on OF && ARCH_ROCKCHIP
+	select CRYPTO_DEV_ROCKCHIP
+	help
+	  This driver interfaces with the hardware crypto accelerator.
+	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
+	  Supporting aes-xts cipher mode.
+	  It currently supports px30.
 
 config CRYPTO_DEV_MEDIATEK
 	tristate "MediaTek's EIP97 Cryptographic Engine driver"

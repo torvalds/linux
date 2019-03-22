@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Crypto acceleration support for Rockchip RK3288
  *
@@ -5,18 +6,32 @@
  *
  * Author: Zain Wang <zain.wang@rock-chips.com>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  * Some ideas are from marvell/cesa.c and s5p-sss.c driver.
  */
-#include "rk3288_crypto.h"
+#include "rk_crypto_core.h"
+#include "rk_crypto_v1.h"
+#include "rk_crypto_v1_reg.h"
 
 /*
  * IC can not process zero message hash,
  * so we put the fixed hash out when met zero message.
  */
+
+static int rk_crypto_irq_handle(int irq, void *dev_id)
+{
+	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
+	u32 interrupt_status;
+
+	interrupt_status = CRYPTO_READ(dev, RK_CRYPTO_INTSTS);
+	CRYPTO_WRITE(dev, RK_CRYPTO_INTSTS, interrupt_status);
+
+	if (interrupt_status & 0x0a) {
+		dev_warn(dev->dev, "DMA Error\n");
+		dev->err = -EFAULT;
+	}
+
+	return 0;
+}
 
 static int zero_message_process(struct ahash_request *req)
 {
@@ -274,47 +289,55 @@ out_rx:
 
 static int rk_cra_hash_init(struct crypto_tfm *tfm)
 {
-	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct rk_crypto_tmp *algt;
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
+	struct rk_hw_crypto_v1_info *hw_info;
 
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 
 	algt = container_of(alg, struct rk_crypto_tmp, alg.hash);
 
-	tctx->dev = algt->dev;
-	tctx->dev->addr_vir = (void *)__get_free_page(GFP_KERNEL);
-	if (!tctx->dev->addr_vir) {
-		dev_err(tctx->dev->dev, "failed to kmalloc for addr_vir\n");
-		return -ENOMEM;
-	}
-	tctx->dev->start = rk_ahash_start;
-	tctx->dev->update = rk_ahash_crypto_rx;
-	tctx->dev->complete = rk_ahash_crypto_complete;
+	ctx->dev = algt->dev;
+	ctx->dev->start = rk_ahash_start;
+	ctx->dev->update = rk_ahash_crypto_rx;
+	ctx->dev->complete = rk_ahash_crypto_complete;
+	ctx->dev->irq_handle = rk_crypto_irq_handle;
 
 	/* for fallback */
-	tctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
+	ctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
 					       CRYPTO_ALG_NEED_FALLBACK);
-	if (IS_ERR(tctx->fallback_tfm)) {
-		dev_err(tctx->dev->dev, "Could not load fallback driver.\n");
-		return PTR_ERR(tctx->fallback_tfm);
+	if (IS_ERR(ctx->fallback_tfm)) {
+		dev_err(ctx->dev->dev, "Could not load fallback driver.\n");
+		return PTR_ERR(ctx->fallback_tfm);
 	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct rk_ahash_rctx) +
-				 crypto_ahash_reqsize(tctx->fallback_tfm));
+				 crypto_ahash_reqsize(ctx->fallback_tfm));
 
-	return tctx->dev->enable_clk(tctx->dev);
+	hw_info = (struct rk_hw_crypto_v1_info *)ctx->dev->hw_info;
+
+	if (hw_info->clk_enable == 0)
+		ctx->dev->enable_clk(ctx->dev);
+
+	hw_info->clk_enable++;
+
+	return 0;
 }
 
 static void rk_cra_hash_exit(struct crypto_tfm *tfm)
 {
-	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct rk_hw_crypto_v1_info *hw_info =
+		(struct rk_hw_crypto_v1_info *)ctx->dev->hw_info;
 
-	free_page((unsigned long)tctx->dev->addr_vir);
-	return tctx->dev->disable_clk(tctx->dev);
+	hw_info->clk_enable--;
+
+	if (hw_info->clk_enable == 0)
+		ctx->dev->disable_clk(ctx->dev);
 }
 
-struct rk_crypto_tmp rk_ahash_sha1 = {
+struct rk_crypto_tmp rk_v1_ahash_sha1 = {
 	.type = ALG_TYPE_HASH,
 	.alg.hash = {
 		.init = rk_ahash_init,
@@ -344,7 +367,7 @@ struct rk_crypto_tmp rk_ahash_sha1 = {
 	}
 };
 
-struct rk_crypto_tmp rk_ahash_sha256 = {
+struct rk_crypto_tmp rk_v1_ahash_sha256 = {
 	.type = ALG_TYPE_HASH,
 	.alg.hash = {
 		.init = rk_ahash_init,
@@ -374,7 +397,7 @@ struct rk_crypto_tmp rk_ahash_sha256 = {
 	}
 };
 
-struct rk_crypto_tmp rk_ahash_md5 = {
+struct rk_crypto_tmp rk_v1_ahash_md5 = {
 	.type = ALG_TYPE_HASH,
 	.alg.hash = {
 		.init = rk_ahash_init,

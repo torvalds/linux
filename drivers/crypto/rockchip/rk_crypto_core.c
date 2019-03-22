@@ -1,70 +1,46 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Crypto acceleration support for Rockchip RK3288
+ * Crypto acceleration support for Rockchip crypto
  *
- * Copyright (c) 2015, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2018, Fuzhou Rockchip Electronics Co., Ltd
  *
  * Author: Zain Wang <zain.wang@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Mender: Lin Jinhan <troy.lin@rock-chips.com>
  *
  * Some ideas are from marvell-cesa.c and s5p-sss.c driver.
  */
 
-#include "rk3288_crypto.h"
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/crypto.h>
 #include <linux/reset.h>
+#include <linux/slab.h>
+#include "rk_crypto_core.h"
+#include "rk_crypto_v1.h"
+#include "rk_crypto_v2.h"
 
 static int rk_crypto_enable_clk(struct rk_crypto_info *dev)
 {
-	int err;
+	int ret;
 
-	err = clk_prepare_enable(dev->sclk);
-	if (err) {
-		dev_err(dev->dev, "[%s:%d], Couldn't enable clock sclk\n",
-			__func__, __LINE__);
-		goto err_return;
+	dev_dbg(dev->dev, "clk_bulk_prepare_enable.\n");
+
+	ret = clk_bulk_prepare_enable(dev->soc_data->clks_num,
+				      &dev->clk_bulks[0]);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to enable clks %d\n", ret);
+		return ret;
 	}
-	err = clk_prepare_enable(dev->aclk);
-	if (err) {
-		dev_err(dev->dev, "[%s:%d], Couldn't enable clock aclk\n",
-			__func__, __LINE__);
-		goto err_aclk;
-	}
-	err = clk_prepare_enable(dev->hclk);
-	if (err) {
-		dev_err(dev->dev, "[%s:%d], Couldn't enable clock hclk\n",
-			__func__, __LINE__);
-		goto err_hclk;
-	}
-	err = clk_prepare_enable(dev->dmaclk);
-	if (err) {
-		dev_err(dev->dev, "[%s:%d], Couldn't enable clock dmaclk\n",
-			__func__, __LINE__);
-		goto err_dmaclk;
-	}
-	return err;
-err_dmaclk:
-	clk_disable_unprepare(dev->hclk);
-err_hclk:
-	clk_disable_unprepare(dev->aclk);
-err_aclk:
-	clk_disable_unprepare(dev->sclk);
-err_return:
-	return err;
+
+	return 0;
 }
 
 static void rk_crypto_disable_clk(struct rk_crypto_info *dev)
 {
-	clk_disable_unprepare(dev->dmaclk);
-	clk_disable_unprepare(dev->hclk);
-	clk_disable_unprepare(dev->aclk);
-	clk_disable_unprepare(dev->sclk);
+	dev_dbg(dev->dev, "clk_bulk_disable_unprepare.\n");
+	clk_bulk_disable_unprepare(dev->soc_data->clks_num, &dev->clk_bulks[0]);
 }
 
 static int check_alignment(struct scatterlist *sg_src,
@@ -73,12 +49,12 @@ static int check_alignment(struct scatterlist *sg_src,
 {
 	int in, out, align;
 
-	in = IS_ALIGNED((uint32_t)sg_src->offset, 4) &&
-	     IS_ALIGNED((uint32_t)sg_src->length, align_mask);
+	in = IS_ALIGNED((u32)sg_src->offset, 4) &&
+	     IS_ALIGNED((u32)sg_src->length, align_mask);
 	if (!sg_dst)
 		return in;
-	out = IS_ALIGNED((uint32_t)sg_dst->offset, 4) &&
-	      IS_ALIGNED((uint32_t)sg_dst->length, align_mask);
+	out = IS_ALIGNED((u32)sg_dst->offset, 4) &&
+	      IS_ALIGNED((u32)sg_dst->length, align_mask);
 	align = in && out;
 
 	return (align && (sg_src->length == sg_dst->length));
@@ -168,16 +144,12 @@ static void rk_unload_data(struct rk_crypto_info *dev)
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
-	u32 interrupt_status;
 
 	spin_lock(&dev->lock);
-	interrupt_status = CRYPTO_READ(dev, RK_CRYPTO_INTSTS);
-	CRYPTO_WRITE(dev, RK_CRYPTO_INTSTS, interrupt_status);
 
-	if (interrupt_status & 0x0a) {
-		dev_warn(dev->dev, "DMA Error\n");
-		dev->err = -EFAULT;
-	}
+	if (dev->irq_handle)
+		dev->irq_handle(irq, dev_id);
+
 	tasklet_schedule(&dev->done_task);
 
 	spin_unlock(&dev->lock);
@@ -247,55 +219,53 @@ static void rk_crypto_done_task_cb(unsigned long data)
 		dev->complete(dev->async_req, dev->err);
 }
 
-static struct rk_crypto_tmp *rk_cipher_algs[] = {
-	&rk_ecb_aes_alg,
-	&rk_cbc_aes_alg,
-	&rk_ecb_des_alg,
-	&rk_cbc_des_alg,
-	&rk_ecb_des3_ede_alg,
-	&rk_cbc_des3_ede_alg,
-	&rk_ahash_sha1,
-	&rk_ahash_sha256,
-	&rk_ahash_md5,
-};
-
 static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 {
 	unsigned int i, k;
+	struct rk_crypto_tmp **algs;
+	struct rk_crypto_tmp *tmp_algs;
 	int err = 0;
 
-	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
-		rk_cipher_algs[i]->dev = crypto_info;
-		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
-			err = crypto_register_alg(
-					&rk_cipher_algs[i]->alg.crypto);
+	algs = crypto_info->soc_data->cipher_algs;
+
+	for (i = 0; i < crypto_info->soc_data->cipher_num; i++, algs++) {
+		tmp_algs = *algs;
+		tmp_algs->dev = crypto_info;
+		if (tmp_algs->type == ALG_TYPE_CIPHER)
+			err = crypto_register_alg(&tmp_algs->alg.crypto);
 		else
-			err = crypto_register_ahash(
-					&rk_cipher_algs[i]->alg.hash);
+			err = crypto_register_ahash(&tmp_algs->alg.hash);
 		if (err)
 			goto err_cipher_algs;
 	}
 	return 0;
 
 err_cipher_algs:
-	for (k = 0; k < i; k++) {
-		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
-			crypto_unregister_alg(&rk_cipher_algs[k]->alg.crypto);
+	algs = crypto_info->soc_data->cipher_algs;
+	for (k = 0; k < i; k++, algs++) {
+		tmp_algs = *algs;
+		if (tmp_algs->type == ALG_TYPE_CIPHER)
+			crypto_unregister_alg(&tmp_algs->alg.crypto);
 		else
-			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
+			crypto_unregister_ahash(&tmp_algs->alg.hash);
 	}
 	return err;
 }
 
-static void rk_crypto_unregister(void)
+static void rk_crypto_unregister(struct rk_crypto_info *crypto_info)
 {
 	unsigned int i;
+	struct rk_crypto_tmp **algs;
+	struct rk_crypto_tmp *tmp_algs;
 
-	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
-		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
-			crypto_unregister_alg(&rk_cipher_algs[i]->alg.crypto);
+	algs = crypto_info->soc_data->cipher_algs;
+
+	for (i = 0; i < crypto_info->soc_data->cipher_num; i++, algs++) {
+		tmp_algs = *algs;
+		if (tmp_algs->type == ALG_TYPE_CIPHER)
+			crypto_unregister_alg(&tmp_algs->alg.crypto);
 		else
-			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
+			crypto_unregister_ahash(&tmp_algs->alg.hash);
 	}
 }
 
@@ -303,21 +273,109 @@ static void rk_crypto_action(void *data)
 {
 	struct rk_crypto_info *crypto_info = data;
 
-	reset_control_assert(crypto_info->rst);
+	if (crypto_info->rst)
+		reset_control_assert(crypto_info->rst);
 }
 
-static const struct of_device_id crypto_of_id_table[] = {
-	{ .compatible = "rockchip,rk3288-crypto" },
-	{}
+#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V2
+static const char * const px30_crypto_clks[] = {
+	"hclk",
+	"aclk",
+	"sclk",
+	"apb_pclk",
 };
+
+static const char * const px30_crypto_rsts[] = {
+	"crypto-rst",
+};
+
+static struct rk_crypto_tmp *px30_cipher_algs[] = {
+	&rk_v2_ecb_aes_alg,
+	&rk_v2_cbc_aes_alg,
+	&rk_v2_ecb_des_alg,
+	&rk_v2_xts_aes_alg,
+	&rk_v2_cbc_des_alg,
+	&rk_v2_ecb_des3_ede_alg,
+	&rk_v2_cbc_des3_ede_alg,
+};
+
+static const struct rk_crypto_soc_data px30_soc_data = {
+	.cipher_algs = &px30_cipher_algs[0],
+	.cipher_num = ARRAY_SIZE(px30_cipher_algs),
+	.clks = px30_crypto_clks,
+	.clks_num = ARRAY_SIZE(px30_crypto_clks),
+	.rsts = px30_crypto_rsts,
+	.rsts_num = ARRAY_SIZE(px30_crypto_rsts),
+	.hw_init = rk_hw_crypto_v2_init,
+	.hw_deinit = rk_hw_crypto_v2_deinit,
+	.hw_info_size = sizeof(struct rk_hw_crypto_v2_info),
+};
+#endif
+
+#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V1
+
+static const char * const rk3288_crypto_clks[] = {
+	"hclk",
+	"aclk",
+	"sclk",
+	"apb_pclk",
+};
+
+static const char * const rk3288_crypto_rsts[] = {
+	"crypto-rst",
+};
+
+static struct rk_crypto_tmp *rk3288_cipher_algs[] = {
+	&rk_v1_ecb_aes_alg,
+	&rk_v1_cbc_aes_alg,
+	&rk_v1_ecb_des_alg,
+	&rk_v1_cbc_des_alg,
+	&rk_v1_ecb_des3_ede_alg,
+	&rk_v1_cbc_des3_ede_alg,
+	&rk_v1_ahash_sha1,
+	&rk_v1_ahash_sha256,
+	&rk_v1_ahash_md5,
+};
+
+static const struct rk_crypto_soc_data rk3288_soc_data = {
+	.cipher_algs = &rk3288_cipher_algs[0],
+	.cipher_num = ARRAY_SIZE(rk3288_cipher_algs),
+	.clks = rk3288_crypto_clks,
+	.clks_num = ARRAY_SIZE(rk3288_crypto_clks),
+	.rsts = rk3288_crypto_rsts,
+	.rsts_num = ARRAY_SIZE(rk3288_crypto_rsts),
+	.hw_init = rk_hw_crypto_v1_init,
+	.hw_deinit = rk_hw_crypto_v1_deinit,
+	.hw_info_size = sizeof(struct rk_hw_crypto_v1_info),
+};
+#endif
+
+static const struct of_device_id crypto_of_id_table[] = {
+#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V2
+	{
+		.compatible = "rockchip,px30-crypto",
+		.data = (void *)&px30_soc_data,
+	},
+#endif
+#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_V1
+	{
+		.compatible = "rockchip,rk3288-crypto",
+		.data = (void *)&rk3288_soc_data,
+	},
+#endif
+	{ /* sentinel */ }
+};
+
 MODULE_DEVICE_TABLE(of, crypto_of_id_table);
 
 static int rk_crypto_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
 	struct rk_crypto_info *crypto_info;
-	int err = 0;
+	int err = 0, i;
 
 	crypto_info = devm_kzalloc(&pdev->dev,
 				   sizeof(*crypto_info), GFP_KERNEL);
@@ -326,15 +384,28 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_crypto;
 	}
 
-	crypto_info->rst = devm_reset_control_get(dev, "crypto-rst");
-	if (IS_ERR(crypto_info->rst)) {
-		err = PTR_ERR(crypto_info->rst);
-		goto err_crypto;
-	}
+	match = of_match_node(crypto_of_id_table, np);
+	crypto_info->soc_data = (struct rk_crypto_soc_data *)match->data;
 
-	reset_control_assert(crypto_info->rst);
-	usleep_range(10, 20);
-	reset_control_deassert(crypto_info->rst);
+	crypto_info->clk_bulks =
+		devm_kzalloc(&pdev->dev, sizeof(*crypto_info->clk_bulks) *
+			     crypto_info->soc_data->clks_num, GFP_KERNEL);
+
+	for (i = 0; i < crypto_info->soc_data->clks_num; i++)
+		crypto_info->clk_bulks[i].id = crypto_info->soc_data->clks[i];
+
+	if (crypto_info->soc_data->rsts[0]) {
+		crypto_info->rst =
+			devm_reset_control_get(dev,
+					       crypto_info->soc_data->rsts[0]);
+		if (IS_ERR(crypto_info->rst)) {
+			err = PTR_ERR(crypto_info->rst);
+			goto err_crypto;
+		}
+		reset_control_assert(crypto_info->rst);
+		usleep_range(10, 20);
+		reset_control_deassert(crypto_info->rst);
+	}
 
 	err = devm_add_action_or_reset(dev, rk_crypto_action, crypto_info);
 	if (err)
@@ -349,27 +420,10 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_crypto;
 	}
 
-	crypto_info->aclk = devm_clk_get(&pdev->dev, "aclk");
-	if (IS_ERR(crypto_info->aclk)) {
-		err = PTR_ERR(crypto_info->aclk);
-		goto err_crypto;
-	}
-
-	crypto_info->hclk = devm_clk_get(&pdev->dev, "hclk");
-	if (IS_ERR(crypto_info->hclk)) {
-		err = PTR_ERR(crypto_info->hclk);
-		goto err_crypto;
-	}
-
-	crypto_info->sclk = devm_clk_get(&pdev->dev, "sclk");
-	if (IS_ERR(crypto_info->sclk)) {
-		err = PTR_ERR(crypto_info->sclk);
-		goto err_crypto;
-	}
-
-	crypto_info->dmaclk = devm_clk_get(&pdev->dev, "apb_pclk");
-	if (IS_ERR(crypto_info->dmaclk)) {
-		err = PTR_ERR(crypto_info->dmaclk);
+	err = devm_clk_bulk_get(dev, crypto_info->soc_data->clks_num,
+				crypto_info->clk_bulks);
+	if (err) {
+		dev_err(&pdev->dev, "failed to get clks property\n");
 		goto err_crypto;
 	}
 
@@ -391,6 +445,28 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	}
 
 	crypto_info->dev = &pdev->dev;
+
+	crypto_info->hw_info =
+		devm_kzalloc(&pdev->dev,
+			     crypto_info->soc_data->hw_info_size, GFP_KERNEL);
+	if (!crypto_info->hw_info) {
+		err = -ENOMEM;
+		goto err_crypto;
+	}
+
+	err = crypto_info->soc_data->hw_init(&pdev->dev, crypto_info->hw_info);
+	if (err) {
+		dev_err(crypto_info->dev, "hw_init failed.\n");
+		goto err_crypto;
+	}
+
+	crypto_info->addr_vir = (char *)__get_free_page(GFP_KERNEL);
+	if (!crypto_info->addr_vir) {
+		err = -ENOMEM;
+		dev_err(crypto_info->dev, "__get_free_page failed.\n");
+		goto err_crypto;
+	}
+
 	platform_set_drvdata(pdev, crypto_info);
 
 	tasklet_init(&crypto_info->queue_task,
@@ -424,11 +500,17 @@ err_crypto:
 
 static int rk_crypto_remove(struct platform_device *pdev)
 {
-	struct rk_crypto_info *crypto_tmp = platform_get_drvdata(pdev);
+	struct rk_crypto_info *crypto_info = platform_get_drvdata(pdev);
 
-	rk_crypto_unregister();
-	tasklet_kill(&crypto_tmp->done_task);
-	tasklet_kill(&crypto_tmp->queue_task);
+	rk_crypto_unregister(crypto_info);
+	tasklet_kill(&crypto_info->done_task);
+	tasklet_kill(&crypto_info->queue_task);
+
+	if (crypto_info->addr_vir)
+		free_page((unsigned long)crypto_info->addr_vir);
+
+	crypto_info->soc_data->hw_deinit(&pdev->dev, crypto_info->hw_info);
+
 	return 0;
 }
 
@@ -436,13 +518,13 @@ static struct platform_driver crypto_driver = {
 	.probe		= rk_crypto_probe,
 	.remove		= rk_crypto_remove,
 	.driver		= {
-		.name	= "rk3288-crypto",
+		.name	= "rk-crypto",
 		.of_match_table	= crypto_of_id_table,
 	},
 };
 
 module_platform_driver(crypto_driver);
 
-MODULE_AUTHOR("Zain Wang <zain.wang@rock-chips.com>");
+MODULE_AUTHOR("Lin Jinhan <troy.lin@rock-chips.com>");
 MODULE_DESCRIPTION("Support for Rockchip's cryptographic engine");
 MODULE_LICENSE("GPL");
