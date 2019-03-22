@@ -110,6 +110,10 @@
 #define PLL_IDLE_TIME	100	/* in milliseconds */
 #define PLL_LOCK_TIME	100	/* in milliseconds */
 
+enum pipe3_mode { PIPE3_MODE_PCIE = 1,
+		  PIPE3_MODE_SATA,
+		  PIPE3_MODE_USBSS };
+
 struct pipe3_dpll_params {
 	u16	m;
 	u8	n;
@@ -141,6 +145,7 @@ struct ti_pipe3 {
 	unsigned int		power_reg; /* power reg. index within syscon */
 	unsigned int		pcie_pcs_reg; /* pcs reg. index in syscon */
 	bool			sata_refclk_enabled;
+	enum pipe3_mode		mode;
 };
 
 static struct pipe3_dpll_map dpll_map_usb[] = {
@@ -161,6 +166,25 @@ static struct pipe3_dpll_map dpll_map_sata[] = {
 	{26000000, {750, 12, 4, 6, 0} },	/* 26 MHz */
 	{38400000, {625, 15, 4, 6, 0} },	/* 38.4 MHz */
 	{ },					/* Terminator */
+};
+
+struct pipe3_data {
+	enum pipe3_mode mode;
+	struct pipe3_dpll_map *dpll_map;
+};
+
+static struct pipe3_data data_usb = {
+	.mode = PIPE3_MODE_USBSS,
+	.dpll_map = dpll_map_usb,
+};
+
+static struct pipe3_data data_sata = {
+	.mode = PIPE3_MODE_SATA,
+	.dpll_map = dpll_map_sata,
+};
+
+static struct pipe3_data data_pcie = {
+	.mode = PIPE3_MODE_PCIE,
 };
 
 static inline u32 ti_pipe3_readl(void __iomem *addr, unsigned offset)
@@ -340,7 +364,7 @@ static int ti_pipe3_init(struct phy *x)
 	 * as recommended in AM572x TRM SPRUHZ6, section 18.5.2.2, table
 	 * 18-1804.
 	 */
-	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-pcie")) {
+	if (phy->mode == PIPE3_MODE_PCIE) {
 		if (!phy->pcs_syscon) {
 			omap_control_pcie_pcs(phy->control_dev, 0x96);
 			return 0;
@@ -367,8 +391,7 @@ static int ti_pipe3_init(struct phy *x)
 
 	/* SATA has issues if re-programmed when locked */
 	val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_STATUS);
-	if ((val & PLL_LOCK) && of_device_is_compatible(phy->dev->of_node,
-							"ti,phy-pipe3-sata"))
+	if ((val & PLL_LOCK) && phy->mode == PIPE3_MODE_SATA)
 		return ret;
 
 	/* Program the DPLL */
@@ -390,12 +413,11 @@ static int ti_pipe3_exit(struct phy *x)
 	/* If dpll_reset_syscon is not present we wont power down SATA DPLL
 	 * due to Errata i783
 	 */
-	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-sata") &&
-	    !phy->dpll_reset_syscon)
+	if (phy->mode == PIPE3_MODE_SATA && !phy->dpll_reset_syscon)
 		return 0;
 
 	/* PCIe doesn't have internal DPLL */
-	if (!of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-pcie")) {
+	if (phy->mode != PIPE3_MODE_PCIE) {
 		/* Put DPLL in IDLE mode */
 		val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_CONFIGURATION2);
 		val |= PLL_IDLE;
@@ -418,7 +440,7 @@ static int ti_pipe3_exit(struct phy *x)
 	}
 
 	/* i783: SATA needs control bit toggle after PLL unlock */
-	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-sata")) {
+	if (phy->mode == PIPE3_MODE_SATA) {
 		regmap_update_bits(phy->dpll_reset_syscon, phy->dpll_reset_reg,
 				   SATA_PLL_SOFT_RESET, SATA_PLL_SOFT_RESET);
 		regmap_update_bits(phy->dpll_reset_syscon, phy->dpll_reset_reg,
@@ -443,7 +465,6 @@ static int ti_pipe3_get_clk(struct ti_pipe3 *phy)
 {
 	struct clk *clk;
 	struct device *dev = phy->dev;
-	struct device_node *node = dev->of_node;
 
 	phy->refclk = devm_clk_get(dev, "refclk");
 	if (IS_ERR(phy->refclk)) {
@@ -451,11 +472,11 @@ static int ti_pipe3_get_clk(struct ti_pipe3 *phy)
 		/* older DTBs have missing refclk in SATA PHY
 		 * so don't bail out in case of SATA PHY.
 		 */
-		if (!of_device_is_compatible(node, "ti,phy-pipe3-sata"))
+		if (phy->mode != PIPE3_MODE_SATA)
 			return PTR_ERR(phy->refclk);
 	}
 
-	if (!of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
+	if (phy->mode != PIPE3_MODE_SATA) {
 		phy->wkupclk = devm_clk_get(dev, "wkupclk");
 		if (IS_ERR(phy->wkupclk)) {
 			dev_err(dev, "unable to get wkupclk\n");
@@ -465,8 +486,7 @@ static int ti_pipe3_get_clk(struct ti_pipe3 *phy)
 		phy->wkupclk = ERR_PTR(-ENODEV);
 	}
 
-	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie") ||
-	    phy->phy_power_syscon) {
+	if (phy->mode != PIPE3_MODE_PCIE || phy->phy_power_syscon) {
 		phy->sys_clk = devm_clk_get(dev, "sysclk");
 		if (IS_ERR(phy->sys_clk)) {
 			dev_err(dev, "unable to get sysclk\n");
@@ -474,7 +494,7 @@ static int ti_pipe3_get_clk(struct ti_pipe3 *phy)
 		}
 	}
 
-	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
+	if (phy->mode == PIPE3_MODE_PCIE) {
 		clk = devm_clk_get(dev, "dpll_ref");
 		if (IS_ERR(clk)) {
 			dev_err(dev, "unable to get dpll ref clk\n");
@@ -546,7 +566,7 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 		phy->control_dev = &control_pdev->dev;
 	}
 
-	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
+	if (phy->mode == PIPE3_MODE_PCIE) {
 		phy->pcs_syscon = syscon_regmap_lookup_by_phandle(node,
 								  "syscon-pcs");
 		if (IS_ERR(phy->pcs_syscon)) {
@@ -564,7 +584,7 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 		}
 	}
 
-	if (of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
+	if (phy->mode == PIPE3_MODE_SATA) {
 		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(node,
 							"syscon-pllreset");
 		if (IS_ERR(phy->dpll_reset_syscon)) {
@@ -589,10 +609,9 @@ static int ti_pipe3_get_tx_rx_base(struct ti_pipe3 *phy)
 {
 	struct resource *res;
 	struct device *dev = phy->dev;
-	struct device_node *node = dev->of_node;
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie"))
+	if (phy->mode != PIPE3_MODE_PCIE)
 		return 0;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -611,23 +630,11 @@ static int ti_pipe3_get_tx_rx_base(struct ti_pipe3 *phy)
 static int ti_pipe3_get_pll_base(struct ti_pipe3 *phy)
 {
 	struct resource *res;
-	const struct of_device_id *match;
 	struct device *dev = phy->dev;
-	struct device_node *node = dev->of_node;
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie"))
+	if (phy->mode == PIPE3_MODE_PCIE)
 		return 0;
-
-	match = of_match_device(ti_pipe3_id_table, dev);
-	if (!match)
-		return -EINVAL;
-
-	phy->dpll_map = (struct pipe3_dpll_map *)match->data;
-	if (!phy->dpll_map) {
-		dev_err(dev, "no DPLL data\n");
-		return -EINVAL;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "pll_ctrl");
@@ -640,15 +647,28 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct ti_pipe3 *phy;
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
-	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	int ret;
+	const struct of_device_id *match;
+	struct pipe3_data *data;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	phy->dev		= dev;
+	match = of_match_device(ti_pipe3_id_table, dev);
+	if (!match)
+		return -EINVAL;
+
+	data = (struct pipe3_data *)match->data;
+	if (!data) {
+		dev_err(dev, "no driver data\n");
+		return -EINVAL;
+	}
+
+	phy->dev = dev;
+	phy->mode = data->mode;
+	phy->dpll_map = data->dpll_map;
 
 	ret = ti_pipe3_get_pll_base(phy);
 	if (ret)
@@ -672,7 +692,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	/*
 	 * Prevent auto-disable of refclk for SATA PHY due to Errata i783
 	 */
-	if (of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
+	if (phy->mode == PIPE3_MODE_SATA) {
 		if (!IS_ERR(phy->refclk)) {
 			clk_prepare_enable(phy->refclk);
 			phy->sata_refclk_enabled = true;
@@ -762,18 +782,19 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
 static const struct of_device_id ti_pipe3_id_table[] = {
 	{
 		.compatible = "ti,phy-usb3",
-		.data = dpll_map_usb,
+		.data = &data_usb,
 	},
 	{
 		.compatible = "ti,omap-usb3",
-		.data = dpll_map_usb,
+		.data = &data_usb,
 	},
 	{
 		.compatible = "ti,phy-pipe3-sata",
-		.data = dpll_map_sata,
+		.data = &data_sata,
 	},
 	{
 		.compatible = "ti,phy-pipe3-pcie",
+		.data = &data_pcie,
 	},
 	{}
 };
