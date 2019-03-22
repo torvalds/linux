@@ -35,6 +35,12 @@ setup() {
 	ip -netns "${ns1}" -6 addr add "${ns1_v6}/64" dev veth1 nodad
 	ip -netns "${ns2}" -6 addr add "${ns2_v6}/64" dev veth2 nodad
 
+	# clamp route to reserve room for tunnel headers
+	ip -netns "${ns1}" -4 route flush table main
+	ip -netns "${ns1}" -6 route flush table main
+	ip -netns "${ns1}" -4 route add "${ns2_v4}" mtu 1476 dev veth1
+	ip -netns "${ns1}" -6 route add "${ns2_v6}" mtu 1456 dev veth1
+
 	sleep 1
 
 	dd if=/dev/urandom of="${infile}" bs="${datalen}" count=1 status=none

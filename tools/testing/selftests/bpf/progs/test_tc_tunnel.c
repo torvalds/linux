@@ -52,6 +52,7 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, bool with_gre)
 	struct grev4hdr h_outer;
 	struct iphdr iph_inner;
 	struct tcphdr tcph;
+	__u64 flags;
 	int olen;
 
 	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
@@ -69,10 +70,11 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, bool with_gre)
 	if (tcph.dest != __bpf_constant_htons(cfg_port))
 		return TC_ACT_OK;
 
+	flags = BPF_F_ADJ_ROOM_FIXED_GSO;
 	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
 
 	/* add room between mac and network header */
-	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, 0))
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, flags))
 		return TC_ACT_SHOT;
 
 	/* prepare new outer network header */
@@ -102,6 +104,7 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, bool with_gre)
 	struct ipv6hdr iph_inner;
 	struct grev6hdr h_outer;
 	struct tcphdr tcph;
+	__u64 flags;
 	int olen;
 
 	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
@@ -116,10 +119,11 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, bool with_gre)
 	if (tcph.dest != __bpf_constant_htons(cfg_port))
 		return TC_ACT_OK;
 
+	flags = BPF_F_ADJ_ROOM_FIXED_GSO;
 	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
 
 	/* add room between mac and network header */
-	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, 0))
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, flags))
 		return TC_ACT_SHOT;
 
 	/* prepare new outer network header */
@@ -195,7 +199,8 @@ static int decap_internal(struct __sk_buff *skb, int off, int len, char proto)
 		return TC_ACT_OK;
 	}
 
-	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_MAC, 0))
+	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_MAC,
+				BPF_F_ADJ_ROOM_FIXED_GSO))
 		return TC_ACT_SHOT;
 
 	return TC_ACT_OK;
