@@ -132,6 +132,7 @@ struct perf_session *perf_session__new(struct perf_data *data,
 	ordered_events__init(&session->ordered_events,
 			     ordered_events__deliver_event, NULL);
 
+	perf_env__init(&session->header.env);
 	if (data) {
 		if (perf_data__open(data))
 			goto out_delete;
