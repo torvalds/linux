@@ -341,6 +341,8 @@ static int ti_pipe3_power_off(struct phy *x)
 	return ret;
 }
 
+static void ti_pipe3_calibrate(struct ti_pipe3 *phy);
+
 static int ti_pipe3_power_on(struct phy *x)
 {
 	u32 val;
@@ -385,6 +387,9 @@ static int ti_pipe3_power_on(struct phy *x)
 		regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
 				   mask, val);
 	}
+
+	if (phy->mode == PIPE3_MODE_PCIE)
+		ti_pipe3_calibrate(phy);
 
 	return 0;
 }
@@ -520,12 +525,7 @@ static int ti_pipe3_init(struct phy *x)
 		val = 0x96 << OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT;
 		ret = regmap_update_bits(phy->pcs_syscon, phy->pcie_pcs_reg,
 					 PCIE_PCS_MASK, val);
-		if (ret)
-			return ret;
-
-		ti_pipe3_calibrate(phy);
-
-		return 0;
+		return ret;
 	}
 
 	/* Bring it out of IDLE if it is IDLE */
