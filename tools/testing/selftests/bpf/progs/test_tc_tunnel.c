@@ -2,6 +2,9 @@
 
 /* In-place tunneling */
 
+#include <stdbool.h>
+#include <string.h>
+
 #include <linux/stddef.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
@@ -16,6 +19,18 @@
 #include "bpf_helpers.h"
 
 static const int cfg_port = 8000;
+
+struct grev4hdr {
+	struct iphdr ip;
+	__be16 flags;
+	__be16 protocol;
+} __attribute__((packed));
+
+struct grev6hdr {
+	struct ipv6hdr ip;
+	__be16 flags;
+	__be16 protocol;
+} __attribute__((packed));
 
 static __always_inline void set_ipv4_csum(struct iphdr *iph)
 {
@@ -32,10 +47,12 @@ static __always_inline void set_ipv4_csum(struct iphdr *iph)
 	iph->check = ~((csum & 0xffff) + (csum >> 16));
 }
 
-static int encap_ipv4(struct __sk_buff *skb)
+static __always_inline int encap_ipv4(struct __sk_buff *skb, bool with_gre)
 {
-	struct iphdr iph_outer, iph_inner;
+	struct grev4hdr h_outer;
+	struct iphdr iph_inner;
 	struct tcphdr tcph;
+	int olen;
 
 	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
 			       sizeof(iph_inner)) < 0)
@@ -52,24 +69,33 @@ static int encap_ipv4(struct __sk_buff *skb)
 	if (tcph.dest != __bpf_constant_htons(cfg_port))
 		return TC_ACT_OK;
 
+	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
+
 	/* add room between mac and network header */
-	if (bpf_skb_adjust_room(skb, sizeof(iph_outer), BPF_ADJ_ROOM_NET, 0))
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_NET, 0))
 		return TC_ACT_SHOT;
 
 	/* prepare new outer network header */
-	iph_outer = iph_inner;
-	iph_outer.protocol = IPPROTO_IPIP;
-	iph_outer.tot_len = bpf_htons(sizeof(iph_outer) +
-				      bpf_htons(iph_outer.tot_len));
-	set_ipv4_csum(&iph_outer);
+	h_outer.ip = iph_inner;
+	h_outer.ip.tot_len = bpf_htons(olen +
+				      bpf_htons(h_outer.ip.tot_len));
+	if (with_gre) {
+		h_outer.ip.protocol = IPPROTO_GRE;
+		h_outer.protocol = bpf_htons(ETH_P_IP);
+		h_outer.flags = 0;
+	} else {
+		h_outer.ip.protocol = IPPROTO_IPIP;
+	}
+
+	set_ipv4_csum((void *)&h_outer.ip);
 
 	/* store new outer network header */
-	if (bpf_skb_store_bytes(skb, ETH_HLEN, &iph_outer, sizeof(iph_outer),
+	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
 
 	/* bpf_skb_adjust_room has moved header to start of room: restore */
-	if (bpf_skb_store_bytes(skb, ETH_HLEN + sizeof(iph_outer),
+	if (bpf_skb_store_bytes(skb, ETH_HLEN + olen,
 				&iph_inner, sizeof(iph_inner),
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
@@ -77,10 +103,12 @@ static int encap_ipv4(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-static int encap_ipv6(struct __sk_buff *skb)
+static __always_inline int encap_ipv6(struct __sk_buff *skb, bool with_gre)
 {
-	struct ipv6hdr iph_outer, iph_inner;
+	struct ipv6hdr iph_inner;
+	struct grev6hdr h_outer;
 	struct tcphdr tcph;
+	int olen;
 
 	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
 			       sizeof(iph_inner)) < 0)
@@ -94,23 +122,31 @@ static int encap_ipv6(struct __sk_buff *skb)
 	if (tcph.dest != __bpf_constant_htons(cfg_port))
 		return TC_ACT_OK;
 
+	olen = with_gre ? sizeof(h_outer) : sizeof(h_outer.ip);
+
 	/* add room between mac and network header */
-	if (bpf_skb_adjust_room(skb, sizeof(iph_outer), BPF_ADJ_ROOM_NET, 0))
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_NET, 0))
 		return TC_ACT_SHOT;
 
 	/* prepare new outer network header */
-	iph_outer = iph_inner;
-	iph_outer.nexthdr = IPPROTO_IPV6;
-	iph_outer.payload_len = bpf_htons(sizeof(iph_outer) +
-					  bpf_ntohs(iph_outer.payload_len));
+	h_outer.ip = iph_inner;
+	h_outer.ip.payload_len = bpf_htons(olen +
+					   bpf_ntohs(h_outer.ip.payload_len));
+	if (with_gre) {
+		h_outer.ip.nexthdr = IPPROTO_GRE;
+		h_outer.protocol = bpf_htons(ETH_P_IPV6);
+		h_outer.flags = 0;
+	} else {
+		h_outer.ip.nexthdr = IPPROTO_IPV6;
+	}
 
 	/* store new outer network header */
-	if (bpf_skb_store_bytes(skb, ETH_HLEN, &iph_outer, sizeof(iph_outer),
+	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
 
 	/* bpf_skb_adjust_room has moved header to start of room: restore */
-	if (bpf_skb_store_bytes(skb, ETH_HLEN + sizeof(iph_outer),
+	if (bpf_skb_store_bytes(skb, ETH_HLEN + olen,
 				&iph_inner, sizeof(iph_inner),
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
@@ -118,28 +154,63 @@ static int encap_ipv6(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("encap")
-int encap_f(struct __sk_buff *skb)
+SEC("encap_ipip")
+int __encap_ipip(struct __sk_buff *skb)
 {
-	switch (skb->protocol) {
-	case __bpf_constant_htons(ETH_P_IP):
-		return encap_ipv4(skb);
-	case __bpf_constant_htons(ETH_P_IPV6):
-		return encap_ipv6(skb);
-	default:
-		/* does not match, ignore */
+	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
+		return encap_ipv4(skb, false);
+	else
 		return TC_ACT_OK;
-	}
 }
 
-static int decap_internal(struct __sk_buff *skb, int off, int len)
+SEC("encap_gre")
+int __encap_gre(struct __sk_buff *skb)
 {
-	char buf[sizeof(struct ipv6hdr)];
+	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
+		return encap_ipv4(skb, true);
+	else
+		return TC_ACT_OK;
+}
 
-	if (bpf_skb_load_bytes(skb, off + len, &buf, len) < 0)
+SEC("encap_ip6tnl")
+int __encap_ip6tnl(struct __sk_buff *skb)
+{
+	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
+		return encap_ipv6(skb, false);
+	else
+		return TC_ACT_OK;
+}
+
+SEC("encap_ip6gre")
+int __encap_ip6gre(struct __sk_buff *skb)
+{
+	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
+		return encap_ipv6(skb, true);
+	else
+		return TC_ACT_OK;
+}
+
+static int decap_internal(struct __sk_buff *skb, int off, int len, char proto)
+{
+	char buf[sizeof(struct grev6hdr)];
+	int olen;
+
+	switch (proto) {
+	case IPPROTO_IPIP:
+	case IPPROTO_IPV6:
+		olen = len;
+		break;
+	case IPPROTO_GRE:
+		olen = len + 4 /* gre hdr */;
+		break;
+	default:
+		return TC_ACT_OK;
+	}
+
+	if (bpf_skb_load_bytes(skb, off + olen, &buf, olen) < 0)
 		return TC_ACT_OK;
 
-	if (bpf_skb_adjust_room(skb, -len, BPF_ADJ_ROOM_NET, 0))
+	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_NET, 0))
 		return TC_ACT_SHOT;
 
 	/* bpf_skb_adjust_room has moved outer over inner header: restore */
@@ -157,10 +228,11 @@ static int decap_ipv4(struct __sk_buff *skb)
 			       sizeof(iph_outer)) < 0)
 		return TC_ACT_OK;
 
-	if (iph_outer.ihl != 5 || iph_outer.protocol != IPPROTO_IPIP)
+	if (iph_outer.ihl != 5)
 		return TC_ACT_OK;
 
-	return decap_internal(skb, ETH_HLEN, sizeof(iph_outer));
+	return decap_internal(skb, ETH_HLEN, sizeof(iph_outer),
+			      iph_outer.protocol);
 }
 
 static int decap_ipv6(struct __sk_buff *skb)
@@ -171,10 +243,8 @@ static int decap_ipv6(struct __sk_buff *skb)
 			       sizeof(iph_outer)) < 0)
 		return TC_ACT_OK;
 
-	if (iph_outer.nexthdr != IPPROTO_IPV6)
-		return TC_ACT_OK;
-
-	return decap_internal(skb, ETH_HLEN, sizeof(iph_outer));
+	return decap_internal(skb, ETH_HLEN, sizeof(iph_outer),
+			      iph_outer.nexthdr);
 }
 
 SEC("decap")

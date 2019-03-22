@@ -54,30 +54,36 @@ set -e
 # no arguments: automated test, run all
 if [[ "$#" -eq "0" ]]; then
 	echo "ipip"
-	$0 ipv4
+	$0 ipv4 ipip
 
 	echo "ip6ip6"
-	$0 ipv6
+	$0 ipv6 ip6tnl
+
+	echo "ip gre"
+	$0 ipv4 gre
+
+	echo "ip6 gre"
+	$0 ipv6 ip6gre
 
 	echo "OK. All tests passed"
 	exit 0
 fi
 
-if [[ "$#" -ne "1" ]]; then
+if [[ "$#" -ne "2" ]]; then
 	echo "Usage: $0"
-	echo "   or: $0 <ipv4|ipv6>"
+	echo "   or: $0 <ipv4|ipv6> <tuntype>"
 	exit 1
 fi
 
 case "$1" in
 "ipv4")
-	readonly tuntype=ipip
+	readonly tuntype=$2
 	readonly addr1="${ns1_v4}"
 	readonly addr2="${ns2_v4}"
 	readonly netcat_opt=-4
 	;;
 "ipv6")
-	readonly tuntype=ip6tnl
+	readonly tuntype=$2
 	readonly addr1="${ns1_v6}"
 	readonly addr2="${ns2_v6}"
 	readonly netcat_opt=-6
@@ -103,7 +109,8 @@ client_connect
 # client can no longer connect
 ip netns exec "${ns1}" tc qdisc add dev veth1 clsact
 ip netns exec "${ns1}" tc filter add dev veth1 egress \
-	bpf direct-action object-file ./test_tc_tunnel.o section encap
+	bpf direct-action object-file ./test_tc_tunnel.o \
+	section "encap_${tuntype}"
 echo "test bpf encap without decap (expect failure)"
 server_listen
 ! client_connect
