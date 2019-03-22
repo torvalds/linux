@@ -429,7 +429,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	ret = wm831x_reg_read(wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to read RTC control: %d\n", ret);
-		goto err;
+		return ret;
 	}
 	if (ret & WM831X_RTC_ALM_ENA)
 		wm831x_rtc->alarm_enabled = 1;
@@ -459,9 +459,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	wm831x_rtc_add_randomness(wm831x);
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static const struct dev_pm_ops wm831x_rtc_pm_ops = {
