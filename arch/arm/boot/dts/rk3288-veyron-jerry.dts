@@ -64,7 +64,9 @@
 
 &rk808 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pmic_int_l>;
+	pinctrl-0 = <&pmic_int_l &dvs_1 &dvs_2>;
+	dvs-gpios = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>,
+		    <&gpio7 RK_PB7 GPIO_ACTIVE_HIGH>;
 
 	regulators {
 		mic_vcc: LDO_REG2 {
