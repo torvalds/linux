@@ -16,6 +16,7 @@ struct regmap_config;
 extern const struct regmap_config aic32x4_regmap_config;
 int aic32x4_probe(struct device *dev, struct regmap *regmap);
 int aic32x4_remove(struct device *dev);
+int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 
 /* tlv320aic32x4 register space (in decimal to match datasheet) */
 
@@ -204,5 +205,9 @@ int aic32x4_remove(struct device *dev);
 /* AIC32X4_RMICPGANIN */
 #define AIC32X4_RMICPGANIN_IN1L_10K	0x10
 #define AIC32X4_RMICPGANIN_CM1R_10K	0x40
+
+/* Clock Limits */
+#define AIC32X4_MAX_PLL_CLKIN		20000000
+
 
 #endif				/* _TLV320AIC32X4_H */
