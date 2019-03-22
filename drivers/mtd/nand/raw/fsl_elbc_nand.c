@@ -730,24 +730,6 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	chip->controller = &elbc_fcm_ctrl->controller;
 	nand_set_controller_data(chip, priv);
 
-	chip->ecc.read_page = fsl_elbc_read_page;
-	chip->ecc.write_page = fsl_elbc_write_page;
-	chip->ecc.write_subpage = fsl_elbc_write_subpage;
-
-	/* If CS Base Register selects full hardware ECC then use it */
-	if ((in_be32(&lbc->bank[priv->bank].br) & BR_DECC) ==
-	    BR_DECC_CHK_GEN) {
-		chip->ecc.mode = NAND_ECC_HW;
-		mtd_set_ooblayout(mtd, &fsl_elbc_ooblayout_ops);
-		chip->ecc.size = 512;
-		chip->ecc.bytes = 3;
-		chip->ecc.strength = 1;
-	} else {
-		/* otherwise fall back to default software ECC */
-		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_HAMMING;
-	}
-
 	return 0;
 }
 
@@ -758,6 +740,40 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 	unsigned int al;
+
+	switch (chip->ecc.mode) {
+	/*
+	 * if ECC was not chosen in DT, decide whether to use HW or SW ECC from
+	 * CS Base Register
+	 */
+	case NAND_ECC_NONE:
+		/* If CS Base Register selects full hardware ECC then use it */
+		if ((in_be32(&lbc->bank[priv->bank].br) & BR_DECC) ==
+		    BR_DECC_CHK_GEN) {
+			chip->ecc.read_page = fsl_elbc_read_page;
+			chip->ecc.write_page = fsl_elbc_write_page;
+			chip->ecc.write_subpage = fsl_elbc_write_subpage;
+
+			chip->ecc.mode = NAND_ECC_HW;
+			mtd_set_ooblayout(mtd, &fsl_elbc_ooblayout_ops);
+			chip->ecc.size = 512;
+			chip->ecc.bytes = 3;
+			chip->ecc.strength = 1;
+		} else {
+			/* otherwise fall back to default software ECC */
+			chip->ecc.mode = NAND_ECC_SOFT;
+			chip->ecc.algo = NAND_ECC_HAMMING;
+		}
+		break;
+
+	/* if SW ECC was chosen in DT, we do not need to set anything here */
+	case NAND_ECC_SOFT:
+		break;
+
+	/* should we also implement NAND_ECC_HW to do as the code above? */
+	default:
+		return -EINVAL;
+	}
 
 	/* calculate FMR Address Length field */
 	al = 0;
