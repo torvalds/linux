@@ -72,4 +72,13 @@ ip netns exec "${ns2}" ip link set dev testtun0 up
 echo "test bpf encap with tunnel device decap"
 client_connect
 
+# serverside, use BPF for decap
+ip netns exec "${ns2}" ip link del dev testtun0
+ip netns exec "${ns2}" tc qdisc add dev veth2 clsact
+ip netns exec "${ns2}" tc filter add dev veth2 ingress \
+	bpf direct-action object-file ./test_tc_tunnel.o section decap
+server_listen
+echo "test bpf encap with bpf decap"
+client_connect
+
 echo OK

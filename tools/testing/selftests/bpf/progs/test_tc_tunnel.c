@@ -80,4 +80,35 @@ int encap_f(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
+SEC("decap")
+int decap_f(struct __sk_buff *skb)
+{
+	struct iphdr iph_outer, iph_inner;
+
+	if (skb->protocol != __bpf_constant_htons(ETH_P_IP))
+		return TC_ACT_OK;
+
+	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_outer,
+			       sizeof(iph_outer)) < 0)
+		return TC_ACT_OK;
+
+	if (iph_outer.ihl != 5 || iph_outer.protocol != IPPROTO_IPIP)
+		return TC_ACT_OK;
+
+	if (bpf_skb_load_bytes(skb, ETH_HLEN + sizeof(iph_outer),
+			       &iph_inner, sizeof(iph_inner)) < 0)
+		return TC_ACT_OK;
+
+	if (bpf_skb_adjust_room(skb, -(int)sizeof(iph_outer),
+				BPF_ADJ_ROOM_NET, 0))
+		return TC_ACT_SHOT;
+
+	/* bpf_skb_adjust_room has moved outer over inner header: restore */
+	if (bpf_skb_store_bytes(skb, ETH_HLEN, &iph_inner, sizeof(iph_inner),
+				BPF_F_INVALIDATE_HASH) < 0)
+		return TC_ACT_SHOT;
+
+	return TC_ACT_OK;
+}
+
 char __license[] SEC("license") = "GPL";
