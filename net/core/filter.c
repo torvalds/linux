@@ -2963,11 +2963,20 @@ static u32 bpf_skb_net_base_len(const struct sk_buff *skb)
 	}
 }
 
-#define BPF_F_ADJ_ROOM_MASK		(BPF_F_ADJ_ROOM_FIXED_GSO)
+#define BPF_F_ADJ_ROOM_ENCAP_L3_MASK	(BPF_F_ADJ_ROOM_ENCAP_L3_IPV4 | \
+					 BPF_F_ADJ_ROOM_ENCAP_L3_IPV6)
+
+#define BPF_F_ADJ_ROOM_MASK		(BPF_F_ADJ_ROOM_FIXED_GSO | \
+					 BPF_F_ADJ_ROOM_ENCAP_L3_MASK | \
+					 BPF_F_ADJ_ROOM_ENCAP_L4_GRE | \
+					 BPF_F_ADJ_ROOM_ENCAP_L4_UDP)
 
 static int bpf_skb_net_grow(struct sk_buff *skb, u32 off, u32 len_diff,
 			    u64 flags)
 {
+	bool encap = flags & BPF_F_ADJ_ROOM_ENCAP_L3_MASK;
+	unsigned int gso_type = SKB_GSO_DODGY;
+	u16 mac_len, inner_net, inner_trans;
 	int ret;
 
 	if (skb_is_gso(skb) && !skb_is_gso_tcp(skb)) {
@@ -2981,9 +2990,59 @@ static int bpf_skb_net_grow(struct sk_buff *skb, u32 off, u32 len_diff,
 	if (unlikely(ret < 0))
 		return ret;
 
+	if (encap) {
+		if (skb->protocol != htons(ETH_P_IP) &&
+		    skb->protocol != htons(ETH_P_IPV6))
+			return -ENOTSUPP;
+
+		if (flags & BPF_F_ADJ_ROOM_ENCAP_L3_IPV4 &&
+		    flags & BPF_F_ADJ_ROOM_ENCAP_L3_IPV6)
+			return -EINVAL;
+
+		if (flags & BPF_F_ADJ_ROOM_ENCAP_L4_GRE &&
+		    flags & BPF_F_ADJ_ROOM_ENCAP_L4_UDP)
+			return -EINVAL;
+
+		if (skb->encapsulation)
+			return -EALREADY;
+
+		mac_len = skb->network_header - skb->mac_header;
+		inner_net = skb->network_header;
+		inner_trans = skb->transport_header;
+	}
+
 	ret = bpf_skb_net_hdr_push(skb, off, len_diff);
 	if (unlikely(ret < 0))
 		return ret;
+
+	if (encap) {
+		/* inner mac == inner_net on l3 encap */
+		skb->inner_mac_header = inner_net;
+		skb->inner_network_header = inner_net;
+		skb->inner_transport_header = inner_trans;
+		skb_set_inner_protocol(skb, skb->protocol);
+
+		skb->encapsulation = 1;
+		skb_set_network_header(skb, mac_len);
+
+		if (flags & BPF_F_ADJ_ROOM_ENCAP_L4_UDP)
+			gso_type |= SKB_GSO_UDP_TUNNEL;
+		else if (flags & BPF_F_ADJ_ROOM_ENCAP_L4_GRE)
+			gso_type |= SKB_GSO_GRE;
+		else if (flags & BPF_F_ADJ_ROOM_ENCAP_L3_IPV6)
+			gso_type |= SKB_GSO_IPXIP6;
+		else
+			gso_type |= SKB_GSO_IPXIP4;
+
+		if (flags & BPF_F_ADJ_ROOM_ENCAP_L4_GRE ||
+		    flags & BPF_F_ADJ_ROOM_ENCAP_L4_UDP) {
+			int nh_len = flags & BPF_F_ADJ_ROOM_ENCAP_L3_IPV6 ?
+					sizeof(struct ipv6hdr) :
+					sizeof(struct iphdr);
+
+			skb_set_transport_header(skb, mac_len + nh_len);
+		}
+	}
 
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
@@ -2993,7 +3052,7 @@ static int bpf_skb_net_grow(struct sk_buff *skb, u32 off, u32 len_diff,
 			skb_decrease_gso_size(shinfo, len_diff);
 
 		/* Header must be checked, and gso_segs recomputed. */
-		shinfo->gso_type |= SKB_GSO_DODGY;
+		shinfo->gso_type |= gso_type;
 		shinfo->gso_segs = 0;
 	}
 
@@ -3044,7 +3103,6 @@ static u32 __bpf_skb_max_len(const struct sk_buff *skb)
 BPF_CALL_4(bpf_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,
 	   u32, mode, u64, flags)
 {
-	bool trans_same = skb->transport_header == skb->network_header;
 	u32 len_cur, len_diff_abs = abs(len_diff);
 	u32 len_min = bpf_skb_net_base_len(skb);
 	u32 len_max = __bpf_skb_max_len(skb);
@@ -3073,8 +3131,6 @@ BPF_CALL_4(bpf_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,
 	}
 
 	len_cur = skb->len - skb_network_offset(skb);
-	if (skb_transport_header_was_set(skb) && !trans_same)
-		len_cur = skb_network_header_len(skb);
 	if ((shrink && (len_diff_abs >= len_cur ||
 			len_cur - len_diff_abs < len_min)) ||
 	    (!shrink && (skb->len + len_diff_abs > len_max &&

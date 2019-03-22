@@ -1486,10 +1486,19 @@ union bpf_attr {
  * 		* **BPF_ADJ_ROOM_NET**: Adjust room at the network layer
  * 		  (room space is added or removed below the layer 3 header).
  *
- *		There is one supported flag at this time:
+ *		The following flags are supported at this time:
  *
  *		* **BPF_F_ADJ_ROOM_FIXED_GSO**: Do not adjust gso_size.
  *		  Adjusting mss in this way is not allowed for datagrams.
+ *
+ *		* **BPF_F_ADJ_ROOM_ENCAP_L3_IPV4 **:
+ *		* **BPF_F_ADJ_ROOM_ENCAP_L3_IPV6 **:
+ *		  Any new space is reserved to hold a tunnel header.
+ *		  Configure skb offsets and other fields accordingly.
+ *
+ *		* **BPF_F_ADJ_ROOM_ENCAP_L4_GRE **:
+ *		* **BPF_F_ADJ_ROOM_ENCAP_L4_UDP **:
+ *		  Use with ENCAP_L3 flags to further specify the tunnel type.
  *
  * 		A call to this helper is susceptible to change the underlaying
  * 		packet buffer. Therefore, at load time, all checks on pointers
@@ -2631,6 +2640,11 @@ enum bpf_func_id {
 
 /* BPF_FUNC_skb_adjust_room flags. */
 #define BPF_F_ADJ_ROOM_FIXED_GSO	(1ULL << 0)
+
+#define BPF_F_ADJ_ROOM_ENCAP_L3_IPV4	(1ULL << 1)
+#define BPF_F_ADJ_ROOM_ENCAP_L3_IPV6	(1ULL << 2)
+#define BPF_F_ADJ_ROOM_ENCAP_L4_GRE	(1ULL << 3)
+#define BPF_F_ADJ_ROOM_ENCAP_L4_UDP	(1ULL << 4)
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
