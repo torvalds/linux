@@ -142,6 +142,8 @@ irq_dispose:
 static const struct dev_pm_ops gic_pm_ops = {
 	SET_RUNTIME_PM_OPS(gic_runtime_suspend,
 			   gic_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 };
 
 static const char * const gic400_clocks[] = {
