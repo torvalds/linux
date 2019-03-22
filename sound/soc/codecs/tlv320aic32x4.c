@@ -735,12 +735,9 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 
 	aic32x4_set_processing_blocks(component, aic32x4_divs[i].r_block, aic32x4_divs[i].p_block);
 
-	/* PLL as CODEC_CLKIN */
-	snd_soc_component_update_bits(component, AIC32X4_CLKMUX,
-			AIC32X4_CODEC_CLKIN_MASK,
-			AIC32X4_CODEC_CLKIN_PLL << AIC32X4_CODEC_CLKIN_SHIFT);
 	/* DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_component_update_bits(component, AIC32X4_IFACE3, AIC32X4_BDIVCLK_MASK,
+	snd_soc_component_update_bits(component, AIC32X4_IFACE3,
+				AIC32X4_BDIVCLK_MASK,
 				AIC32X4_DACMOD2BCLK << AIC32X4_BDIVCLK_SHIFT);
 
 	/* NDAC divider value */
@@ -987,6 +984,15 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u32 tmp_reg;
+	int ret;
+
+	struct clk_bulk_data clocks[] = {
+	    { .id = "codec_clkin" },
+	};
+
+	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
+	if (ret)
+		return ret;
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
 		ndelay(10);
@@ -998,6 +1004,8 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 
 	if (aic32x4->setup)
 		aic32x4_setup_gpios(component);
+
+	clk_set_parent(clocks[0].clk, clocks[1].clk);
 
 	/* Power platform configuration */
 	if (aic32x4->power_cfg & AIC32X4_PWR_MICBIAS_2075_LDOIN) {

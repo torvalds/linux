@@ -265,6 +265,30 @@ static const struct clk_ops aic32x4_pll_ops = {
 	.get_parent = clk_aic32x4_pll_get_parent,
 };
 
+static int clk_aic32x4_codec_clkin_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct clk_aic32x4 *mux = to_clk_aic32x4(hw);
+
+	return regmap_update_bits(mux->regmap,
+		AIC32X4_CLKMUX,
+		AIC32X4_CODEC_CLKIN_MASK, index << AIC32X4_CODEC_CLKIN_SHIFT);
+}
+
+static u8 clk_aic32x4_codec_clkin_get_parent(struct clk_hw *hw)
+{
+	struct clk_aic32x4 *mux = to_clk_aic32x4(hw);
+	unsigned int val;
+
+	regmap_read(mux->regmap, AIC32X4_CLKMUX, &val);
+
+	return (val & AIC32X4_CODEC_CLKIN_MASK) >> AIC32X4_CODEC_CLKIN_SHIFT;
+}
+
+static const struct clk_ops aic32x4_codec_clkin_ops = {
+	.set_parent = clk_aic32x4_codec_clkin_set_parent,
+	.get_parent = clk_aic32x4_codec_clkin_get_parent,
+};
+
 static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 	{
 		.name = "pll",
@@ -272,6 +296,14 @@ static struct aic32x4_clkdesc aic32x4_clkdesc_array[] = {
 			(const char* []) { "mclk", "bclk", "gpio", "din" },
 		.num_parents = 4,
 		.ops = &aic32x4_pll_ops,
+		.reg = 0,
+	},
+	{
+		.name = "codec_clkin",
+		.parent_names =
+			(const char *[]) { "mclk", "bclk", "gpio", "pll" },
+		.num_parents = 4,
+		.ops = &aic32x4_codec_clkin_ops,
 		.reg = 0,
 	},
 };
@@ -314,6 +346,8 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name)
 	 */
 	aic32x4_clkdesc_array[0].parent_names =
 			(const char* []) { mclk_name, "bclk", "gpio", "din" };
+	aic32x4_clkdesc_array[1].parent_names =
+			(const char *[]) { mclk_name, "bclk", "gpio", "pll" };
 
 	for (i = 0; i < ARRAY_SIZE(aic32x4_clkdesc_array); ++i)
 		aic32x4_register_clk(dev, &aic32x4_clkdesc_array[i]);
