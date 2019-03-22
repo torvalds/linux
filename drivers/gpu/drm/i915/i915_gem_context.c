@@ -1102,198 +1102,6 @@ out:
 	return err;
 }
 
-static bool client_is_banned(struct drm_i915_file_private *file_priv)
-{
-	return atomic_read(&file_priv->ban_score) >= I915_CLIENT_SCORE_BANNED;
-}
-
-int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file)
-{
-	struct drm_i915_private *i915 = to_i915(dev);
-	struct drm_i915_gem_context_create *args = data;
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct i915_gem_context *ctx;
-	int ret;
-
-	if (!DRIVER_CAPS(i915)->has_logical_contexts)
-		return -ENODEV;
-
-	if (args->pad != 0)
-		return -EINVAL;
-
-	ret = i915_terminally_wedged(i915);
-	if (ret)
-		return ret;
-
-	if (client_is_banned(file_priv)) {
-		DRM_DEBUG("client %s[%d] banned from creating ctx\n",
-			  current->comm,
-			  pid_nr(get_task_pid(current, PIDTYPE_PID)));
-
-		return -EIO;
-	}
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
-	ctx = i915_gem_create_context(i915);
-	mutex_unlock(&dev->struct_mutex);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-
-	ret = gem_context_register(ctx, file_priv);
-	if (ret < 0)
-		goto err_ctx;
-
-	args->ctx_id = ret;
-	DRM_DEBUG("HW context %d created\n", args->ctx_id);
-
-	return 0;
-
-err_ctx:
-	mutex_lock(&dev->struct_mutex);
-	context_close(ctx);
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
-}
-
-int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
-				   struct drm_file *file)
-{
-	struct drm_i915_gem_context_destroy *args = data;
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct i915_gem_context *ctx;
-
-	if (args->pad != 0)
-		return -EINVAL;
-
-	if (!args->ctx_id)
-		return -ENOENT;
-
-	if (mutex_lock_interruptible(&file_priv->context_idr_lock))
-		return -EINTR;
-
-	ctx = idr_remove(&file_priv->context_idr, args->ctx_id);
-	mutex_unlock(&file_priv->context_idr_lock);
-	if (!ctx)
-		return -ENOENT;
-
-	mutex_lock(&dev->struct_mutex);
-	context_close(ctx);
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
-static int get_sseu(struct i915_gem_context *ctx,
-		    struct drm_i915_gem_context_param *args)
-{
-	struct drm_i915_gem_context_param_sseu user_sseu;
-	struct intel_engine_cs *engine;
-	struct intel_context *ce;
-
-	if (args->size == 0)
-		goto out;
-	else if (args->size < sizeof(user_sseu))
-		return -EINVAL;
-
-	if (copy_from_user(&user_sseu, u64_to_user_ptr(args->value),
-			   sizeof(user_sseu)))
-		return -EFAULT;
-
-	if (user_sseu.flags || user_sseu.rsvd)
-		return -EINVAL;
-
-	engine = intel_engine_lookup_user(ctx->i915,
-					  user_sseu.engine_class,
-					  user_sseu.engine_instance);
-	if (!engine)
-		return -EINVAL;
-
-	ce = intel_context_pin_lock(ctx, engine); /* serialises with set_sseu */
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
-
-	user_sseu.slice_mask = ce->sseu.slice_mask;
-	user_sseu.subslice_mask = ce->sseu.subslice_mask;
-	user_sseu.min_eus_per_subslice = ce->sseu.min_eus_per_subslice;
-	user_sseu.max_eus_per_subslice = ce->sseu.max_eus_per_subslice;
-
-	intel_context_pin_unlock(ce);
-
-	if (copy_to_user(u64_to_user_ptr(args->value), &user_sseu,
-			 sizeof(user_sseu)))
-		return -EFAULT;
-
-out:
-	args->size = sizeof(user_sseu);
-
-	return 0;
-}
-
-int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file)
-{
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct drm_i915_gem_context_param *args = data;
-	struct i915_gem_context *ctx;
-	int ret = 0;
-
-	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
-	if (!ctx)
-		return -ENOENT;
-
-	switch (args->param) {
-	case I915_CONTEXT_PARAM_BAN_PERIOD:
-		ret = -EINVAL;
-		break;
-	case I915_CONTEXT_PARAM_NO_ZEROMAP:
-		args->size = 0;
-		args->value = test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
-		break;
-	case I915_CONTEXT_PARAM_GTT_SIZE:
-		args->size = 0;
-
-		if (ctx->ppgtt)
-			args->value = ctx->ppgtt->vm.total;
-		else if (to_i915(dev)->mm.aliasing_ppgtt)
-			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
-		else
-			args->value = to_i915(dev)->ggtt.vm.total;
-		break;
-	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
-		args->size = 0;
-		args->value = i915_gem_context_no_error_capture(ctx);
-		break;
-	case I915_CONTEXT_PARAM_BANNABLE:
-		args->size = 0;
-		args->value = i915_gem_context_is_bannable(ctx);
-		break;
-	case I915_CONTEXT_PARAM_RECOVERABLE:
-		args->size = 0;
-		args->value = i915_gem_context_is_recoverable(ctx);
-		break;
-	case I915_CONTEXT_PARAM_PRIORITY:
-		args->size = 0;
-		args->value = ctx->sched.priority >> I915_USER_PRIORITY_SHIFT;
-		break;
-	case I915_CONTEXT_PARAM_SSEU:
-		ret = get_sseu(ctx, args);
-		break;
-	case I915_CONTEXT_PARAM_VM:
-		ret = get_ppgtt(ctx, args);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	i915_gem_context_put(ctx);
-	return ret;
-}
-
 static int gen8_emit_rpcs_config(struct i915_request *rq,
 				 struct intel_context *ce,
 				 struct intel_sseu sseu)
@@ -1573,17 +1381,10 @@ static int set_sseu(struct i915_gem_context *ctx,
 	return 0;
 }
 
-int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file)
+static int ctx_setparam(struct i915_gem_context *ctx,
+			struct drm_i915_gem_context_param *args)
 {
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct drm_i915_gem_context_param *args = data;
-	struct i915_gem_context *ctx;
 	int ret = 0;
-
-	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
-	if (!ctx)
-		return -ENOENT;
 
 	switch (args->param) {
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
@@ -1594,6 +1395,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		else
 			clear_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
 		break;
+
 	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
 		if (args->size)
 			ret = -EINVAL;
@@ -1602,6 +1404,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		else
 			i915_gem_context_clear_no_error_capture(ctx);
 		break;
+
 	case I915_CONTEXT_PARAM_BANNABLE:
 		if (args->size)
 			ret = -EINVAL;
@@ -1628,7 +1431,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 
 			if (args->size)
 				ret = -EINVAL;
-			else if (!(to_i915(dev)->caps.scheduler & I915_SCHEDULER_CAP_PRIORITY))
+			else if (!(ctx->i915->caps.scheduler & I915_SCHEDULER_CAP_PRIORITY))
 				ret = -ENODEV;
 			else if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
 				 priority < I915_CONTEXT_MIN_USER_PRIORITY)
@@ -1655,6 +1458,251 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		break;
 	}
+
+	return ret;
+}
+
+struct create_ext {
+	struct i915_gem_context *ctx;
+	struct drm_i915_file_private *fpriv;
+};
+
+static int create_setparam(struct i915_user_extension __user *ext, void *data)
+{
+	struct drm_i915_gem_context_create_ext_setparam local;
+	const struct create_ext *arg = data;
+
+	if (copy_from_user(&local, ext, sizeof(local)))
+		return -EFAULT;
+
+	if (local.param.ctx_id)
+		return -EINVAL;
+
+	return ctx_setparam(arg->ctx, &local.param);
+}
+
+static const i915_user_extension_fn create_extensions[] = {
+	[I915_CONTEXT_CREATE_EXT_SETPARAM] = create_setparam,
+};
+
+static bool client_is_banned(struct drm_i915_file_private *file_priv)
+{
+	return atomic_read(&file_priv->ban_score) >= I915_CLIENT_SCORE_BANNED;
+}
+
+int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file)
+{
+	struct drm_i915_private *i915 = to_i915(dev);
+	struct drm_i915_gem_context_create_ext *args = data;
+	struct create_ext ext_data;
+	int ret;
+
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
+		return -ENODEV;
+
+	if (args->flags & I915_CONTEXT_CREATE_FLAGS_UNKNOWN)
+		return -EINVAL;
+
+	ret = i915_terminally_wedged(i915);
+	if (ret)
+		return ret;
+
+	ext_data.fpriv = file->driver_priv;
+	if (client_is_banned(ext_data.fpriv)) {
+		DRM_DEBUG("client %s[%d] banned from creating ctx\n",
+			  current->comm,
+			  pid_nr(get_task_pid(current, PIDTYPE_PID)));
+		return -EIO;
+	}
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ext_data.ctx = i915_gem_create_context(i915);
+	mutex_unlock(&dev->struct_mutex);
+	if (IS_ERR(ext_data.ctx))
+		return PTR_ERR(ext_data.ctx);
+
+	if (args->flags & I915_CONTEXT_CREATE_FLAGS_USE_EXTENSIONS) {
+		ret = i915_user_extensions(u64_to_user_ptr(args->extensions),
+					   create_extensions,
+					   ARRAY_SIZE(create_extensions),
+					   &ext_data);
+		if (ret)
+			goto err_ctx;
+	}
+
+	ret = gem_context_register(ext_data.ctx, ext_data.fpriv);
+	if (ret < 0)
+		goto err_ctx;
+
+	args->ctx_id = ret;
+	DRM_DEBUG("HW context %d created\n", args->ctx_id);
+
+	return 0;
+
+err_ctx:
+	mutex_lock(&dev->struct_mutex);
+	context_close(ext_data.ctx);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
+int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file)
+{
+	struct drm_i915_gem_context_destroy *args = data;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct i915_gem_context *ctx;
+
+	if (args->pad != 0)
+		return -EINVAL;
+
+	if (!args->ctx_id)
+		return -ENOENT;
+
+	if (mutex_lock_interruptible(&file_priv->context_idr_lock))
+		return -EINTR;
+
+	ctx = idr_remove(&file_priv->context_idr, args->ctx_id);
+	mutex_unlock(&file_priv->context_idr_lock);
+	if (!ctx)
+		return -ENOENT;
+
+	mutex_lock(&dev->struct_mutex);
+	context_close(ctx);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static int get_sseu(struct i915_gem_context *ctx,
+		    struct drm_i915_gem_context_param *args)
+{
+	struct drm_i915_gem_context_param_sseu user_sseu;
+	struct intel_engine_cs *engine;
+	struct intel_context *ce;
+
+	if (args->size == 0)
+		goto out;
+	else if (args->size < sizeof(user_sseu))
+		return -EINVAL;
+
+	if (copy_from_user(&user_sseu, u64_to_user_ptr(args->value),
+			   sizeof(user_sseu)))
+		return -EFAULT;
+
+	if (user_sseu.flags || user_sseu.rsvd)
+		return -EINVAL;
+
+	engine = intel_engine_lookup_user(ctx->i915,
+					  user_sseu.engine_class,
+					  user_sseu.engine_instance);
+	if (!engine)
+		return -EINVAL;
+
+	ce = intel_context_pin_lock(ctx, engine); /* serialises with set_sseu */
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	user_sseu.slice_mask = ce->sseu.slice_mask;
+	user_sseu.subslice_mask = ce->sseu.subslice_mask;
+	user_sseu.min_eus_per_subslice = ce->sseu.min_eus_per_subslice;
+	user_sseu.max_eus_per_subslice = ce->sseu.max_eus_per_subslice;
+
+	intel_context_pin_unlock(ce);
+
+	if (copy_to_user(u64_to_user_ptr(args->value), &user_sseu,
+			 sizeof(user_sseu)))
+		return -EFAULT;
+
+out:
+	args->size = sizeof(user_sseu);
+
+	return 0;
+}
+
+int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_gem_context_param *args = data;
+	struct i915_gem_context *ctx;
+	int ret = 0;
+
+	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
+	if (!ctx)
+		return -ENOENT;
+
+	switch (args->param) {
+	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+		args->size = 0;
+		args->value = test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
+		break;
+
+	case I915_CONTEXT_PARAM_GTT_SIZE:
+		args->size = 0;
+		if (ctx->ppgtt)
+			args->value = ctx->ppgtt->vm.total;
+		else if (to_i915(dev)->mm.aliasing_ppgtt)
+			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
+		else
+			args->value = to_i915(dev)->ggtt.vm.total;
+		break;
+
+	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+		args->size = 0;
+		args->value = i915_gem_context_no_error_capture(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_BANNABLE:
+		args->size = 0;
+		args->value = i915_gem_context_is_bannable(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_RECOVERABLE:
+		args->size = 0;
+		args->value = i915_gem_context_is_recoverable(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_PRIORITY:
+		args->size = 0;
+		args->value = ctx->sched.priority >> I915_USER_PRIORITY_SHIFT;
+		break;
+
+	case I915_CONTEXT_PARAM_SSEU:
+		ret = get_sseu(ctx, args);
+		break;
+
+	case I915_CONTEXT_PARAM_VM:
+		ret = get_ppgtt(ctx, args);
+		break;
+
+	case I915_CONTEXT_PARAM_BAN_PERIOD:
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	i915_gem_context_put(ctx);
+	return ret;
+}
+
+int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_gem_context_param *args = data;
+	struct i915_gem_context *ctx;
+	int ret;
+
+	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
+	if (!ctx)
+		return -ENOENT;
+
+	ret = ctx_setparam(ctx, args);
 
 	i915_gem_context_put(ctx);
 	return ret;
