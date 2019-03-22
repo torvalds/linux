@@ -257,18 +257,18 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "\n");
 
 #ifdef CONFIG_TAU
-	if (cur_cpu_spec->cpu_features & CPU_FTR_TAU) {
-#ifdef CONFIG_TAU_AVERAGE
-		/* more straightforward, but potentially misleading */
-		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
-			   cpu_temp(cpu_id));
-#else
-		/* show the actual temp sensor range */
-		u32 temp;
-		temp = cpu_temp_both(cpu_id);
-		seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
-			   temp & 0xff, temp >> 16);
-#endif
+	if (cpu_has_feature(CPU_FTR_TAU)) {
+		if (IS_ENABLED(CONFIG_TAU_AVERAGE)) {
+			/* more straightforward, but potentially misleading */
+			seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
+				   cpu_temp(cpu_id));
+		} else {
+			/* show the actual temp sensor range */
+			u32 temp;
+			temp = cpu_temp_both(cpu_id);
+			seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
+				   temp & 0xff, temp >> 16);
+		}
 	}
 #endif /* CONFIG_TAU */
 
