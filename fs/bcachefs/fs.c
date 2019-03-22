@@ -1682,6 +1682,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 			ret = bch2_fs_read_write(c);
 			if (ret) {
 				bch_err(c, "error going rw: %i", ret);
+				mutex_unlock(&c->state_lock);
 				return -EINVAL;
 			}
 

@@ -366,7 +366,7 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 	return 0;
 }
 
-static int __bch2_fs_read_write(struct bch_fs *c, bool early)
+int __bch2_fs_read_write(struct bch_fs *c, bool early)
 {
 	struct bch_dev *ca;
 	unsigned i;
@@ -907,6 +907,7 @@ static void bch2_dev_free(struct bch_dev *ca)
 	free_percpu(ca->io_done);
 	bioset_exit(&ca->replica_set);
 	bch2_dev_buckets_free(ca);
+	kfree(ca->sb_read_scratch);
 
 	bch2_time_stats_exit(&ca->io_latency[WRITE]);
 	bch2_time_stats_exit(&ca->io_latency[READ]);
@@ -1017,6 +1018,7 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 			    0, GFP_KERNEL) ||
 	    percpu_ref_init(&ca->io_ref, bch2_dev_io_ref_complete,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
+	    !(ca->sb_read_scratch = kmalloc(4096, GFP_KERNEL)) ||
 	    bch2_dev_buckets_alloc(c, ca) ||
 	    bioset_init(&ca->replica_set, 4,
 			offsetof(struct bch_write_bio, bio), 0) ||

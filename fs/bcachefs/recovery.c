@@ -107,10 +107,11 @@ static int journal_replay_entry_early(struct bch_fs *c,
 }
 
 static int verify_superblock_clean(struct bch_fs *c,
-				   struct bch_sb_field_clean *clean,
+				   struct bch_sb_field_clean **cleanp,
 				   struct jset *j)
 {
 	unsigned i;
+	struct bch_sb_field_clean *clean = *cleanp;
 	int ret = 0;
 
 	if (!clean || !j)
@@ -120,11 +121,9 @@ static int verify_superblock_clean(struct bch_fs *c,
 			"superblock journal seq (%llu) doesn't match journal (%llu) after clean shutdown",
 			le64_to_cpu(clean->journal_seq),
 			le64_to_cpu(j->seq))) {
-		ret = bch2_fs_mark_dirty(c);
-		if (ret) {
-			bch_err(c, "error going rw");
-			return ret;
-		}
+		kfree(clean);
+		*cleanp = NULL;
+		return 0;
 	}
 
 	mustfix_fsck_err_on(j->read_clock != clean->read_clock, c,
@@ -236,7 +235,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		BUG_ON(ret);
 	}
 
-	ret = verify_superblock_clean(c, clean, j);
+	ret = verify_superblock_clean(c, &clean, j);
 	if (ret)
 		goto err;
 
@@ -430,7 +429,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_journal_set_replay_done(&c->journal);
 
 	err = "error going read write";
-	ret = bch2_fs_read_write_early(c);
+	ret = __bch2_fs_read_write(c, true);
 	if (ret)
 		goto err;
 

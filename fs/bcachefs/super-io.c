@@ -509,6 +509,8 @@ reread:
 	if (bch2_crc_cmp(csum, sb->sb->csum))
 		return "bad checksum reading superblock";
 
+	sb->seq = le64_to_cpu(sb->sb->seq);
+
 	return NULL;
 }
 
@@ -642,6 +644,25 @@ static void write_super_endio(struct bio *bio)
 	percpu_ref_put(&ca->io_ref);
 }
 
+static void read_back_super(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct bch_sb *sb = ca->disk_sb.sb;
+	struct bio *bio = ca->disk_sb.bio;
+
+	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ|REQ_SYNC|REQ_META);
+	bio->bi_iter.bi_sector	= le64_to_cpu(sb->layout.sb_offset[0]);
+	bio->bi_iter.bi_size	= 4096;
+	bio->bi_end_io		= write_super_endio;
+	bio->bi_private		= ca;
+	bch2_bio_map(bio, ca->sb_read_scratch);
+
+	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_SB],
+		     bio_sectors(bio));
+
+	percpu_ref_get(&ca->io_ref);
+	closure_bio_submit(bio, &c->sb_write);
+}
+
 static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 {
 	struct bch_sb *sb = ca->disk_sb.sb;
@@ -669,7 +690,7 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 	closure_bio_submit(bio, &c->sb_write);
 }
 
-void bch2_write_super(struct bch_fs *c)
+int bch2_write_super(struct bch_fs *c)
 {
 	struct closure *cl = &c->sb_write;
 	struct bch_dev *ca;
@@ -677,6 +698,7 @@ void bch2_write_super(struct bch_fs *c)
 	const char *err;
 	struct bch_devs_mask sb_written;
 	bool wrote, can_mount_without_written, can_mount_with_written;
+	int ret = 0;
 
 	lockdep_assert_held(&c->sb_lock);
 
@@ -692,6 +714,7 @@ void bch2_write_super(struct bch_fs *c)
 		err = bch2_sb_validate(&ca->disk_sb);
 		if (err) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err);
+			ret = -1;
 			goto out;
 		}
 	}
@@ -705,10 +728,27 @@ void bch2_write_super(struct bch_fs *c)
 		ca->sb_write_error = 0;
 	}
 
+	for_each_online_member(ca, c, i)
+		read_back_super(c, ca);
+	closure_sync(cl);
+
+	for_each_online_member(ca, c, i) {
+		if (!ca->sb_write_error &&
+		    ca->disk_sb.seq !=
+		    le64_to_cpu(ca->sb_read_scratch->seq)) {
+			bch2_fs_fatal_error(c,
+				"Superblock modified by another process");
+			percpu_ref_put(&ca->io_ref);
+			ret = -EROFS;
+			goto out;
+		}
+	}
+
 	do {
 		wrote = false;
 		for_each_online_member(ca, c, i)
-			if (sb < ca->disk_sb.sb->layout.nr_superblocks) {
+			if (!ca->sb_write_error &&
+			    sb < ca->disk_sb.sb->layout.nr_superblocks) {
 				write_one_super(c, ca, sb);
 				wrote = true;
 			}
@@ -716,9 +756,12 @@ void bch2_write_super(struct bch_fs *c)
 		sb++;
 	} while (wrote);
 
-	for_each_online_member(ca, c, i)
+	for_each_online_member(ca, c, i) {
 		if (ca->sb_write_error)
 			__clear_bit(ca->dev_idx, sb_written.d);
+		else
+			ca->disk_sb.seq = le64_to_cpu(ca->disk_sb.sb->seq);
+	}
 
 	nr_wrote = dev_mask_nr(&sb_written);
 
@@ -741,13 +784,15 @@ void bch2_write_super(struct bch_fs *c)
 	 * written anything (new filesystem), we continue if we'd be able to
 	 * mount with the devices we did successfully write to:
 	 */
-	bch2_fs_fatal_err_on(!nr_wrote ||
-			     (can_mount_without_written &&
-			      !can_mount_with_written), c,
-		"Unable to write superblock to sufficient devices");
+	if (bch2_fs_fatal_err_on(!nr_wrote ||
+				 (can_mount_without_written &&
+				  !can_mount_with_written), c,
+		"Unable to write superblock to sufficient devices"))
+		ret = -1;
 out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);
+	return ret;
 }
 
 /* BCH_SB_FIELD_journal: */
@@ -888,16 +933,20 @@ void bch2_sb_clean_renumber(struct bch_sb_field_clean *clean, int write)
 
 int bch2_fs_mark_dirty(struct bch_fs *c)
 {
+	int ret;
+
+	/*
+	 * Unconditionally write superblock, to verify it hasn't changed before
+	 * we go rw:
+	 */
+
 	mutex_lock(&c->sb_lock);
-	if (BCH_SB_CLEAN(c->disk_sb.sb) ||
-	    (c->disk_sb.sb->compat[0] & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO))) {
-		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-		c->disk_sb.sb->compat[0] &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
-		bch2_write_super(c);
-	}
+	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+	c->disk_sb.sb->compat[0] &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
+	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	return 0;
+	return ret;
 }
 
 struct jset_entry *

@@ -12,6 +12,7 @@ struct bch_sb_handle {
 	unsigned		have_layout:1;
 	unsigned		have_bio:1;
 	unsigned		fs_sb:1;
+	u64			seq;
 };
 
 struct bch_devs_mask {

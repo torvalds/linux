@@ -390,6 +390,7 @@ struct bch_dev {
 	char			name[BDEVNAME_SIZE];
 
 	struct bch_sb_handle	disk_sb;
+	struct bch_sb		*sb_read_scratch;
 	int			sb_write_error;
 
 	struct bch_devs_mask	self;
