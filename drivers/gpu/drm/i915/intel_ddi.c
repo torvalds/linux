@@ -1374,25 +1374,21 @@ static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 }
 
 static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
-				enum port port)
+				const struct intel_dpll_hw_state *pll_state)
 {
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	u32 mg_pll_div0, mg_clktop_hsclkctl;
-	u32 m1, m2_int, m2_frac, div1, div2, refclk;
+	u32 m1, m2_int, m2_frac, div1, div2, ref_clock;
 	u64 tmp;
 
-	refclk = dev_priv->cdclk.hw.ref;
+	ref_clock = dev_priv->cdclk.hw.ref;
 
-	mg_pll_div0 = I915_READ(MG_PLL_DIV0(tc_port));
-	mg_clktop_hsclkctl = I915_READ(MG_CLKTOP2_HSCLKCTL(tc_port));
+	m1 = pll_state->mg_pll_div1 & MG_PLL_DIV1_FBPREDIV_MASK;
+	m2_int = pll_state->mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
+	m2_frac = (pll_state->mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) ?
+		(pll_state->mg_pll_div0 & MG_PLL_DIV0_FBDIV_FRAC_MASK) >>
+		MG_PLL_DIV0_FBDIV_FRAC_SHIFT : 0;
 
-	m1 = I915_READ(MG_PLL_DIV1(tc_port)) & MG_PLL_DIV1_FBPREDIV_MASK;
-	m2_int = mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
-	m2_frac = (mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) ?
-		  (mg_pll_div0 & MG_PLL_DIV0_FBDIV_FRAC_MASK) >>
-		  MG_PLL_DIV0_FBDIV_FRAC_SHIFT : 0;
-
-	switch (mg_clktop_hsclkctl & MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK) {
+	switch (pll_state->mg_clktop2_hsclkctl &
+		MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK) {
 	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2:
 		div1 = 2;
 		break;
@@ -1406,12 +1402,14 @@ static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
 		div1 = 7;
 		break;
 	default:
-		MISSING_CASE(mg_clktop_hsclkctl);
+		MISSING_CASE(pll_state->mg_clktop2_hsclkctl);
 		return 0;
 	}
 
-	div2 = (mg_clktop_hsclkctl & MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK) >>
+	div2 = (pll_state->mg_clktop2_hsclkctl &
+		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK) >>
 		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_SHIFT;
+
 	/* div2 value of 0 is same as 1 means no div */
 	if (div2 == 0)
 		div2 = 1;
@@ -1420,8 +1418,8 @@ static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
 	 * Adjust the original formula to delay the division by 2^22 in order to
 	 * minimize possible rounding errors.
 	 */
-	tmp = (u64)m1 * m2_int * refclk +
-	      (((u64)m1 * m2_frac * refclk) >> 22);
+	tmp = (u64)m1 * m2_int * ref_clock +
+	      (((u64)m1 * m2_frac * ref_clock) >> 22);
 	tmp = div_u64(tmp, 5 * div1 * div2);
 
 	return tmp;
@@ -1467,10 +1465,11 @@ static void icl_ddi_clock_get(struct intel_encoder *encoder,
 		if (pll_id == DPLL_ID_ICL_TBTPLL)
 			link_clock = icl_calc_tbt_pll_link(dev_priv, port);
 		else
-			link_clock = icl_calc_mg_pll_link(dev_priv, port);
+			link_clock = icl_calc_mg_pll_link(dev_priv, pll_state);
 	}
 
 	pipe_config->port_clock = link_clock;
+
 	ddi_dotclock_get(pipe_config);
 }
 
