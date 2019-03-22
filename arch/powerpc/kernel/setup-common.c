@@ -737,23 +737,19 @@ void __init setup_panic(void)
  * BUG() in that case.
  */
 
-#ifdef CONFIG_NOT_COHERENT_CACHE
-#define KERNEL_COHERENCY	0
-#else
-#define KERNEL_COHERENCY	1
-#endif
+#define KERNEL_COHERENCY	(!IS_ENABLED(CONFIG_NOT_COHERENT_CACHE))
 
 static int __init check_cache_coherency(void)
 {
 	struct device_node *np;
 	const void *prop;
-	int devtree_coherency;
+	bool devtree_coherency;
 
 	np = of_find_node_by_path("/");
 	prop = of_get_property(np, "coherency-off", NULL);
 	of_node_put(np);
 
-	devtree_coherency = prop ? 0 : 1;
+	devtree_coherency = prop ? false : true;
 
 	if (devtree_coherency != KERNEL_COHERENCY) {
 		printk(KERN_ERR
