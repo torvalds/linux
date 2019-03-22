@@ -219,5 +219,6 @@ extern void fadump_cleanup(void);
 static inline int is_fadump_active(void) { return 0; }
 static inline int should_fadump_crash(void) { return 0; }
 static inline void crash_fadump(struct pt_regs *regs, const char *str) { }
+static inline void fadump_cleanup(void) { }
 #endif
 #endif
