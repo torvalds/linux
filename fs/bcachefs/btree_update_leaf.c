@@ -560,6 +560,8 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	trans_for_each_update_iter(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
+	btree_trans_lock_write(c, trans);
+
 	trans_for_each_update_iter(trans, i) {
 		if (i->deferred ||
 		    !btree_node_type_needs_gc(i->iter->btree_id))
@@ -577,12 +579,10 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		}
 	}
 
-	btree_trans_lock_write(c, trans);
-
 	if (race_fault()) {
 		ret = -EINTR;
 		trans_restart(" (race)");
-		goto out_unlock;
+		goto out;
 	}
 
 	/*
@@ -592,7 +592,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	 */
 	ret = btree_trans_check_can_insert(trans, stopped_at);
 	if (ret)
-		goto out_unlock;
+		goto out;
 
 	/*
 	 * Don't get journal reservation until after we know insert will
@@ -600,7 +600,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	 */
 	ret = bch2_trans_journal_res_get(trans, JOURNAL_RES_GET_NONBLOCK);
 	if (ret)
-		goto out_unlock;
+		goto out;
 
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
 		if (journal_seq_verify(c))
@@ -632,13 +632,13 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);
-out_unlock:
+out:
 	BUG_ON(ret &&
 	       (trans->flags & BTREE_INSERT_JOURNAL_RESERVED) &&
 	       trans->journal_res.ref);
 
 	btree_trans_unlock_write(trans);
-out:
+
 	if (fs_usage) {
 		bch2_fs_usage_scratch_put(c, fs_usage);
 		percpu_up_read(&c->mark_lock);
