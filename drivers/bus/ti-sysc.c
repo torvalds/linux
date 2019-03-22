@@ -920,7 +920,8 @@ static int sysc_init_module(struct sysc *ddata)
 {
 	int error;
 
-	if (ddata->cfg.quirks & SYSC_QUIRK_NO_IDLE_ON_INIT) {
+	if (ddata->cfg.quirks &
+	    (SYSC_QUIRK_NO_IDLE | SYSC_QUIRK_NO_IDLE_ON_INIT)) {
 		ddata->revision = sysc_read_revision(ddata);
 		goto rev_quirks;
 	}
@@ -1281,6 +1282,8 @@ static const struct sysc_dts_quirk sysc_dts_quirks[] = {
 	  .mask = SYSC_QUIRK_NO_IDLE_ON_INIT, },
 	{ .name = "ti,no-reset-on-init",
 	  .mask = SYSC_QUIRK_NO_RESET_ON_INIT, },
+	{ .name = "ti,no-idle",
+	  .mask = SYSC_QUIRK_NO_IDLE, },
 };
 
 static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,

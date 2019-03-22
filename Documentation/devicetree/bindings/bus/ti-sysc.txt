@@ -94,6 +94,8 @@ Optional properties:
 
 - ti,no-idle-on-init	interconnect target module should not be idled at init
 
+- ti,no-idle		interconnect target module should not be idled
+
 Example: Single instance of MUSB controller on omap4 using interconnect ranges
 using offsets from l4_cfg second segment (0x4a000000 + 0x80000 = 0x4a0ab000):
 
