@@ -4642,13 +4642,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	else if (INTEL_GEN(dev_priv) >= 3)
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
 
-	/*
-	 * Opt out of the vblank disable timer on everything except gen2.
-	 * Gen2 doesn't have a hardware frame counter and so depends on
-	 * vblank interrupts to produce sane vblank seuquence numbers.
-	 */
-	if (!IS_GEN(dev_priv, 2))
-		dev->vblank_disable_immediate = true;
+	dev->vblank_disable_immediate = true;
 
 	/* Most platforms treat the display irq block as an always-on
 	 * power domain. vlv/chv can disable it at runtime and need
