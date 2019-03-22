@@ -2379,6 +2379,31 @@ static const struct panel_desc starry_kr122ea0sra = {
 	},
 };
 
+static const struct drm_display_mode tfc_s9700rtwv43tr_01b_mode = {
+	.clock = 30000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 39,
+	.hsync_end = 800 + 39 + 47,
+	.htotal = 800 + 39 + 47 + 39,
+	.vdisplay = 480,
+	.vsync_start = 480 + 13,
+	.vsync_end = 480 + 13 + 2,
+	.vtotal = 480 + 13 + 2 + 29,
+	.vrefresh = 62,
+};
+
+static const struct panel_desc tfc_s9700rtwv43tr_01b = {
+	.modes = &tfc_s9700rtwv43tr_01b_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 155,
+		.height = 90,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
+};
+
 static const struct display_timing tianma_tm070jdhg30_timing = {
 	.pixelclock = { 62600000, 68200000, 78100000 },
 	.hactive = { 1280, 1280, 1280 },
@@ -2854,6 +2879,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "starry,kr122ea0sra",
 		.data = &starry_kr122ea0sra,
+	}, {
+		.compatible = "tfc,s9700rtwv43tr-01b",
+		.data = &tfc_s9700rtwv43tr_01b,
 	}, {
 		.compatible = "tianma,tm070jdhg30",
 		.data = &tianma_tm070jdhg30,
