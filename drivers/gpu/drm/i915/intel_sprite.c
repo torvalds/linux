@@ -1531,6 +1531,11 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		case DRM_FORMAT_XBGR16161616F:
 		case DRM_FORMAT_ARGB16161616F:
 		case DRM_FORMAT_ABGR16161616F:
+		case DRM_FORMAT_Y210:
+		case DRM_FORMAT_Y212:
+		case DRM_FORMAT_Y216:
+		case DRM_FORMAT_XVYU12_16161616:
+		case DRM_FORMAT_XVYU16161616:
 			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
 				      drm_get_format_name(fb->format->format,
 							  &format_name));
