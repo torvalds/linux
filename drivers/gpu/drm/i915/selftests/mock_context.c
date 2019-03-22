@@ -54,13 +54,17 @@ mock_context(struct drm_i915_private *i915,
 		goto err_handles;
 
 	if (name) {
+		struct i915_hw_ppgtt *ppgtt;
+
 		ctx->name = kstrdup(name, GFP_KERNEL);
 		if (!ctx->name)
 			goto err_put;
 
-		ctx->ppgtt = mock_ppgtt(i915, name);
-		if (!ctx->ppgtt)
+		ppgtt = mock_ppgtt(i915, name);
+		if (!ppgtt)
 			goto err_put;
+
+		__set_ppgtt(ctx, ppgtt);
 	}
 
 	return ctx;

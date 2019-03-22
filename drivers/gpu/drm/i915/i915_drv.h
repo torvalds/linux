@@ -220,6 +220,9 @@ struct drm_i915_file_private {
 	struct idr context_idr;
 	struct mutex context_idr_lock; /* guards context_idr */
 
+	struct idr vm_idr;
+	struct mutex vm_idr_lock; /* guards vm_idr */
+
 	unsigned int bsd_engine;
 
 /*

@@ -148,6 +148,11 @@ void i915_gem_context_release(struct kref *ctx_ref);
 struct i915_gem_context *
 i915_gem_context_create_gvt(struct drm_device *dev);
 
+int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file);
+int i915_gem_vm_destroy_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file);
+
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
