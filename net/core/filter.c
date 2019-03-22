@@ -2971,7 +2971,7 @@ static int bpf_skb_net_grow(struct sk_buff *skb, u32 len_diff)
 	if (skb_is_gso(skb) && !skb_is_gso_tcp(skb))
 		return -ENOTSUPP;
 
-	ret = skb_cow(skb, len_diff);
+	ret = skb_cow_head(skb, len_diff);
 	if (unlikely(ret < 0))
 		return ret;
 
