@@ -15,7 +15,7 @@ extern u8 rtw_do_join(struct adapter *padapter);
 
 int	rtw_init_mlme_priv(struct adapter *padapter)
 {
-	sint	i;
+	int	i;
 	u8 *pbuf;
 	struct wlan_network	*pnetwork;
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
