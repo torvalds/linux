@@ -68,6 +68,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 			dev_err(sdev->dev,
 				"error: debugfs entry %s cannot be read in DSP D3\n",
 				dfse->dfsentry->d_name.name);
+			kfree(buf);
 			return -EINVAL;
 		}
 
