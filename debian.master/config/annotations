@@ -10154,7 +10154,7 @@ CONFIG_EARLY_PRINTK                             policy<{'amd64': 'y', 'i386': 'y
 # Menu: Kernel hacking >> Early printk >> Architecture: x86
 CONFIG_EARLY_PRINTK_DBGP                        policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_EARLY_PRINTK_EFI                         policy<{'amd64': 'y', 'i386': 'y'}>
-CONFIG_EARLY_PRINTK_USB_XDBC                    policy<{'amd64': 'n', 'i386': 'n'}>
+CONFIG_EARLY_PRINTK_USB_XDBC                    policy<{'amd64': 'y', 'i386': 'y'}>
 
 # Menu: Kernel hacking >> IO delay type >> Architecture: x86
 CONFIG_IO_DELAY_0X80                            policy<{'amd64': 'n', 'i386': 'n'}>
