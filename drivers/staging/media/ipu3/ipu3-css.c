@@ -2171,11 +2171,6 @@ int imgu_css_set_parameters(struct imgu_css *css, unsigned int pipe,
 	obgrid_size = imgu_css_fw_obgrid_size(bi);
 	stripes = bi->info.isp.sp.iterator.num_stripes ? : 1;
 
-	/*
-	 * TODO(b/118782861): If userspace queues more than 4 buffers, the
-	 * parameters from previous buffers will be overwritten. Fix the driver
-	 * not to allow this.
-	 */
 	imgu_css_pool_get(&css_pipe->pool.parameter_set_info);
 	param_set = imgu_css_pool_last(&css_pipe->pool.parameter_set_info,
 				       0)->vaddr;

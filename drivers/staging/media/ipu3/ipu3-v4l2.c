@@ -341,8 +341,10 @@ static void imgu_vb2_buf_queue(struct vb2_buffer *vb)
 	struct imgu_video_device *node =
 		container_of(vb->vb2_queue, struct imgu_video_device, vbq);
 	unsigned int queue = imgu_node_to_queue(node->id);
+	struct imgu_buffer *buf = container_of(vb, struct imgu_buffer,
+					       vid_buf.vbb.vb2_buf);
 	unsigned long need_bytes;
-	unsigned int pipe = node->pipe;
+	unsigned long payload = vb2_get_plane_payload(vb, 0);
 
 	if (vb->vb2_queue->type == V4L2_BUF_TYPE_META_CAPTURE ||
 	    vb->vb2_queue->type == V4L2_BUF_TYPE_META_OUTPUT)
@@ -350,42 +352,26 @@ static void imgu_vb2_buf_queue(struct vb2_buffer *vb)
 	else
 		need_bytes = node->vdev_fmt.fmt.pix_mp.plane_fmt[0].sizeimage;
 
-	if (queue == IPU3_CSS_QUEUE_PARAMS) {
-		unsigned long payload = vb2_get_plane_payload(vb, 0);
-		struct vb2_v4l2_buffer *buf =
-			container_of(vb, struct vb2_v4l2_buffer, vb2_buf);
-		int r = -EINVAL;
-
-		if (payload == 0) {
-			payload = need_bytes;
-			vb2_set_plane_payload(vb, 0, payload);
-		}
-		if (payload >= need_bytes)
-			r = imgu_css_set_parameters(&imgu->css, pipe,
-						    vb2_plane_vaddr(vb, 0));
-		buf->flags = V4L2_BUF_FLAG_DONE;
-		vb2_buffer_done(vb, r == 0 ? VB2_BUF_STATE_DONE
-					   : VB2_BUF_STATE_ERROR);
-
-	} else {
-		struct imgu_buffer *buf = container_of(vb, struct imgu_buffer,
-						       vid_buf.vbb.vb2_buf);
-
-		mutex_lock(&imgu->lock);
-		imgu_css_buf_init(&buf->css_buf, queue, buf->map.daddr);
-		list_add_tail(&buf->vid_buf.list,
-			      &node->buffers);
-		mutex_unlock(&imgu->lock);
-
-		vb2_set_plane_payload(&buf->vid_buf.vbb.vb2_buf, 0, need_bytes);
-
-		if (imgu->streaming)
-			imgu_queue_buffers(imgu, false, pipe);
+	if (queue == IPU3_CSS_QUEUE_PARAMS && payload && payload < need_bytes) {
+		dev_err(&imgu->pci_dev->dev, "invalid data size for params.");
+		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+		return;
 	}
+
+	mutex_lock(&imgu->lock);
+	if (queue != IPU3_CSS_QUEUE_PARAMS)
+		imgu_css_buf_init(&buf->css_buf, queue, buf->map.daddr);
+
+	list_add_tail(&buf->vid_buf.list, &node->buffers);
+	mutex_unlock(&imgu->lock);
+
+	vb2_set_plane_payload(vb, 0, need_bytes);
+
+	if (imgu->streaming)
+		imgu_queue_buffers(imgu, false, node->pipe);
 
 	dev_dbg(&imgu->pci_dev->dev, "%s for pipe %d node %d", __func__,
 		node->pipe, node->id);
-
 }
 
 static int imgu_vb2_queue_setup(struct vb2_queue *vq,
