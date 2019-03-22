@@ -796,7 +796,9 @@ static int scmi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	desc = of_match_device(scmi_of_match, dev)->data;
+	desc = of_device_get_match_data(dev);
+	if (!desc)
+		return -EINVAL;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
