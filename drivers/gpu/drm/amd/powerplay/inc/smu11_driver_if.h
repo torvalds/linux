@@ -165,7 +165,7 @@
 #define FEATURE_DS_FCLK_MASK            (1 << FEATURE_DS_FCLK_BIT            )
 #define FEATURE_DS_MP1CLK_MASK          (1 << FEATURE_DS_MP1CLK_BIT          )
 #define FEATURE_DS_MP0CLK_MASK          (1 << FEATURE_DS_MP0CLK_BIT          )
-#define FEATURE_XGMI_MASK               (1 << FEATURE_XGMI_BIT               )
+#define FEATURE_XGMI_MASK               (1ULL << FEATURE_XGMI_BIT               )
 #define FEATURE_ECC_MASK                (1ULL << FEATURE_ECC_BIT                )
 
 #define DPM_OVERRIDE_DISABLE_SOCCLK_PID             0x00000001
