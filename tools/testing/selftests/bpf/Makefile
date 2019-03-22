@@ -52,7 +52,8 @@ TEST_PROGS := test_kmod.sh \
 	test_flow_dissector.sh \
 	test_xdp_vlan.sh \
 	test_lwt_ip_encap.sh \
-	test_tcp_check_syncookie.sh
+	test_tcp_check_syncookie.sh \
+	test_tc_tunnel.sh
 
 TEST_PROGS_EXTENDED := with_addr.sh \
 	with_tunnels.sh \
