@@ -376,6 +376,50 @@ static inline const struct snd_sof_dsp_ops
 	return NULL;
 }
 
+/**
+ * snd_sof_dsp_register_poll_timeout - Periodically poll an address
+ * until a condition is met or a timeout occurs
+ * @op: accessor function (takes @addr as its only argument)
+ * @addr: Address to poll
+ * @val: Variable to read the value into
+ * @cond: Break condition (usually involving @val)
+ * @sleep_us: Maximum time to sleep between reads in us (0
+ *            tight-loops).  Should be less than ~20ms since usleep_range
+ *            is used (see Documentation/timers/timers-howto.txt).
+ * @timeout_us: Timeout in us, 0 means never timeout
+ *
+ * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
+ * case, the last read value at @addr is stored in @val. Must not
+ * be called from atomic context if sleep_us or timeout_us are used.
+ *
+ * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
+ */
+#define snd_sof_dsp_read_poll_timeout(sdev, bar, offset, val, cond, sleep_us, timeout_us) \
+({ \
+	u64 __timeout_us = (timeout_us); \
+	unsigned long __sleep_us = (sleep_us); \
+	ktime_t __timeout = ktime_add_us(ktime_get(), __timeout_us); \
+	might_sleep_if((__sleep_us) != 0); \
+	for (;;) {							\
+		(val) = snd_sof_dsp_read(sdev, bar, offset);		\
+		if (cond) { \
+			dev_dbg(sdev->dev, \
+				"FW Poll Status: reg=%#x successful\n", (val)); \
+			break; \
+		} \
+		if (__timeout_us && \
+		    ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = snd_sof_dsp_read(sdev, bar, offset); \
+			dev_dbg(sdev->dev, \
+				"FW Poll Status: reg=%#x timedout\n", (val)); \
+			break; \
+		} \
+		if (__sleep_us) \
+			usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
+
 /* This is for registers bits with attribute RWC */
 bool snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
 			     u32 mask, u32 value);

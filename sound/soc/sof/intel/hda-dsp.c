@@ -27,21 +27,21 @@
 int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	u32 adspcs;
+	u32 reset;
 	int ret;
 
 	/* set reset bits for cores */
+	reset = HDA_DSP_ADSPCS_CRST_MASK(core_mask);
 	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 					 HDA_DSP_REG_ADSPCS,
-					 HDA_DSP_ADSPCS_CRST_MASK(core_mask),
-					 HDA_DSP_ADSPCS_CRST_MASK(core_mask));
+					 reset, reset),
 
 	/* poll with timeout to check if operation successful */
-	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_DSP_REG_ADSPCS,
-					HDA_DSP_ADSPCS_CRST_MASK(core_mask),
-					HDA_DSP_ADSPCS_CRST_MASK(core_mask),
-					HDA_DSP_RESET_TIMEOUT,
-					HDA_DSP_REG_POLL_INTERVAL_US);
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+					HDA_DSP_REG_ADSPCS, adspcs,
+					((adspcs & reset) == reset),
+					HDA_DSP_REG_POLL_INTERVAL_US,
+					HDA_DSP_RESET_TIMEOUT_US);
 
 	/* has core entered reset ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -59,6 +59,7 @@ int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
+	unsigned int crst;
 	u32 adspcs;
 	int ret;
 
@@ -69,11 +70,12 @@ int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
 					 0);
 
 	/* poll with timeout to check if operation successful */
-	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_DSP_REG_ADSPCS,
-					HDA_DSP_ADSPCS_CRST_MASK(core_mask), 0,
-					HDA_DSP_RESET_TIMEOUT,
-					HDA_DSP_REG_POLL_INTERVAL_US);
+	crst = HDA_DSP_ADSPCS_CRST_MASK(core_mask);
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+					    HDA_DSP_REG_ADSPCS, adspcs,
+					    !(adspcs & crst),
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_RESET_TIMEOUT_US);
 
 	/* has core left reset ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -133,6 +135,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
+	unsigned int cpa;
 	u32 adspcs;
 	int ret;
 
@@ -142,12 +145,12 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 				HDA_DSP_ADSPCS_SPA_MASK(core_mask));
 
 	/* poll with timeout to check if operation successful */
-	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_DSP_REG_ADSPCS,
-					HDA_DSP_ADSPCS_CPA_MASK(core_mask),
-					HDA_DSP_ADSPCS_CPA_MASK(core_mask),
-					HDA_DSP_PU_TIMEOUT,
-					HDA_DSP_REG_POLL_INTERVAL_US);
+	cpa = HDA_DSP_ADSPCS_CPA_MASK(core_mask);
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+					    HDA_DSP_REG_ADSPCS, adspcs,
+					    (adspcs & cpa) == cpa,
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: timeout on core powerup\n");
 
@@ -167,16 +170,18 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
+	u32 adspcs;
+
 	/* update bits */
 	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 					 HDA_DSP_REG_ADSPCS,
 					 HDA_DSP_ADSPCS_SPA_MASK(core_mask), 0);
 
-	/* poll with timeout to check if operation successful */
-	return snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-		HDA_DSP_REG_ADSPCS, HDA_DSP_ADSPCS_CPA_MASK(core_mask), 0,
-		HDA_DSP_PD_TIMEOUT,
-		HDA_DSP_REG_POLL_INTERVAL_US);
+	return snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+				HDA_DSP_REG_ADSPCS, adspcs,
+				!(adspcs & HDA_DSP_ADSPCS_SPA_MASK(core_mask)),
+				HDA_DSP_REG_POLL_INTERVAL_US,
+				HDA_DSP_PD_TIMEOUT * USEC_PER_MSEC);
 }
 
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,

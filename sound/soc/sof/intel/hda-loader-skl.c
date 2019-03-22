@@ -305,6 +305,7 @@ static void cl_cleanup_skl(struct snd_sof_dev *sdev)
 
 static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 {
+	unsigned int sts;
 	int ret;
 
 	/*
@@ -353,11 +354,12 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 	hda_dsp_ipc_int_enable(sdev);
 
 	/* polling the ROM init status information. */
-	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_ADSP_FW_STATUS_SKL,
-					HDA_DSP_ROM_STS_MASK, HDA_DSP_ROM_INIT,
-					HDA_DSP_INIT_TIMEOUT,
-					HDA_DSP_REG_POLL_INTERVAL_US);
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+					    HDA_ADSP_FW_STATUS_SKL, sts,
+					    ((sts & HDA_DSP_ROM_STS_MASK)
+						    == HDA_DSP_ROM_INIT),
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_INIT_TIMEOUT_US);
 	if (ret < 0)
 		goto err;
 
@@ -432,6 +434,7 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const struct firmware *fw =  plat_data->fw;
 	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
+	unsigned int status;
 	int ret = 0;
 
 	dev_dbg(sdev->dev, "firmware size: 0x%zx buffer size 0x%x\n", fw->size,
@@ -443,12 +446,12 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_ADSP_FW_STATUS_SKL,
-					HDA_DSP_ROM_STS_MASK,
-					HDA_DSP_ROM_FW_FW_LOADED,
-					HDA_DSP_BASEFW_TIMEOUT,
-					HDA_DSP_REG_POLL_INTERVAL_US);
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+					HDA_ADSP_FW_STATUS_SKL, status,
+					((status & HDA_DSP_ROM_STS_MASK)
+						== HDA_DSP_ROM_FW_FW_LOADED),
+					HDA_DSP_REG_POLL_INTERVAL_US,
+					HDA_DSP_BASEFW_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: firmware transfer timeout!");
 
