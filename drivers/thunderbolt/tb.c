@@ -342,10 +342,13 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 		 * Hard-coded Thunderbolt port to PCIe down port mapping
 		 * per controller.
 		 */
-		if (tb_switch_is_cactus_ridge(sw))
+		if (tb_switch_is_cactus_ridge(sw) ||
+		    tb_switch_is_alpine_ridge(sw))
 			index = !phy_port ? 6 : 7;
 		else if (tb_switch_is_falcon_ridge(sw))
 			index = !phy_port ? 6 : 8;
+		else if (tb_switch_is_titan_ridge(sw))
+			index = !phy_port ? 8 : 9;
 		else
 			goto out;
 
