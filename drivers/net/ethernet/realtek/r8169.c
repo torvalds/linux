@@ -6435,7 +6435,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 		set_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags);
 	}
 
-	if (status & RTL_EVENT_NAPI) {
+	if (status & (RTL_EVENT_NAPI | LinkChg)) {
 		rtl_irq_disable(tp);
 		napi_schedule_irqoff(&tp->napi);
 	}
