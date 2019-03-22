@@ -78,13 +78,15 @@ static int __init sun4v_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	rtc = devm_rtc_device_register(&pdev->dev, "sun4v",
-				&sun4v_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	rtc->ops = &sun4v_rtc_ops;
+	rtc->range_max = U64_MAX;
 	platform_set_drvdata(pdev, rtc);
-	return 0;
+
+	return rtc_register_device(rtc);
 }
 
 static struct platform_driver sun4v_rtc_driver = {
