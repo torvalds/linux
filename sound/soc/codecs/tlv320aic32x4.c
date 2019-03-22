@@ -53,7 +53,6 @@ struct aic32x4_priv {
 	u32 micpga_routing;
 	bool swapdacs;
 	int rstn_gpio;
-	struct clk *mclk;
 	const char *mclk_name;
 
 	struct regulator *supply_ldo;
@@ -1188,12 +1187,6 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		aic32x4->micpga_routing = 0;
 		aic32x4->rstn_gpio = -1;
 		aic32x4->mclk_name = "mclk";
-	}
-
-	aic32x4->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(aic32x4->mclk)) {
-		dev_err(dev, "Failed getting the mclk. The current implementation does not support the usage of this codec without mclk\n");
-		return PTR_ERR(aic32x4->mclk);
 	}
 
 	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
