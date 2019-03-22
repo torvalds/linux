@@ -15,7 +15,8 @@ struct xdp_umem *ixgbe_xsk_umem(struct ixgbe_adapter *adapter,
 	int qid = ring->ring_idx;
 
 	if (!adapter->xsk_umems || !adapter->xsk_umems[qid] ||
-	    qid >= adapter->num_xsk_umems || !xdp_on)
+	    qid >= adapter->num_xsk_umems || !xdp_on ||
+	    !test_bit(qid, adapter->af_xdp_zc_qps))
 		return NULL;
 
 	return adapter->xsk_umems[qid];
@@ -143,6 +144,7 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 	if (if_running)
 		ixgbe_txrx_ring_disable(adapter, qid);
 
+	set_bit(qid, adapter->af_xdp_zc_qps);
 	err = ixgbe_add_xsk_umem(adapter, umem, qid);
 	if (err)
 		return err;
@@ -173,6 +175,7 @@ static int ixgbe_xsk_umem_disable(struct ixgbe_adapter *adapter, u16 qid)
 	if (if_running)
 		ixgbe_txrx_ring_disable(adapter, qid);
 
+	clear_bit(qid, adapter->af_xdp_zc_qps);
 	ixgbe_xsk_umem_dma_unmap(adapter, adapter->xsk_umems[qid]);
 	ixgbe_remove_xsk_umem(adapter, qid);
 
