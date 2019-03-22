@@ -1456,12 +1456,13 @@ static void icl_ddi_clock_get(struct intel_encoder *encoder,
 	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
 	enum port port = encoder->port;
 	int link_clock;
-	u32 pll_id;
 
-	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
 	if (intel_port_is_combophy(dev_priv, port)) {
 		link_clock = cnl_calc_wrpll_link(dev_priv, pll_state);
 	} else {
+		enum intel_dpll_id pll_id = intel_get_shared_dpll_id(dev_priv,
+						pipe_config->shared_dpll);
+
 		if (pll_id == DPLL_ID_ICL_TBTPLL)
 			link_clock = icl_calc_tbt_pll_link(dev_priv, port);
 		else
