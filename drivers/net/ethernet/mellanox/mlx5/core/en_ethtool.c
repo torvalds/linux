@@ -1768,7 +1768,8 @@ static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
 	struct mlx5e_channel *c;
 	int i;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state) ||
+	    priv->channels.params.xdp_prog)
 		return 0;
 
 	for (i = 0; i < channels->num; i++) {
