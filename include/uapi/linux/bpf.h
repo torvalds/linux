@@ -1486,8 +1486,10 @@ union bpf_attr {
  * 		* **BPF_ADJ_ROOM_NET**: Adjust room at the network layer
  * 		  (room space is added or removed below the layer 3 header).
  *
- * 		All values for *flags* are reserved for future usage, and must
- * 		be left at zero.
+ *		There is one supported flag at this time:
+ *
+ *		* **BPF_F_ADJ_ROOM_FIXED_GSO**: Do not adjust gso_size.
+ *		  Adjusting mss in this way is not allowed for datagrams.
  *
  * 		A call to this helper is susceptible to change the underlaying
  * 		packet buffer. Therefore, at load time, all checks on pointers
@@ -2626,6 +2628,9 @@ enum bpf_func_id {
 
 /* Current network namespace */
 #define BPF_F_CURRENT_NETNS		(-1L)
+
+/* BPF_FUNC_skb_adjust_room flags. */
+#define BPF_F_ADJ_ROOM_FIXED_GSO	(1ULL << 0)
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
