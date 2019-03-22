@@ -834,41 +834,25 @@ static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
 static int aic32x4_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	struct clk_bulk_data clocks[] = {
+		{ .id = "madc" },
+		{ .id = "mdac" },
+		{ .id = "bdiv" },
+	};
+
+	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
+	if (ret)
+		return ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* Switch on master clock */
-		ret = clk_prepare_enable(aic32x4->mclk);
+		ret = clk_bulk_prepare_enable(ARRAY_SIZE(clocks), clocks);
 		if (ret) {
-			dev_err(component->dev, "Failed to enable master clock\n");
+			dev_err(component->dev, "Failed to enable clocks\n");
 			return ret;
 		}
-
-		/* Switch on PLL */
-		snd_soc_component_update_bits(component, AIC32X4_PLLPR,
-					AIC32X4_PLLEN, AIC32X4_PLLEN);
-
-		/* Switch on NDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NDAC,
-					AIC32X4_NDACEN, AIC32X4_NDACEN);
-
-		/* Switch on MDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MDAC,
-					AIC32X4_MDACEN, AIC32X4_MDACEN);
-
-		/* Switch on NADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NADC,
-					AIC32X4_NADCEN, AIC32X4_NADCEN);
-
-		/* Switch on MADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MADC,
-					AIC32X4_MADCEN, AIC32X4_MADCEN);
-
-		/* Switch on BCLK_N Divider */
-		snd_soc_component_update_bits(component, AIC32X4_BCLKN,
-					AIC32X4_BCLKEN, AIC32X4_BCLKEN);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
@@ -877,32 +861,7 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
 			break;
 
-		/* Switch off BCLK_N Divider */
-		snd_soc_component_update_bits(component, AIC32X4_BCLKN,
-					AIC32X4_BCLKEN, 0);
-
-		/* Switch off MADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MADC,
-					AIC32X4_MADCEN, 0);
-
-		/* Switch off NADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NADC,
-					AIC32X4_NADCEN, 0);
-
-		/* Switch off MDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MDAC,
-					AIC32X4_MDACEN, 0);
-
-		/* Switch off NDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NDAC,
-					AIC32X4_NDACEN, 0);
-
-		/* Switch off PLL */
-		snd_soc_component_update_bits(component, AIC32X4_PLLPR,
-					AIC32X4_PLLEN, 0);
-
-		/* Switch off master clock */
-		clk_disable_unprepare(aic32x4->mclk);
+		clk_bulk_disable_unprepare(ARRAY_SIZE(clocks), clocks);
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
