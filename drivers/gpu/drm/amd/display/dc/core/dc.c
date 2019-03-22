@@ -597,6 +597,15 @@ uint32_t dc_link_bandwidth_kbps(
 
 }
 
+const struct dc_link_settings *dc_link_get_verified_link_cap(
+		const struct dc_link *link)
+{
+	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
+			link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
+		return &link->preferred_link_setting;
+	return &link->verified_link_cap;
+}
+
 static void destruct(struct dc *dc)
 {
 	dc_release_state(dc->current_state);

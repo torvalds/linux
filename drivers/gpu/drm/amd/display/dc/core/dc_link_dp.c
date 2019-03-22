@@ -1549,7 +1549,7 @@ bool dp_validate_mode_timing(
 		return true;
 
 	/* We always use verified link settings */
-	link_setting = &link->verified_link_cap;
+	link_setting = dc_link_get_verified_link_cap(link);
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&
