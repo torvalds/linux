@@ -1659,7 +1659,7 @@ int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
 int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			enum intel_dpll_id pll_id);
+			struct intel_dpll_hw_state *state);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int color_plane, unsigned int height);

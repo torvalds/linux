@@ -1296,24 +1296,15 @@ static int skl_calc_wrpll_link(const struct intel_dpll_hw_state *pll_state)
 }
 
 int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			enum intel_dpll_id pll_id)
+			struct intel_dpll_hw_state *pll_state)
 {
-	u32 cfgcr0, cfgcr1;
 	u32 p0, p1, p2, dco_freq, ref_clock;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
-		cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(pll_id));
-		cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(pll_id));
-	} else {
-		cfgcr0 = I915_READ(CNL_DPLL_CFGCR0(pll_id));
-		cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(pll_id));
-	}
+	p0 = pll_state->cfgcr1 & DPLL_CFGCR1_PDIV_MASK;
+	p2 = pll_state->cfgcr1 & DPLL_CFGCR1_KDIV_MASK;
 
-	p0 = cfgcr1 & DPLL_CFGCR1_PDIV_MASK;
-	p2 = cfgcr1 & DPLL_CFGCR1_KDIV_MASK;
-
-	if (cfgcr1 & DPLL_CFGCR1_QDIV_MODE(1))
-		p1 = (cfgcr1 & DPLL_CFGCR1_QDIV_RATIO_MASK) >>
+	if (pll_state->cfgcr1 & DPLL_CFGCR1_QDIV_MODE(1))
+		p1 = (pll_state->cfgcr1 & DPLL_CFGCR1_QDIV_RATIO_MASK) >>
 			DPLL_CFGCR1_QDIV_RATIO_SHIFT;
 	else
 		p1 = 1;
@@ -1348,9 +1339,10 @@ int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 
 	ref_clock = cnl_hdmi_pll_ref_clock(dev_priv);
 
-	dco_freq = (cfgcr0 & DPLL_CFGCR0_DCO_INTEGER_MASK) * ref_clock;
+	dco_freq = (pll_state->cfgcr0 & DPLL_CFGCR0_DCO_INTEGER_MASK)
+		* ref_clock;
 
-	dco_freq += (((cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
+	dco_freq += (((pll_state->cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
 		      DPLL_CFGCR0_DCO_FRACTION_SHIFT) * ref_clock) / 0x8000;
 
 	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
@@ -1463,13 +1455,14 @@ static void icl_ddi_clock_get(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
 	enum port port = encoder->port;
-	int link_clock = 0;
+	int link_clock;
 	u32 pll_id;
 
 	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
 	if (intel_port_is_combophy(dev_priv, port)) {
-		link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+		link_clock = cnl_calc_wrpll_link(dev_priv, pll_state);
 	} else {
 		if (pll_id == DPLL_ID_ICL_TBTPLL)
 			link_clock = icl_calc_tbt_pll_link(dev_priv, port);
@@ -1485,18 +1478,13 @@ static void cnl_ddi_clock_get(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int link_clock = 0;
-	u32 cfgcr0;
-	enum intel_dpll_id pll_id;
+	struct intel_dpll_hw_state *pll_state = &pipe_config->dpll_hw_state;
+	int link_clock;
 
-	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
-
-	cfgcr0 = I915_READ(CNL_DPLL_CFGCR0(pll_id));
-
-	if (cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
-		link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+	if (pll_state->cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
+		link_clock = cnl_calc_wrpll_link(dev_priv, pll_state);
 	} else {
-		link_clock = cfgcr0 & DPLL_CFGCR0_LINK_RATE_MASK;
+		link_clock = pll_state->cfgcr0 & DPLL_CFGCR0_LINK_RATE_MASK;
 
 		switch (link_clock) {
 		case DPLL_CFGCR0_LINK_RATE_810:
