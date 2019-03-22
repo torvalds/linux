@@ -41,6 +41,8 @@ struct i915_gem_context {
 	/** file_priv: owning file descriptor */
 	struct drm_i915_file_private *file_priv;
 
+	struct i915_timeline *timeline;
+
 	/**
 	 * @ppgtt: unique address space (GTT)
 	 *

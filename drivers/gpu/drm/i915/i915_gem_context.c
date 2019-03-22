@@ -238,6 +238,9 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	rbtree_postorder_for_each_entry_safe(it, n, &ctx->hw_contexts, node)
 		intel_context_put(it);
 
+	if (ctx->timeline)
+		i915_timeline_put(ctx->timeline);
+
 	kfree(ctx->name);
 	put_pid(ctx->pid);
 
@@ -403,11 +406,15 @@ static void __assign_ppgtt(struct i915_gem_context *ctx,
 }
 
 static struct i915_gem_context *
-i915_gem_create_context(struct drm_i915_private *dev_priv)
+i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 {
 	struct i915_gem_context *ctx;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE &&
+	    !HAS_EXECLISTS(dev_priv))
+		return ERR_PTR(-EINVAL);
 
 	/* Reap the most stale context */
 	contexts_free_first(dev_priv);
@@ -429,6 +436,18 @@ i915_gem_create_context(struct drm_i915_private *dev_priv)
 
 		__assign_ppgtt(ctx, ppgtt);
 		i915_ppgtt_put(ppgtt);
+	}
+
+	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
+		struct i915_timeline *timeline;
+
+		timeline = i915_timeline_create(dev_priv, NULL);
+		if (IS_ERR(timeline)) {
+			context_close(ctx);
+			return ERR_CAST(timeline);
+		}
+
+		ctx->timeline = timeline;
 	}
 
 	trace_i915_context_create(ctx);
@@ -459,7 +478,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = i915_gem_create_context(to_i915(dev));
+	ctx = i915_gem_create_context(to_i915(dev), 0);
 	if (IS_ERR(ctx))
 		goto out;
 
@@ -495,7 +514,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 	struct i915_gem_context *ctx;
 	int err;
 
-	ctx = i915_gem_create_context(i915);
+	ctx = i915_gem_create_context(i915, 0);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -658,7 +677,7 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	idr_init_base(&file_priv->vm_idr, 1);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	ctx = i915_gem_create_context(i915);
+	ctx = i915_gem_create_context(i915, 0);
 	mutex_unlock(&i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
@@ -800,7 +819,7 @@ last_request_on_engine(struct i915_timeline *timeline,
 
 	rq = i915_active_request_raw(&timeline->last_request,
 				     &engine->i915->drm.struct_mutex);
-	if (rq && rq->engine == engine) {
+	if (rq && rq->engine->mask & engine->mask) {
 		GEM_TRACE("last request on engine %s: %llx:%llu\n",
 			  engine->name, rq->fence.context, rq->fence.seqno);
 		GEM_BUG_ON(rq->timeline != timeline);
@@ -1520,7 +1539,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ext_data.ctx = i915_gem_create_context(i915);
+	ext_data.ctx = i915_gem_create_context(i915, args->flags);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ext_data.ctx))
 		return PTR_ERR(ext_data.ctx);

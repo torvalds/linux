@@ -97,7 +97,7 @@ live_context(struct drm_i915_private *i915, struct drm_file *file)
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	ctx = i915_gem_create_context(i915);
+	ctx = i915_gem_create_context(i915, 0);
 	if (IS_ERR(ctx))
 		return ctx;
 

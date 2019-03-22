@@ -992,6 +992,60 @@ void i915_request_skip(struct i915_request *rq, int error)
 	memset(vaddr + head, 0, rq->postfix - head);
 }
 
+static struct i915_request *
+__i915_request_add_to_timeline(struct i915_request *rq)
+{
+	struct i915_timeline *timeline = rq->timeline;
+	struct i915_request *prev;
+
+	/*
+	 * Dependency tracking and request ordering along the timeline
+	 * is special cased so that we can eliminate redundant ordering
+	 * operations while building the request (we know that the timeline
+	 * itself is ordered, and here we guarantee it).
+	 *
+	 * As we know we will need to emit tracking along the timeline,
+	 * we embed the hooks into our request struct -- at the cost of
+	 * having to have specialised no-allocation interfaces (which will
+	 * be beneficial elsewhere).
+	 *
+	 * A second benefit to open-coding i915_request_await_request is
+	 * that we can apply a slight variant of the rules specialised
+	 * for timelines that jump between engines (such as virtual engines).
+	 * If we consider the case of virtual engine, we must emit a dma-fence
+	 * to prevent scheduling of the second request until the first is
+	 * complete (to maximise our greedy late load balancing) and this
+	 * precludes optimising to use semaphores serialisation of a single
+	 * timeline across engines.
+	 */
+	prev = i915_active_request_raw(&timeline->last_request,
+				       &rq->i915->drm.struct_mutex);
+	if (prev && !i915_request_completed(prev)) {
+		if (is_power_of_2(prev->engine->mask | rq->engine->mask))
+			i915_sw_fence_await_sw_fence(&rq->submit,
+						     &prev->submit,
+						     &rq->submitq);
+		else
+			__i915_sw_fence_await_dma_fence(&rq->submit,
+							&prev->fence,
+							&rq->dmaq);
+		if (rq->engine->schedule)
+			__i915_sched_node_add_dependency(&rq->sched,
+							 &prev->sched,
+							 &rq->dep,
+							 0);
+	}
+
+	spin_lock_irq(&timeline->lock);
+	list_add_tail(&rq->link, &timeline->requests);
+	spin_unlock_irq(&timeline->lock);
+
+	GEM_BUG_ON(timeline->seqno != rq->fence.seqno);
+	__i915_active_request_set(&timeline->last_request, rq);
+
+	return prev;
+}
+
 /*
  * NB: This function is not allowed to fail. Doing so would mean the the
  * request is not being tracked for completion but the work itself is
@@ -1036,31 +1090,7 @@ void i915_request_add(struct i915_request *request)
 	GEM_BUG_ON(IS_ERR(cs));
 	request->postfix = intel_ring_offset(request, cs);
 
-	/*
-	 * Seal the request and mark it as pending execution. Note that
-	 * we may inspect this state, without holding any locks, during
-	 * hangcheck. Hence we apply the barrier to ensure that we do not
-	 * see a more recent value in the hws than we are tracking.
-	 */
-
-	prev = i915_active_request_raw(&timeline->last_request,
-				       &request->i915->drm.struct_mutex);
-	if (prev && !i915_request_completed(prev)) {
-		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
-					     &request->submitq);
-		if (engine->schedule)
-			__i915_sched_node_add_dependency(&request->sched,
-							 &prev->sched,
-							 &request->dep,
-							 0);
-	}
-
-	spin_lock_irq(&timeline->lock);
-	list_add_tail(&request->link, &timeline->requests);
-	spin_unlock_irq(&timeline->lock);
-
-	GEM_BUG_ON(timeline->seqno != request->fence.seqno);
-	__i915_active_request_set(&timeline->last_request, request);
+	prev = __i915_request_add_to_timeline(request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
 	if (list_is_first(&request->ring_link, &ring->request_list))
