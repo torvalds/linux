@@ -4,7 +4,6 @@
 #
 
 # When adding new entries keep the list in alphabetical order
-adis16400-y             := adis16400_core.o
 obj-$(CONFIG_ADIS16400) += adis16400.o
 obj-$(CONFIG_ADIS16480) += adis16480.o
 
