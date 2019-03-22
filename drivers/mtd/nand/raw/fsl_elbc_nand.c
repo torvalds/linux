@@ -635,79 +635,6 @@ static int fsl_elbc_wait(struct nand_chip *chip)
 	return (elbc_fcm_ctrl->mdr & 0xff) | NAND_STATUS_WP;
 }
 
-static int fsl_elbc_attach_chip(struct nand_chip *chip)
-{
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
-	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
-	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
-	unsigned int al;
-
-	/* calculate FMR Address Length field */
-	al = 0;
-	if (chip->pagemask & 0xffff0000)
-		al++;
-	if (chip->pagemask & 0xff000000)
-		al++;
-
-	priv->fmr |= al << FMR_AL_SHIFT;
-
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->numchips = %d\n",
-	        nanddev_ntargets(&chip->base));
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->chipsize = %lld\n",
-	        nanddev_target_size(&chip->base));
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->pagemask = %8x\n",
-	        chip->pagemask);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->legacy.chip_delay = %d\n",
-	        chip->legacy.chip_delay);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->badblockpos = %d\n",
-	        chip->badblockpos);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->chip_shift = %d\n",
-	        chip->chip_shift);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->page_shift = %d\n",
-	        chip->page_shift);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->phys_erase_shift = %d\n",
-	        chip->phys_erase_shift);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.mode = %d\n",
-	        chip->ecc.mode);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.steps = %d\n",
-	        chip->ecc.steps);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.bytes = %d\n",
-	        chip->ecc.bytes);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.total = %d\n",
-	        chip->ecc.total);
-	dev_dbg(priv->dev, "fsl_elbc_init: mtd->ooblayout = %p\n",
-		mtd->ooblayout);
-	dev_dbg(priv->dev, "fsl_elbc_init: mtd->flags = %08x\n", mtd->flags);
-	dev_dbg(priv->dev, "fsl_elbc_init: mtd->size = %lld\n", mtd->size);
-	dev_dbg(priv->dev, "fsl_elbc_init: mtd->erasesize = %d\n",
-	        mtd->erasesize);
-	dev_dbg(priv->dev, "fsl_elbc_init: mtd->writesize = %d\n",
-	        mtd->writesize);
-	dev_dbg(priv->dev, "fsl_elbc_init: mtd->oobsize = %d\n",
-	        mtd->oobsize);
-
-	/* adjust Option Register and ECC to match Flash page size */
-	if (mtd->writesize == 512) {
-		priv->page_size = 0;
-		clrbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
-	} else if (mtd->writesize == 2048) {
-		priv->page_size = 1;
-		setbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
-	} else {
-		dev_err(priv->dev,
-		        "fsl_elbc_init: page size %d is not supported\n",
-		        mtd->writesize);
-		return -ENOTSUPP;
-	}
-
-	return 0;
-}
-
-static const struct nand_controller_ops fsl_elbc_controller_ops = {
-	.attach_chip = fsl_elbc_attach_chip,
-};
-
 static int fsl_elbc_read_page(struct nand_chip *chip, uint8_t *buf,
 			      int oob_required, int page)
 {
@@ -814,6 +741,79 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 
 	return 0;
 }
+
+static int fsl_elbc_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
+	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
+	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
+	unsigned int al;
+
+	/* calculate FMR Address Length field */
+	al = 0;
+	if (chip->pagemask & 0xffff0000)
+		al++;
+	if (chip->pagemask & 0xff000000)
+		al++;
+
+	priv->fmr |= al << FMR_AL_SHIFT;
+
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->numchips = %d\n",
+	        nanddev_ntargets(&chip->base));
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->chipsize = %lld\n",
+	        nanddev_target_size(&chip->base));
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->pagemask = %8x\n",
+	        chip->pagemask);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->legacy.chip_delay = %d\n",
+	        chip->legacy.chip_delay);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->badblockpos = %d\n",
+	        chip->badblockpos);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->chip_shift = %d\n",
+	        chip->chip_shift);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->page_shift = %d\n",
+	        chip->page_shift);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->phys_erase_shift = %d\n",
+	        chip->phys_erase_shift);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.mode = %d\n",
+	        chip->ecc.mode);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.steps = %d\n",
+	        chip->ecc.steps);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.bytes = %d\n",
+	        chip->ecc.bytes);
+	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.total = %d\n",
+	        chip->ecc.total);
+	dev_dbg(priv->dev, "fsl_elbc_init: mtd->ooblayout = %p\n",
+		mtd->ooblayout);
+	dev_dbg(priv->dev, "fsl_elbc_init: mtd->flags = %08x\n", mtd->flags);
+	dev_dbg(priv->dev, "fsl_elbc_init: mtd->size = %lld\n", mtd->size);
+	dev_dbg(priv->dev, "fsl_elbc_init: mtd->erasesize = %d\n",
+	        mtd->erasesize);
+	dev_dbg(priv->dev, "fsl_elbc_init: mtd->writesize = %d\n",
+	        mtd->writesize);
+	dev_dbg(priv->dev, "fsl_elbc_init: mtd->oobsize = %d\n",
+	        mtd->oobsize);
+
+	/* adjust Option Register and ECC to match Flash page size */
+	if (mtd->writesize == 512) {
+		priv->page_size = 0;
+		clrbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
+	} else if (mtd->writesize == 2048) {
+		priv->page_size = 1;
+		setbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
+	} else {
+		dev_err(priv->dev,
+		        "fsl_elbc_init: page size %d is not supported\n",
+		        mtd->writesize);
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static const struct nand_controller_ops fsl_elbc_controller_ops = {
+	.attach_chip = fsl_elbc_attach_chip,
+};
 
 static int fsl_elbc_chip_remove(struct fsl_elbc_mtd *priv)
 {
