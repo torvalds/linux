@@ -25,6 +25,14 @@ define bsd_host
   $(call set_autoconf_var,BSD,y)
 endef
 
+define arm_host
+  $(call set_autoconf_var,ARM,y)
+endef
+
+define aarch64_host
+  $(call set_autoconf_var,AARCH64,y)
+endef
+
 define virtio_net_dpdk
   $(call set_autoconf_var,VIRTIO_NET_DPDK,y)
   RTE_SDK ?= $(OUTPUT)/dpdk-17.02
@@ -52,6 +60,8 @@ define posix_host
   SOSUF := .so
   $(if $(call is_defined,__ANDROID__),$(call android_host),LDLIBS += -lrt -lpthread)
   $(if $(filter $(1),elf64-x86-64-freebsd),$(call bsd_host))
+  $(if $(filter $(1),elf32-littlearm),$(call arm_host))
+  $(if $(filter $(1),elf64-littleaarch64),$(call aarch64_host))
   $(if $(filter yes,$(dpdk)),$(call virtio_net_dpdk))
   $(if $(filter yes,$(vde)),$(call virtio_net_vde))
   $(if $(strip $(call find_include,fuse.h)),$(call set_autoconf_var,FUSE,y))
