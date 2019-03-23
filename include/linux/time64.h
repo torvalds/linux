@@ -33,6 +33,17 @@ struct itimerspec64 {
 #define KTIME_MAX			((s64)~((u64)1 << 63))
 #define KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
 
+/*
+ * Limits for settimeofday():
+ *
+ * To prevent setting the time close to the wraparound point time setting
+ * is limited so a reasonable uptime can be accomodated. Uptime of 30 years
+ * should be really sufficient, which means the cutoff is 2232. At that
+ * point the cutoff is just a small part of the larger problem.
+ */
+#define TIME_UPTIME_SEC_MAX		(30LL * 365 * 24 *3600)
+#define TIME_SETTOD_SEC_MAX		(KTIME_SEC_MAX - TIME_UPTIME_SEC_MAX)
+
 static inline int timespec64_equal(const struct timespec64 *a,
 				   const struct timespec64 *b)
 {
@@ -96,6 +107,16 @@ static inline bool timespec64_valid_strict(const struct timespec64 *ts)
 		return false;
 	/* Disallow values that could overflow ktime_t */
 	if ((unsigned long long)ts->tv_sec >= KTIME_SEC_MAX)
+		return false;
+	return true;
+}
+
+static inline bool timespec64_valid_settod(const struct timespec64 *ts)
+{
+	if (!timespec64_valid(ts))
+		return false;
+	/* Disallow values which cause overflow issues vs. CLOCK_REALTIME */
+	if ((unsigned long long)ts->tv_sec >= TIME_SETTOD_SEC_MAX)
 		return false;
 	return true;
 }
