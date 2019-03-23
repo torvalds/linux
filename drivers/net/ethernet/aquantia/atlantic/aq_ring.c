@@ -419,6 +419,10 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 	int err = 0;
 	int i = 0;
 
+	if (aq_ring_avail_dx(self) < min_t(unsigned int, AQ_CFG_RX_REFILL_THRES,
+					   self->size / 2))
+		return err;
+
 	for (i = aq_ring_avail_dx(self); i--;
 		self->sw_tail = aq_ring_next_dx(self, self->sw_tail)) {
 		buff = &self->buff_ring[self->sw_tail];
