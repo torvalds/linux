@@ -16,7 +16,7 @@
 #define AQ_CFG_TCS_DEF    1U
 
 #define AQ_CFG_TXDS_DEF    4096U
-#define AQ_CFG_RXDS_DEF    1024U
+#define AQ_CFG_RXDS_DEF    2048U
 
 #define AQ_CFG_IS_POLLING_DEF 0U
 
