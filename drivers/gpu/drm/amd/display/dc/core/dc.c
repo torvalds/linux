@@ -654,6 +654,8 @@ static bool construct(struct dc *dc,
 #endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+	dc->config = init_params->flags;
+
 	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
 
 	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
@@ -846,8 +848,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	if (dc->res_pool->dmcu != NULL)
 		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
-
-	dc->config = init_params->flags;
 
 	dc->build_id = DC_BUILD_ID;
 
