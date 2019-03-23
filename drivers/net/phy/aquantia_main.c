@@ -126,41 +126,22 @@ static int aqr_config_aneg(struct phy_device *phydev)
 
 static int aqr_config_intr(struct phy_device *phydev)
 {
+	bool en = phydev->interrupts == PHY_INTERRUPT_ENABLED;
 	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		err = phy_write_mmd(phydev, MDIO_MMD_AN,
-				    MDIO_AN_TX_VEND_INT_MASK2,
-				    MDIO_AN_TX_VEND_INT_MASK2_LINK);
-		if (err < 0)
-			return err;
+	err = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_MASK2,
+			    en ? MDIO_AN_TX_VEND_INT_MASK2_LINK : 0);
+	if (err < 0)
+		return err;
 
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				    VEND1_GLOBAL_INT_STD_MASK,
-				    VEND1_GLOBAL_INT_STD_MASK_ALL);
-		if (err < 0)
-			return err;
+	err = phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_INT_STD_MASK,
+			    en ? VEND1_GLOBAL_INT_STD_MASK_ALL : 0);
+	if (err < 0)
+		return err;
 
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				    VEND1_GLOBAL_INT_VEND_MASK,
-				    VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3 |
-				    VEND1_GLOBAL_INT_VEND_MASK_AN);
-	} else {
-		err = phy_write_mmd(phydev, MDIO_MMD_AN,
-				    MDIO_AN_TX_VEND_INT_MASK2, 0);
-		if (err < 0)
-			return err;
-
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				    VEND1_GLOBAL_INT_STD_MASK, 0);
-		if (err < 0)
-			return err;
-
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				    VEND1_GLOBAL_INT_VEND_MASK, 0);
-	}
-
-	return err;
+	return phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_INT_VEND_MASK,
+			     en ? VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3 |
+			     VEND1_GLOBAL_INT_VEND_MASK_AN : 0);
 }
 
 static int aqr_ack_interrupt(struct phy_device *phydev)
