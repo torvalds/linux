@@ -8871,7 +8871,6 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 			    "Failed to allocate memory for queue pair.\n");
 			return NULL;
 		}
-		memset(qpair, 0, sizeof(struct qla_qpair));
 
 		qpair->hw = vha->hw;
 		qpair->vha = vha;
