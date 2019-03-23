@@ -66,7 +66,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	struct lt3593_led_data *led_data;
 	struct fwnode_handle *child;
 	int ret, state = LEDS_GPIO_DEFSTATE_OFF;
-	enum gpiod_flags flags = GPIOD_OUT_LOW;
 	const char *tmp;
 
 	if (!dev->of_node)
@@ -99,13 +98,8 @@ static int lt3593_led_probe(struct platform_device *pdev)
 				    &led_data->cdev.default_trigger);
 
 	if (!fwnode_property_read_string(child, "default-state", &tmp)) {
-		if (!strcmp(tmp, "keep")) {
-			state = LEDS_GPIO_DEFSTATE_KEEP;
-			flags = GPIOD_ASIS;
-		} else if (!strcmp(tmp, "on")) {
+		if (!strcmp(tmp, "on"))
 			state = LEDS_GPIO_DEFSTATE_ON;
-			flags = GPIOD_OUT_HIGH;
-		}
 	}
 
 	led_data->cdev.name = led_data->name;
