@@ -1478,7 +1478,8 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 {
 	int ret;
 
-	reset_control_reset(wrp->rstc);
+	if (wrp->rstc)
+		reset_control_reset(wrp->rstc);
 	if (wrp->rstc_bridge)
 		reset_control_reset(wrp->rstc_bridge);
 
