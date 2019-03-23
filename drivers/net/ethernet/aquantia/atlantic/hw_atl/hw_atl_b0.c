@@ -259,7 +259,13 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 
 		hw_atl_rpo_lro_time_base_divider_set(self, 0x61AU);
 		hw_atl_rpo_lro_inactive_interval_set(self, 0);
-		hw_atl_rpo_lro_max_coalescing_interval_set(self, 2);
+		/* the LRO timebase divider is 5 uS (0x61a),
+		 * which is multiplied by 50(0x32)
+		 * to get a maximum coalescing interval of 250 uS,
+		 * which is the default value
+		 */
+		hw_atl_rpo_lro_max_coalescing_interval_set(self, 50);
+
 
 		hw_atl_rpo_lro_qsessions_lim_set(self, 1U);
 
@@ -273,6 +279,10 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 
 		hw_atl_rpo_lro_en_set(self,
 				      aq_nic_cfg->is_lro ? 0xFFFFFFFFU : 0U);
+		hw_atl_itr_rsc_en_set(self,
+				      aq_nic_cfg->is_lro ? 0xFFFFFFFFU : 0U);
+
+		hw_atl_itr_rsc_delay_set(self, 1U);
 	}
 	return aq_hw_err_from_flags(self);
 }

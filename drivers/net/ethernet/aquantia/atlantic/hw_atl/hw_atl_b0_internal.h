@@ -78,7 +78,7 @@
 #define HW_ATL_B0_TC_MAX 1U
 #define HW_ATL_B0_RSS_MAX 8U
 
-#define HW_ATL_B0_LRO_RXD_MAX 2U
+#define HW_ATL_B0_LRO_RXD_MAX 16U
 #define HW_ATL_B0_RS_SLIP_ENABLED  0U
 
 /* (256k -1(max pay_len) - 54(header)) */

@@ -152,6 +152,12 @@ u32 hw_atl_itr_res_irq_get(struct aq_hw_s *aq_hw);
 /* set reset interrupt */
 void hw_atl_itr_res_irq_set(struct aq_hw_s *aq_hw, u32 res_irq);
 
+/* set RSC interrupt */
+void hw_atl_itr_rsc_en_set(struct aq_hw_s *aq_hw, u32 enable);
+
+/* set RSC delay */
+void hw_atl_itr_rsc_delay_set(struct aq_hw_s *aq_hw, u32 delay);
+
 /* rdm */
 
 /* set cpu id */

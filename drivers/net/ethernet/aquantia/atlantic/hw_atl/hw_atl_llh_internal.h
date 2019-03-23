@@ -95,6 +95,19 @@
 #define HW_ATL_ITR_RES_MSK 0x80000000
 /* lower bit position of bitfield itr_reset */
 #define HW_ATL_ITR_RES_SHIFT 31
+
+/* register address for bitfield  rsc_en */
+#define HW_ATL_ITR_RSC_EN_ADR 0x00002200
+
+/* register address for bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_ADR 0x00002204
+/* bitmask for bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_MSK 0x0000000f
+/* width of bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_WIDTH 4
+/* lower bit position of bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_SHIFT 0
+
 /* register address for bitfield dca{d}_cpuid[7:0] */
 #define HW_ATL_RDM_DCADCPUID_ADR(dca) (0x00006100 + (dca) * 0x4)
 /* bitmask for bitfield dca{d}_cpuid[7:0] */
