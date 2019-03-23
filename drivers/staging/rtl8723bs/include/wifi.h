@@ -1070,9 +1070,9 @@ enum P2P_STATE {
 	P2P_STATE_TX_PROVISION_DIS_REQ = 6,			/* 	In P2P provisioning discovery */
 	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
 	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
-	P2P_STATE_GONEGO_ING = 9,						/* 	Doing the group owner negoitation handshake */
-	P2P_STATE_GONEGO_OK = 10,						/* 	finish the group negoitation handshake with success */
-	P2P_STATE_GONEGO_FAIL = 11,					/* 	finish the group negoitation handshake with failure */
+	P2P_STATE_GONEGO_ING = 9,						/* 	Doing the group owner negotiation handshake */
+	P2P_STATE_GONEGO_OK = 10,						/* 	finish the group negotiation handshake with success */
+	P2P_STATE_GONEGO_FAIL = 11,					/* 	finish the group negotiation handshake with failure */
 	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,		/* 	receiving the P2P Invitation request and match with the profile. */
 	P2P_STATE_PROVISIONING_ING = 13,				/* 	Doing the P2P WPS */
 	P2P_STATE_PROVISIONING_DONE = 14,			/* 	Finish the P2P WPS */
@@ -1082,8 +1082,8 @@ enum P2P_STATE {
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,			/* 	receiving the P2P Invitation request and this wifi is GO. */
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			/* 	receiving the P2P Invitation request to join an existing P2P Group. */
 	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			/* 	recveing the P2P Invitation response with failure */
-	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negoitation response with information is not available */
-	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negoitation response with information is not available */
+	P2P_STATE_RX_INFOR_NOREADY = 21,			/*  receiving p2p negotiation response with information is not available */
+	P2P_STATE_TX_INFOR_NOREADY = 22,			/*  sending p2p negotiation response with information is not available */
 };
 
 enum P2P_WPSINFO {
