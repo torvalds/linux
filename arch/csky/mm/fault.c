@@ -15,7 +15,6 @@
 #include <linux/smp.h>
 #include <linux/version.h>
 #include <linux/vt_kern.h>
-#include <linux/kernel.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 
