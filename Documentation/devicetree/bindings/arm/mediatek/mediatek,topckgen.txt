@@ -15,6 +15,7 @@ Required Properties:
 	- "mediatek,mt8135-topckgen"
 	- "mediatek,mt8173-topckgen"
 	- "mediatek,mt8183-topckgen", "syscon"
+	- "mediatek,mt8516-topckgen"
 - #clock-cells: Must be 1
 
 The topckgen controller uses the common clk binding from
