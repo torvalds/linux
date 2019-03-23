@@ -648,7 +648,7 @@ static void rcu_exp_handler(void *unused)
 	 *
 	 * If the CPU is fully enabled (or if some buggy RCU-preempt
 	 * read-side critical section is being used from idle), just
-	 * invoke rcu_preempt_defer_qs() to immediately report the
+	 * invoke rcu_preempt_deferred_qs() to immediately report the
 	 * quiescent state.  We cannot use rcu_read_unlock_special()
 	 * because we are in an interrupt handler, which will cause that
 	 * function to take an early exit without doing anything.
