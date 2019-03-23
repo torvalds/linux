@@ -917,8 +917,8 @@ static int ad7280_probe(struct spi_device *spi)
 	const struct ad7280_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad7280_state *st;
 	int ret;
-	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};
-	const unsigned short nAVG[4] = {1, 2, 4, 8};
+	const unsigned short t_acq_ns[4] = {465, 1010, 1460, 1890};
+	const unsigned short n_avg[4] = {1, 2, 4, 8};
 	struct iio_dev *indio_dev;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -966,10 +966,9 @@ static int ad7280_probe(struct spi_device *spi)
 	 */
 
 	st->readback_delay_us =
-		((tACQ_ns[pdata->acquisition_time & 0x3] + 695) *
-		(AD7280A_NUM_CH * nAVG[pdata->conversion_averaging & 0x3]))
-		- tACQ_ns[pdata->acquisition_time & 0x3] +
-		st->slave_num * 250;
+		((t_acq_ns[pdata->acquisition_time & 0x3] + 695) *
+		 (AD7280A_NUM_CH * n_avg[pdata->conversion_averaging & 0x3])) -
+		t_acq_ns[pdata->acquisition_time & 0x3] + st->slave_num * 250;
 
 	/* Convert to usecs */
 	st->readback_delay_us = DIV_ROUND_UP(st->readback_delay_us, 1000);
