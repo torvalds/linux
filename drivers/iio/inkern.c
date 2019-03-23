@@ -759,16 +759,8 @@ int iio_read_avail_channel_raw(struct iio_channel *chan,
 	int ret;
 	int type;
 
-	mutex_lock(&chan->indio_dev->info_exist_lock);
-	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
-		goto err_unlock;
-	}
-
-	ret = iio_channel_read_avail(chan,
-				     vals, &type, length, IIO_CHAN_INFO_RAW);
-err_unlock:
-	mutex_unlock(&chan->indio_dev->info_exist_lock);
+	ret = iio_read_avail_channel_attribute(chan, vals, &type, length,
+					 IIO_CHAN_INFO_RAW);
 
 	if (ret >= 0 && type != IIO_VAL_INT)
 		/* raw values are assumed to be IIO_VAL_INT */
