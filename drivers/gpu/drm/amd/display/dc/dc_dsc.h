@@ -47,15 +47,5 @@ bool dc_dsc_compute_config(
 		int target_bandwidth,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);
-
-bool dc_check_and_fit_timing_into_bandwidth_with_dsc_legacy(
-		const struct dc *pDC,
-		const struct dc_link *link,
-		struct dc_crtc_timing *timing);
-
-bool dc_setup_dsc_in_timing_legacy(const struct dc *pDC,
-		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
-		int available_bandwidth_kbps,
-		struct dc_crtc_timing *timing);
 #endif
 #endif

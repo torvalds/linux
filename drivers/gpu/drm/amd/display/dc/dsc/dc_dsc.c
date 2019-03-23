@@ -231,66 +231,6 @@ static bool dc_intersect_dsc_caps(
 	return true;
 }
 
-// TODO DSC: Can this be moved to a common helper module and replace WindowsDM::calcRequiredBandwidthForTiming()?
-static int bpp_from_dc_color_depth(enum dc_color_depth color_depth)
-{
-	int bits_per_pixel;
-
-	// Get color depth in bits per pixel
-	switch (color_depth) {
-	case COLOR_DEPTH_UNDEFINED:
-		bits_per_pixel = 0;
-		break;
-	case COLOR_DEPTH_666:
-		bits_per_pixel = 6;
-		break;
-	case COLOR_DEPTH_888:
-		bits_per_pixel = 8;
-		break;
-	case COLOR_DEPTH_101010:
-		bits_per_pixel = 10;
-		break;
-	case COLOR_DEPTH_121212:
-		bits_per_pixel = 12;
-		break;
-	case COLOR_DEPTH_141414:
-		bits_per_pixel = 14;
-		break;
-	case COLOR_DEPTH_161616:
-		bits_per_pixel = 16;
-		break;
-	case COLOR_DEPTH_999:
-		bits_per_pixel = 9;
-		break;
-	case COLOR_DEPTH_111111:
-		bits_per_pixel = 11;
-		break;
-	case COLOR_DEPTH_COUNT:
-	default:
-		bits_per_pixel = 0;
-		break;
-	}
-
-	return bits_per_pixel;
-}
-
-// TODO DSC: Can this be moved to a common helper module and replace WindowsDM::calcRequiredBandwidthForTiming()?
-static int calc_required_bandwidth_for_timing(const struct dc_crtc_timing *crtc_timing)
-{
-	int timing_bandwidth_kbps = 0;
-	int bits_per_pixel = bpp_from_dc_color_depth(crtc_timing->display_color_depth);
-
-	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB ||
-		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
-		timing_bandwidth_kbps = crtc_timing->pix_clk_100hz * bits_per_pixel * 3 / 10;
-	else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-		timing_bandwidth_kbps = crtc_timing->pix_clk_100hz * 8 * 3 / 10;
-	else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		timing_bandwidth_kbps = crtc_timing->pix_clk_100hz * bits_per_pixel * 3 / 20;
-
-	return timing_bandwidth_kbps;
-}
-
 struct dc_dsc_policy {
 	float max_compression_ratio_legacy;
 	float sst_compression_legacy; // Maximum quality if 0.0
@@ -346,7 +286,7 @@ static void get_dsc_bandwidth_range(
 		struct dc_dsc_bw_range *range)
 {
 	/* native stream bandwidth */
-	range->stream_kbps = calc_required_bandwidth_for_timing(timing);
+	range->stream_kbps = dc_bandwidth_in_kbps_from_timing(timing);
 
 	/* max dsc target bpp */
 	range->max_kbps = dsc_round_up(policy->max_target_bpp * timing->pix_clk_100hz);
@@ -367,6 +307,13 @@ static void get_dsc_bandwidth_range(
 	}
 }
 
+/* Decides if DSC should be used and calculates target bpp if it should, applying DSC policy.
+ *
+ * Returns:
+ *     - 'true' if DSC was required by policy and was successfully applied
+ *     - 'false' if DSC was not necessary (e.g. if uncompressed stream fits 'target_bandwidth'),
+ *        or if it couldn't be applied based on DSC policy.
+ */
 static bool decide_dsc_target_bpp_x16(
 		const struct dc_dsc_policy *policy,
 		const struct dsc_enc_caps *dsc_common_caps,
@@ -401,7 +348,6 @@ static bool decide_dsc_target_bpp_x16(
 
 	return should_use_dsc;
 }
-
 
 #define MIN_AVAILABLE_SLICES_SIZE  4
 
@@ -588,7 +534,7 @@ static bool setup_dsc_config(
 
 	if (target_bandwidth > 0) {
 		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_policy, &dsc_common_caps, target_bandwidth, timing, &target_bpp);
-	} else if (timing->pix_clk_100hz * 12 <= calc_required_bandwidth_for_timing(timing) * 10) {
+	} else if (timing->pix_clk_100hz * 12 <= dc_bandwidth_in_kbps_from_timing(timing) * 10) {
 		/* use 12 target bpp for MST display
 		 * TODO: implement new MST DSC target bpp policy */
 		target_bpp = 16*12;
@@ -840,56 +786,5 @@ bool dc_dsc_compute_config(
 				target_bandwidth,
 				timing, dsc_cfg);
 	return is_dsc_possible;
-}
-
-bool dc_check_and_fit_timing_into_bandwidth_with_dsc_legacy(
-		const struct dc *pDC,
-		const struct dc_link *link,
-		struct dc_crtc_timing *timing)
-{
-	int requiredBandwidth_Kbps;
-	bool stream_fits_into_bandwidth = false;
-	int total_link_bandwdith_kbps = dc_link_bandwidth_kbps(link, &link->verified_link_cap);
-
-	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
-			link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN) {
-		total_link_bandwdith_kbps = dc_link_bandwidth_kbps(link, &link->preferred_link_setting);
-	}
-
-	timing->flags.DSC = 0;
-	requiredBandwidth_Kbps = calc_required_bandwidth_for_timing(timing);
-
-	if (total_link_bandwdith_kbps >= requiredBandwidth_Kbps)
-		stream_fits_into_bandwidth = true;
-	else {
-		// There's not enough bandwidth in the link. See if DSC can be used to resolve this.
-		int link_bandwidth_kbps = link->type == dc_connection_mst_branch ? 0 : total_link_bandwdith_kbps;
-
-		stream_fits_into_bandwidth = dc_setup_dsc_in_timing_legacy(pDC, &link->dpcd_caps.dsc_sink_caps, link_bandwidth_kbps, timing);
-	}
-
-	return stream_fits_into_bandwidth;
-}
-
-bool dc_setup_dsc_in_timing_legacy(const struct dc *pDC,
-		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
-		int available_bandwidth_kbps,
-		struct dc_crtc_timing *timing)
-{
-	bool isDscOK = false;
-	struct dsc_enc_caps dsc_enc_caps;
-
-	timing->flags.DSC = 0;
-	get_dsc_enc_caps(pDC, &dsc_enc_caps, timing->pix_clk_100hz);
-	if (dsc_enc_caps.dsc_version) {
-		struct dc_dsc_config dscCfg = {0};
-
-		isDscOK = setup_dsc_config(dsc_sink_caps, &dsc_enc_caps, available_bandwidth_kbps, timing, &dscCfg);
-
-		memcpy(&timing->dsc_cfg, &dscCfg, sizeof(dscCfg));
-		timing->flags.DSC = isDscOK ? 1 : 0;
-	}
-
-	return isDscOK;
 }
 #endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */
