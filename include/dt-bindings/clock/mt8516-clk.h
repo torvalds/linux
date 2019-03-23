@@ -8,6 +8,15 @@
 #ifndef _DT_BINDINGS_CLK_MT8516_H
 #define _DT_BINDINGS_CLK_MT8516_H
 
+/* INFRACFG */
+
+#define CLK_IFR_MUX1_SEL		0
+#define CLK_IFR_ETH_25M_SEL		1
+#define CLK_IFR_I2C0_SEL		2
+#define CLK_IFR_I2C1_SEL		3
+#define CLK_IFR_I2C2_SEL		4
+#define CLK_IFR_NR_CLK			5
+
 /* TOPCKGEN */
 
 #define CLK_TOP_CLK_NULL		0
