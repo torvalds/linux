@@ -374,18 +374,18 @@ __inline static unsigned char * get_da(unsigned char *pframe)
 	unsigned int	to_fr_ds	= (GetToDs(pframe) << 1) | GetFrDs(pframe);
 
 	switch (to_fr_ds) {
-		case 0x00:	/*  ToDs = 0, FromDs = 0 */
-			da = GetAddr1Ptr(pframe);
-			break;
-		case 0x01:	/*  ToDs = 0, FromDs = 1 */
-			da = GetAddr1Ptr(pframe);
-			break;
-		case 0x02:	/*  ToDs = 1, FromDs = 0 */
-			da = GetAddr3Ptr(pframe);
-			break;
-		default:	/*  ToDs = 1, FromDs = 1 */
-			da = GetAddr3Ptr(pframe);
-			break;
+	case 0x00:	/*  ToDs = 0, FromDs = 0 */
+		da = GetAddr1Ptr(pframe);
+		break;
+	case 0x01:	/*  ToDs = 0, FromDs = 1 */
+		da = GetAddr1Ptr(pframe);
+		break;
+	case 0x02:	/*  ToDs = 1, FromDs = 0 */
+		da = GetAddr3Ptr(pframe);
+		break;
+	default:	/*  ToDs = 1, FromDs = 1 */
+		da = GetAddr3Ptr(pframe);
+		break;
 	}
 
 	return da;
@@ -398,18 +398,18 @@ __inline static unsigned char * get_sa(unsigned char *pframe)
 	unsigned int	to_fr_ds	= (GetToDs(pframe) << 1) | GetFrDs(pframe);
 
 	switch (to_fr_ds) {
-		case 0x00:	/*  ToDs = 0, FromDs = 0 */
-			sa = GetAddr2Ptr(pframe);
-			break;
-		case 0x01:	/*  ToDs = 0, FromDs = 1 */
-			sa = GetAddr3Ptr(pframe);
-			break;
-		case 0x02:	/*  ToDs = 1, FromDs = 0 */
-			sa = GetAddr2Ptr(pframe);
-			break;
-		default:	/*  ToDs = 1, FromDs = 1 */
-			sa = GetAddr4Ptr(pframe);
-			break;
+	case 0x00:	/*  ToDs = 0, FromDs = 0 */
+		sa = GetAddr2Ptr(pframe);
+		break;
+	case 0x01:	/*  ToDs = 0, FromDs = 1 */
+		sa = GetAddr3Ptr(pframe);
+		break;
+	case 0x02:	/*  ToDs = 1, FromDs = 0 */
+		sa = GetAddr2Ptr(pframe);
+		break;
+	default:	/*  ToDs = 1, FromDs = 1 */
+		sa = GetAddr4Ptr(pframe);
+		break;
 	}
 
 	return sa;
@@ -421,18 +421,18 @@ __inline static unsigned char * get_hdr_bssid(unsigned char *pframe)
 	unsigned int	to_fr_ds	= (GetToDs(pframe) << 1) | GetFrDs(pframe);
 
 	switch (to_fr_ds) {
-		case 0x00:	/*  ToDs = 0, FromDs = 0 */
-			sa = GetAddr3Ptr(pframe);
-			break;
-		case 0x01:	/*  ToDs = 0, FromDs = 1 */
-			sa = GetAddr2Ptr(pframe);
-			break;
-		case 0x02:	/*  ToDs = 1, FromDs = 0 */
-			sa = GetAddr1Ptr(pframe);
-			break;
-		case 0x03:	/*  ToDs = 1, FromDs = 1 */
-			sa = GetAddr1Ptr(pframe);
-			break;
+	case 0x00:	/*  ToDs = 0, FromDs = 0 */
+		sa = GetAddr3Ptr(pframe);
+		break;
+	case 0x01:	/*  ToDs = 0, FromDs = 1 */
+		sa = GetAddr2Ptr(pframe);
+		break;
+	case 0x02:	/*  ToDs = 1, FromDs = 0 */
+		sa = GetAddr1Ptr(pframe);
+		break;
+	case 0x03:	/*  ToDs = 1, FromDs = 1 */
+		sa = GetAddr1Ptr(pframe);
+		break;
 	}
 
 	return sa;
