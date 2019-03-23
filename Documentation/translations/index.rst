@@ -4,12 +4,21 @@
 Translations
 ============
 
+.. toctree::
+   :maxdepth: 1
+
+   zh_CN/index
+   it_IT/index
+   ko_KR/index
+   ja_JP/index
+
+
 .. _translations_disclaimer:
 
 Disclaimer
 ----------
 
-Translation's purpose is to ease reading and understating in languages other
+Translation's purpose is to ease reading and understanding in languages other
 than English. Its aim is to help people who do not understand English or have
 doubts about its interpretation. Additionally, some people prefer to read
 documentation in their native language, but please bear in mind that the
@@ -40,16 +49,5 @@ translations, you may find slight differences that carry the same message but
 in a different form.
 
 If you need to communicate with the Linux community but you do not feel
-comfortable to write in English, you can ask to the translation's
-maintainers for help.
-
-Translations
-------------
-
-.. toctree::
-   :maxdepth: 1
-
-   zh_CN/index
-   it_IT/index
-   ko_KR/index
-   ja_JP/index
+comfortable writing in English, you can ask the translation's maintainers
+for help.
