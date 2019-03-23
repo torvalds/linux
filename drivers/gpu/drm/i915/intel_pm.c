@@ -8494,22 +8494,6 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 		pm_runtime_put(&dev_priv->drm.pdev->dev);
 }
 
-/**
- * intel_suspend_gt_powersave - suspend PM work and helper threads
- * @dev_priv: i915 device
- *
- * We don't want to disable RC6 or other features here, we just want
- * to make sure any work we've queued has finished and won't bother
- * us while we're suspended.
- */
-void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 6)
-		return;
-
-	/* gen6_rps_idle() will be called later to disable interrupts */
-}
-
 void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	dev_priv->gt_pm.rps.enabled = true; /* force RPS disabling */

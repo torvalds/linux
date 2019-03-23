@@ -4397,7 +4397,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	GEM_TRACE("\n");
 
 	wakeref = intel_runtime_pm_get(i915);
-	intel_suspend_gt_powersave(i915);
 
 	flush_workqueue(i915->wq);
 
