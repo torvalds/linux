@@ -206,7 +206,7 @@ static int rk_ahash_start(struct rk_crypto_info *dev)
 	dev->sg_dst = NULL;
 	dev->sg_src = req->src;
 	dev->first = req->src;
-	dev->nents = sg_nents(req->src);
+	dev->src_nents = sg_nents(req->src);
 	rctx = ahash_request_ctx(req);
 	rctx->mode = 0;
 

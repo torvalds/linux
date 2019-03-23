@@ -543,7 +543,8 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 
 static void pca953x_irq_shutdown(struct irq_data *d)
 {
-	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct pca953x_chip *chip = gpiochip_get_data(gc);
 	u8 mask = 1 << (d->hwirq % BANK_SZ);
 
 	chip->irq_trig_raise[d->hwirq / BANK_SZ] &= ~mask;
