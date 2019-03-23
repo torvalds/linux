@@ -34,12 +34,12 @@ extern void GPIO(struct zoran *zr,
 /* codec (or actually: guest bus) access */
 extern int post_office_wait(struct zoran *zr);
 extern int post_office_write(struct zoran *zr,
-			     unsigned guest,
-			     unsigned reg,
-			     unsigned value);
+			     unsigned int guest,
+			     unsigned int reg,
+			     unsigned int value);
 extern int post_office_read(struct zoran *zr,
-			    unsigned guest,
-			    unsigned reg);
+			    unsigned int guest,
+			    unsigned int reg);
 
 extern void detect_guest_activity(struct zoran *zr);
 
