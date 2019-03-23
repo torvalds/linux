@@ -11,6 +11,7 @@
 #include <linux/filter.h>
 
 #include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
@@ -26,6 +27,7 @@ struct sysctl_test {
 	const char *descr;
 	size_t fixup_value_insn;
 	struct bpf_insn	insns[MAX_INSNS];
+	const char *prog_file;
 	enum bpf_attach_type attach_type;
 	const char *sysctl;
 	int open_flags;
@@ -1302,6 +1304,31 @@ static struct sysctl_test tests[] = {
 		.open_flags = O_RDONLY,
 		.result = SUCCESS,
 	},
+	{
+		"C prog: deny all writes",
+		.prog_file = "./test_sysctl_prog.o",
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_WRONLY,
+		.newval = "123 456 789",
+		.result = OP_EPERM,
+	},
+	{
+		"C prog: deny access by name",
+		.prog_file = "./test_sysctl_prog.o",
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/route/mtu_expires",
+		.open_flags = O_RDONLY,
+		.result = OP_EPERM,
+	},
+	{
+		"C prog: read tcp_mem",
+		.prog_file = "./test_sysctl_prog.o",
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
 };
 
 static size_t probe_prog_length(const struct bpf_insn *fp)
@@ -1335,7 +1362,8 @@ static int fixup_sysctl_value(const char *buf, size_t buf_len,
 	return 0;
 }
 
-static int load_sysctl_prog(struct sysctl_test *test, const char *sysctl_path)
+static int load_sysctl_prog_insns(struct sysctl_test *test,
+				  const char *sysctl_path)
 {
 	struct bpf_insn *prog = test->insns;
 	struct bpf_load_program_attr attr;
@@ -1375,6 +1403,33 @@ static int load_sysctl_prog(struct sysctl_test *test, const char *sysctl_path)
 	}
 
 	return ret;
+}
+
+static int load_sysctl_prog_file(struct sysctl_test *test)
+{
+	struct bpf_prog_load_attr attr;
+	struct bpf_object *obj;
+	int prog_fd;
+
+	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
+	attr.file = test->prog_file;
+	attr.prog_type = BPF_PROG_TYPE_CGROUP_SYSCTL;
+
+	if (bpf_prog_load_xattr(&attr, &obj, &prog_fd)) {
+		if (test->result != LOAD_REJECT)
+			log_err(">>> Loading program (%s) error.\n",
+				test->prog_file);
+		return -1;
+	}
+
+	return prog_fd;
+}
+
+static int load_sysctl_prog(struct sysctl_test *test, const char *sysctl_path)
+{
+		return test->prog_file
+			? load_sysctl_prog_file(test)
+			: load_sysctl_prog_insns(test, sysctl_path);
 }
 
 static int access_sysctl(const char *sysctl_path,
