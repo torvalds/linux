@@ -31,6 +31,7 @@ struct aq_nic_cfg_s {
 	u32 itr;
 	u16 rx_itr;
 	u16 tx_itr;
+	u32 rxpageorder;
 	u32 num_rss_queues;
 	u32 mtu;
 	u32 flow_control;

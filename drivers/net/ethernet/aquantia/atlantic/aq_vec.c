@@ -353,6 +353,9 @@ void aq_vec_add_stats(struct aq_vec_s *self,
 		stats_rx->errors += rx->errors;
 		stats_rx->jumbo_packets += rx->jumbo_packets;
 		stats_rx->lro_packets += rx->lro_packets;
+		stats_rx->pg_losts += rx->pg_losts;
+		stats_rx->pg_flips += rx->pg_flips;
+		stats_rx->pg_reuses += rx->pg_reuses;
 
 		stats_tx->packets += tx->packets;
 		stats_tx->bytes += tx->bytes;
