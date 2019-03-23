@@ -43,7 +43,6 @@
 #include <linux/timex.h>
 #include <linux/kernel_stat.h>
 #include <linux/time.h>
-#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/profile.h>
 #include <linux/cpu.h>

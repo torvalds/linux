@@ -15,7 +15,6 @@
 #include <linux/cpuhotplug.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/kprobes.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
