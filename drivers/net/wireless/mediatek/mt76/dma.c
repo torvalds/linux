@@ -49,10 +49,10 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 	for (i = 0; i < q->ndesc; i++)
 		q->desc[i].ctrl = cpu_to_le32(MT_DMA_CTL_DMA_DONE);
 
-	iowrite32(q->desc_dma, &q->regs->desc_base);
-	iowrite32(0, &q->regs->cpu_idx);
-	iowrite32(0, &q->regs->dma_idx);
-	iowrite32(q->ndesc, &q->regs->ring_size);
+	writel(q->desc_dma, &q->regs->desc_base);
+	writel(0, &q->regs->cpu_idx);
+	writel(0, &q->regs->dma_idx);
+	writel(q->ndesc, &q->regs->ring_size);
 
 	return 0;
 }
@@ -136,11 +136,11 @@ mt76_dma_tx_cleanup_idx(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 static void
 mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	iowrite32(q->desc_dma, &q->regs->desc_base);
-	iowrite32(q->ndesc, &q->regs->ring_size);
-	q->head = ioread32(&q->regs->dma_idx);
+	writel(q->desc_dma, &q->regs->desc_base);
+	writel(q->ndesc, &q->regs->ring_size);
+	q->head = readl(&q->regs->dma_idx);
 	q->tail = q->head;
-	iowrite32(q->head, &q->regs->cpu_idx);
+	writel(q->head, &q->regs->cpu_idx);
 }
 
 static void
@@ -159,7 +159,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	if (flush)
 		last = -1;
 	else
-		last = ioread32(&q->regs->dma_idx);
+		last = readl(&q->regs->dma_idx);
 
 	while (q->queued && q->tail != last) {
 		mt76_dma_tx_cleanup_idx(dev, q, q->tail, &entry);
@@ -181,7 +181,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		}
 
 		if (!flush && q->tail == last)
-			last = ioread32(&q->regs->dma_idx);
+			last = readl(&q->regs->dma_idx);
 	}
 
 	if (!flush)
@@ -251,7 +251,7 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
 static void
 mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	iowrite32(q->head, &q->regs->cpu_idx);
+	writel(q->head, &q->regs->cpu_idx);
 }
 
 static int
