@@ -2898,7 +2898,6 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 static void
 mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
-	u32 param;
 	struct sas_task *t;
 	struct pm8001_ccb_info *ccb;
 	unsigned long flags;
@@ -2913,7 +2912,6 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	tag = le32_to_cpu(psmpPayload->tag);
 
 	ccb = &pm8001_ha->ccb_info[tag];
-	param = le32_to_cpu(psmpPayload->param);
 	t = ccb->task;
 	ts = &t->task_status;
 	pm8001_dev = ccb->device;
@@ -3244,11 +3242,9 @@ void pm8001_bytes_dmaed(struct pm8001_hba_info *pm8001_ha, int i)
 {
 	struct pm8001_phy *phy = &pm8001_ha->phy[i];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct sas_ha_struct *sas_ha;
 	if (!phy->phy_attached)
 		return;
 
-	sas_ha = pm8001_ha->sas;
 	if (sas_phy->phy) {
 		struct sas_phy *sphy = sas_phy->phy;
 		sphy->negotiated_linkrate = sas_phy->linkrate;
