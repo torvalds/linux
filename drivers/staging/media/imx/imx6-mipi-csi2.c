@@ -628,10 +628,8 @@ static int csi2_probe(struct platform_device *pdev)
 	}
 
 	csi2->base = devm_ioremap(&pdev->dev, res->start, PAGE_SIZE);
-	if (!csi2->base) {
-		v4l2_err(&csi2->sd, "failed to map CSI-2 registers\n");
+	if (!csi2->base)
 		return -ENOMEM;
-	}
 
 	mutex_init(&csi2->lock);
 
