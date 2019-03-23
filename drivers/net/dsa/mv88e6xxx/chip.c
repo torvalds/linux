@@ -4631,14 +4631,6 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-static void mv88e6xxx_ports_cmode_init(struct mv88e6xxx_chip *chip)
-{
-	int i;
-
-	for (i = 0; i < mv88e6xxx_num_ports(chip); i++)
-		chip->ports[i].cmode = MV88E6XXX_PORT_STS_CMODE_INVALID;
-}
-
 static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
 							int port)
 {
@@ -4674,8 +4666,6 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 	err = mv88e6xxx_detect(chip);
 	if (err)
 		goto free;
-
-	mv88e6xxx_ports_cmode_init(chip);
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_switch_reset(chip);
@@ -4915,7 +4905,6 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (err)
 		goto out;
 
-	mv88e6xxx_ports_cmode_init(chip);
 	mv88e6xxx_phy_init(chip);
 
 	if (chip->info->ops->get_eeprom) {
