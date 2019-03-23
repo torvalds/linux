@@ -483,6 +483,7 @@ static void skl_set_base_module_format(struct skl_sst *ctx,
 	base_cfg->audio_fmt.bit_depth = format->bit_depth;
 	base_cfg->audio_fmt.valid_bit_depth = format->valid_bit_depth;
 	base_cfg->audio_fmt.ch_cfg = format->ch_cfg;
+	base_cfg->audio_fmt.sample_type = format->sample_type;
 
 	dev_dbg(ctx->dev, "bit_depth=%x valid_bd=%x ch_config=%x\n",
 			format->bit_depth, format->valid_bit_depth,
