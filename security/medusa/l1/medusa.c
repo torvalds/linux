@@ -906,6 +906,13 @@ static int medusa_l1_socket_listen(struct socket *sock, int backlog)
 
 static int medusa_l1_socket_accept(struct socket *sock, struct socket *newsock)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_accept(sock, newsock) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 

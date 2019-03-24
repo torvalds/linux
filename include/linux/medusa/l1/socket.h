@@ -41,6 +41,7 @@ extern medusa_answer_t medusa_socket_create(int family, int type, int protocol);
 extern medusa_answer_t medusa_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen);
 extern medusa_answer_t medusa_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen);
 extern medusa_answer_t medusa_socket_listen(struct socket *sock, int backlog);
+extern medusa_answer_t medusa_socket_accept(struct socket *sock, struct socket *newsock);
 /*
  * The following routine makes a support for many of access types,
  * and it is used both in L1 and L2 code. It is defined in

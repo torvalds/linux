@@ -33,7 +33,7 @@ obj-y += acctype_symlink.o acctype_readlink.o
 obj-y += acctype_truncate.o acctype_unlink.o
 obj-y += acctype_ipc_permission.o acctype_ipc_ctl.o acctype_ipc_associate.o
 obj-y += acctype_ipc_semop.o acctype_ipc_shmat.o acctype_ipc_msgsnd.o acctype_ipc_msgrcv.o
-obj-y += acctype_socket_create.o acctype_socket_bind.o acctype_socket_connect.o acctype_socket_listen.o
+obj-y += acctype_socket_create.o acctype_socket_bind.o acctype_socket_connect.o acctype_socket_listen.o acctype_socket_accept.o
 # arch-dependent files
 obj-y += acctype_ptrace.o 
 #obj-$(CONFIG_MEDUSA_SYSCALL) += acctype_syscall.o
