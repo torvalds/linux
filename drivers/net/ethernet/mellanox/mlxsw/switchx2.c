@@ -1102,7 +1102,7 @@ static int __mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_sx->core, mlxsw_sx_port->local_port,
-				mlxsw_sx_port, dev, module + 1, false, 0);
+				mlxsw_sx_port, dev);
 	mlxsw_sx->ports[local_port] = mlxsw_sx_port;
 	return 0;
 
@@ -1127,7 +1127,8 @@ static int mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 {
 	int err;
 
-	err = mlxsw_core_port_init(mlxsw_sx->core, local_port);
+	err = mlxsw_core_port_init(mlxsw_sx->core, local_port,
+				   module + 1, false, 0);
 	if (err) {
 		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to init core port\n",
 			local_port);

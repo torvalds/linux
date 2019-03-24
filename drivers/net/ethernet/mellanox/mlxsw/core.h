@@ -164,12 +164,12 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 				  u16 lag_id, u8 local_port);
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port);
-int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port);
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
+			 u32 port_number, bool split,
+			 u32 split_port_subnumber);
 void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port);
 void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
-			     void *port_driver_priv, struct net_device *dev,
-			     u32 port_number, bool split,
-			     u32 split_port_subnumber);
+			     void *port_driver_priv, struct net_device *dev);
 void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 			    void *port_driver_priv);
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
