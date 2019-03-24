@@ -18,6 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <net/devlink.h>
 
 #include "dsa_priv.h"
 
