@@ -1540,9 +1540,7 @@ vchiq_compat_ioctl_create_service(
 	if (!args)
 		return -EFAULT;
 
-	if (copy_from_user(&args32,
-			   (struct vchiq_create_service32 __user *)arg,
-			   sizeof(args32)))
+	if (copy_from_user(&args32, ptrargs32, sizeof(args32)))
 		return -EFAULT;
 
 	if (put_user(args32.params.fourcc, &args->params.fourcc) ||
@@ -1593,7 +1591,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 				 unsigned int cmd,
 				 unsigned long arg)
 {
-	struct vchiq_queue_message *args;
+	struct vchiq_queue_message __user *args;
 	struct vchiq_element __user *elements;
 	struct vchiq_queue_message32 args32;
 	unsigned int count;
@@ -1662,17 +1660,15 @@ vchiq_compat_ioctl_queue_bulk(struct file *file,
 {
 	struct vchiq_queue_bulk_transfer __user *args;
 	struct vchiq_queue_bulk_transfer32 args32;
-	struct vchiq_queue_bulk_transfer32 *ptrargs32 =
-		(struct vchiq_queue_bulk_transfer32 *)arg;
+	struct vchiq_queue_bulk_transfer32 __user *ptrargs32 =
+		(struct vchiq_queue_bulk_transfer32 __user *)arg;
 	long ret;
 
 	args = compat_alloc_user_space(sizeof(*args));
 	if (!args)
 		return -EFAULT;
 
-	if (copy_from_user(&args32,
-			   (struct vchiq_queue_bulk_transfer32 __user *)arg,
-			   sizeof(args32)))
+	if (copy_from_user(&args32, ptrargs32, sizeof(args32)))
 		return -EFAULT;
 
 	if (put_user(args32.handle, &args->handle) ||
