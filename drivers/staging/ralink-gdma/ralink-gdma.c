@@ -740,7 +740,9 @@ static void gdma_dma_tasklet(unsigned long arg)
 				atomic_inc(&dma_dev->cnt);
 				gdma_start_transfer(dma_dev, chan);
 			} else {
-				dev_dbg(dma_dev->ddev.dev, "chan %d no desc to issue\n", chan->id);
+				dev_dbg(dma_dev->ddev.dev,
+					"chan %d no desc to issue\n",
+					chan->id);
 			}
 			if (!dma_dev->chan_issued)
 				break;
