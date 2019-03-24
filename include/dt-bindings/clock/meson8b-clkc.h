@@ -108,5 +108,9 @@
 #define CLKID_AXI		128
 #define CLKID_L2_DRAM		130
 #define CLKID_VPU		190
+#define CLKID_VDEC_1		196
+#define CLKID_VDEC_HCODEC	199
+#define CLKID_VDEC_2		202
+#define CLKID_VDEC_HEVC		206
 
 #endif /* __MESON8B_CLKC_H */
