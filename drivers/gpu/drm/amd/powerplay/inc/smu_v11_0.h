@@ -40,6 +40,9 @@
 #define TEMP_RANGE_MIN			(0)
 #define TEMP_RANGE_MAX			(80 * 1000)
 
+#define CLK_MAP(clk, index) \
+	[SMU_##clk] = index
+
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;

@@ -99,6 +99,18 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(PrepareMp1ForShutdown,		PPSMC_MSG_PrepareMp1ForShutdown),
 };
 
+static int navi10_clk_map[SMU_CLK_COUNT] = {
+	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
+	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
+	CLK_MAP(UCLK, PPCLK_UCLK),
+	CLK_MAP(DCLK, PPCLK_DCLK),
+	CLK_MAP(VCLK, PPCLK_VCLK),
+	CLK_MAP(DCEFCLK, PPCLK_DCEFCLK),
+	CLK_MAP(DISPCLK, PPCLK_DISPCLK),
+	CLK_MAP(PIXCLK, PPCLK_PIXCLK),
+	CLK_MAP(PHYCLK, PPCLK_PHYCLK),
+};
+
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -107,6 +119,19 @@ static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 
 	val = navi10_message_map[index];
 	if (val > PPSMC_Message_Count)
+		return -EINVAL;
+
+	return val;
+}
+
+static int navi10_get_smu_clk_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	val = navi10_clk_map[index];
+	if (val >= PPCLK_COUNT)
 		return -EINVAL;
 
 	return val;
@@ -327,6 +352,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.check_powerplay_table = navi10_check_powerplay_table,
 	.append_powerplay_table = navi10_append_powerplay_table,
 	.get_smu_msg_index = navi10_get_smu_msg_index,
+	.get_smu_clk_index = navi10_get_smu_clk_index,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 };

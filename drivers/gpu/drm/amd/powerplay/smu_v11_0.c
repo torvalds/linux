@@ -920,14 +920,14 @@ static int smu_v11_0_notify_display_change(struct smu_context *smu)
 
 static int
 smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
-				    PPCLK_e clock_select)
+				    enum smu_clk_type clock_select)
 {
 	int ret = 0;
 
 	if (!smu->pm_enabled)
 		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
-					  clock_select << 16);
+					  smu_clk_get_index(smu, clock_select) << 16);
 	if (ret) {
 		pr_err("[GetMaxSustainableClock] Failed to get max DC clock from SMC!");
 		return ret;
@@ -942,7 +942,7 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 
 	/* if DC limit is zero, return AC limit */
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
-					  clock_select << 16);
+					  smu_clk_get_index(smu, clock_select) << 16);
 	if (ret) {
 		pr_err("[GetMaxSustainableClock] failed to get max AC clock from SMC!");
 		return ret;
@@ -972,7 +972,7 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->uclock),
-							  PPCLK_UCLK);
+							  SMU_UCLK);
 		if (ret) {
 			pr_err("[%s] failed to get max UCLK from SMC!",
 			       __func__);
@@ -983,7 +983,7 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->soc_clock),
-							  PPCLK_SOCCLK);
+							  SMU_SOCCLK);
 		if (ret) {
 			pr_err("[%s] failed to get max SOCCLK from SMC!",
 			       __func__);
@@ -994,7 +994,7 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->dcef_clock),
-							  PPCLK_DCEFCLK);
+							  SMU_DCEFCLK);
 		if (ret) {
 			pr_err("[%s] failed to get max DCEFCLK from SMC!",
 			       __func__);
@@ -1003,7 +1003,7 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->display_clock),
-							  PPCLK_DISPCLK);
+							  SMU_DISPCLK);
 		if (ret) {
 			pr_err("[%s] failed to get max DISPCLK from SMC!",
 			       __func__);
@@ -1011,7 +1011,7 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 		}
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->phy_clock),
-							  PPCLK_PHYCLK);
+							  SMU_PHYCLK);
 		if (ret) {
 			pr_err("[%s] failed to get max PHYCLK from SMC!",
 			       __func__);
@@ -1019,7 +1019,7 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 		}
 		ret = smu_v11_0_get_max_sustainable_clock(smu,
 							  &(max_sustainable_clocks->pixel_clock),
-							  PPCLK_PIXCLK);
+							  SMU_PIXCLK);
 		if (ret) {
 			pr_err("[%s] failed to get max PIXCLK from SMC!",
 			       __func__);
@@ -1086,16 +1086,18 @@ static int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	return ret;
 }
 
-static int smu_v11_0_get_current_clk_freq(struct smu_context *smu, uint32_t clk_id, uint32_t *value)
+static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
+					  enum smu_clk_type clk_id,
+					  uint32_t *value)
 {
 	int ret = 0;
 	uint32_t freq;
 
-	if (clk_id >= PPCLK_COUNT || !value)
+	if (clk_id >= SMU_CLK_COUNT || !value)
 		return -EINVAL;
 
-	ret = smu_send_smc_msg_with_param(smu,
-			SMU_MSG_GetDpmClockFreq, (clk_id << 16));
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDpmClockFreq,
+					  (smu_clk_get_index(smu, clk_id) << 16));
 	if (ret)
 		return ret;
 
@@ -1381,11 +1383,11 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_UCLK, (uint32_t *)data);
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, (uint32_t *)data);
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
@@ -1432,7 +1434,7 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 {
 	enum amd_pp_clock_type clk_type = clock_req->clock_type;
 	int ret = 0;
-	PPCLK_e clk_select = 0;
+	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
 
 	if (!smu->pm_enabled)
@@ -1440,16 +1442,16 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
-			clk_select = PPCLK_DCEFCLK;
+			clk_select = SMU_DCEFCLK;
 			break;
 		case amd_pp_disp_clock:
-			clk_select = PPCLK_DISPCLK;
+			clk_select = SMU_DISPCLK;
 			break;
 		case amd_pp_pixel_clock:
-			clk_select = PPCLK_PIXCLK;
+			clk_select = SMU_PIXCLK;
 			break;
 		case amd_pp_phy_clock:
-			clk_select = PPCLK_PHYCLK;
+			clk_select = SMU_PHYCLK;
 			break;
 		default:
 			pr_info("[%s] Invalid Clock Type!", __func__);
@@ -1461,7 +1463,7 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 			goto failed;
 
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
-						  (clk_select << 16) | clk_freq);
+			(smu_clk_get_index(smu, clk_select) << 16) | clk_freq);
 	}
 
 failed:
@@ -1575,14 +1577,14 @@ static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 
 static int smu_v11_0_get_clock_ranges(struct smu_context *smu,
 				      uint32_t *clock,
-				      PPCLK_e clock_select,
+				      enum smu_clk_type clock_select,
 				      bool max)
 {
 	int ret;
 	*clock = 0;
 	if (max) {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
-					    (clock_select << 16));
+				smu_clk_get_index(smu, clock_select) << 16);
 		if (ret) {
 			pr_err("[GetClockRanges] Failed to get max clock from SMC!\n");
 			return ret;
@@ -1590,7 +1592,7 @@ static int smu_v11_0_get_clock_ranges(struct smu_context *smu,
 		smu_read_smc_arg(smu, clock);
 	} else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq,
-					    (clock_select << 16));
+				smu_clk_get_index(smu, clock_select) << 16);
 		if (ret) {
 			pr_err("[GetClockRanges] Failed to get min clock from SMC!\n");
 			return ret;
@@ -1612,15 +1614,15 @@ static uint32_t smu_v11_0_dpm_get_sclk(struct smu_context *smu, bool low)
 	}
 
 	if (low) {
-		ret = smu_v11_0_get_clock_ranges(smu, &gfx_clk, PPCLK_GFXCLK, false);
+		ret = smu_v11_0_get_clock_ranges(smu, &gfx_clk, SMU_GFXCLK, false);
 		if (ret) {
-			pr_err("[GetSclks]: fail to get min PPCLK_GFXCLK\n");
+			pr_err("[GetSclks]: fail to get min SMU_GFXCLK\n");
 			return ret;
 		}
 	} else {
-		ret = smu_v11_0_get_clock_ranges(smu, &gfx_clk, PPCLK_GFXCLK, true);
+		ret = smu_v11_0_get_clock_ranges(smu, &gfx_clk, SMU_GFXCLK, true);
 		if (ret) {
-			pr_err("[GetSclks]: fail to get max PPCLK_GFXCLK\n");
+			pr_err("[GetSclks]: fail to get max SMU_GFXCLK\n");
 			return ret;
 		}
 	}
@@ -1639,15 +1641,15 @@ static uint32_t smu_v11_0_dpm_get_mclk(struct smu_context *smu, bool low)
 	}
 
 	if (low) {
-		ret = smu_v11_0_get_clock_ranges(smu, &mem_clk, PPCLK_UCLK, false);
+		ret = smu_v11_0_get_clock_ranges(smu, &mem_clk, SMU_UCLK, false);
 		if (ret) {
-			pr_err("[GetMclks]: fail to get min PPCLK_UCLK\n");
+			pr_err("[GetMclks]: fail to get min SMU_UCLK\n");
 			return ret;
 		}
 	} else {
-		ret = smu_v11_0_get_clock_ranges(smu, &mem_clk, PPCLK_GFXCLK, true);
+		ret = smu_v11_0_get_clock_ranges(smu, &mem_clk, SMU_GFXCLK, true);
 		if (ret) {
-			pr_err("[GetMclks]: fail to get max PPCLK_UCLK\n");
+			pr_err("[GetMclks]: fail to get max SMU_UCLK\n");
 			return ret;
 		}
 	}

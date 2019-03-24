@@ -139,6 +139,33 @@ static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetAVFSVoltageByDpm),
 };
 
+static int vega20_clk_map[SMU_CLK_COUNT] = {
+	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
+	CLK_MAP(VCLK, PPCLK_VCLK),
+	CLK_MAP(DCLK, PPCLK_DCLK),
+	CLK_MAP(ECLK, PPCLK_ECLK),
+	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
+	CLK_MAP(UCLK, PPCLK_UCLK),
+	CLK_MAP(DCEFCLK, PPCLK_DCEFCLK),
+	CLK_MAP(DISPCLK, PPCLK_DISPCLK),
+	CLK_MAP(PIXCLK, PPCLK_PIXCLK),
+	CLK_MAP(PHYCLK, PPCLK_PHYCLK),
+	CLK_MAP(FCLK, PPCLK_FCLK),
+};
+
+static int vega20_get_smu_clk_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	val = vega20_clk_map[index];
+	if (val >= PPCLK_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
 static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -776,7 +803,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 	switch (type) {
 	case PP_SCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current gfx clk Failed!");
 			return ret;
@@ -797,7 +824,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case PP_MCLK:
-		ret = smu_get_current_clk_freq(smu, PPCLK_UCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current mclk Failed!");
 			return ret;
@@ -2847,6 +2874,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.check_powerplay_table = vega20_check_powerplay_table,
 	.append_powerplay_table = vega20_append_powerplay_table,
 	.get_smu_msg_index = vega20_get_smu_msg_index,
+	.get_smu_clk_index = vega20_get_smu_clk_index,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,

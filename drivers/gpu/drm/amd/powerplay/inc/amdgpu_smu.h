@@ -227,6 +227,22 @@ enum smu_message_type
 	SMU_MSG_MAX_COUNT,
 };
 
+enum smu_clk_type
+{
+	SMU_GFXCLK,
+	SMU_VCLK,
+	SMU_DCLK,
+	SMU_ECLK,
+	SMU_SOCCLK,
+	SMU_UCLK,
+	SMU_DCEFCLK,
+	SMU_DISPCLK,
+	SMU_PIXCLK,
+	SMU_PHYCLK,
+	SMU_FCLK,
+	SMU_CLK_COUNT,
+};
+
 enum smu_memory_pool_size
 {
     SMU_MEMORY_POOL_SIZE_ZERO   = 0,
@@ -420,6 +436,7 @@ struct pptable_funcs {
 	int (*check_powerplay_table)(struct smu_context *smu);
 	int (*append_powerplay_table)(struct smu_context *smu);
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
+	int (*get_smu_clk_index)(struct smu_context *smu, uint32_t index);
 	int (*run_afll_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
@@ -510,7 +527,7 @@ struct smu_funcs
 	int (*notify_display_change)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool def);
 	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
-	int (*get_current_clk_freq)(struct smu_context *smu, uint32_t clk_id, uint32_t *value);
+	int (*get_current_clk_freq)(struct smu_context *smu, enum smu_clk_type clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*start_thermal_control)(struct smu_context *smu);
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
@@ -704,6 +721,8 @@ struct smu_funcs
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
+#define smu_clk_get_index(smu, msg) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_clk_index? (smu)->ppt_funcs->get_smu_clk_index((smu), (msg)) : -EINVAL) : -EINVAL)
 #define smu_run_afll_btc(smu) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
 #define smu_get_allowed_feature_mask(smu, feature_mask, num) \
