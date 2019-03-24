@@ -78,7 +78,6 @@ static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
 int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
 			     struct shash_desc *inhash)
 {
-	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 	struct ubifs_auth_node *auth = node;
 	u8 *hash;
 	int err;
@@ -87,13 +86,17 @@ int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
 	if (!hash)
 		return -ENOMEM;
 
-	hash_desc->tfm = c->hash_tfm;
-	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	ubifs_shash_copy_state(c, inhash, hash_desc);
+	{
+		SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 
-	err = crypto_shash_final(hash_desc, hash);
-	if (err)
-		goto out;
+		hash_desc->tfm = c->hash_tfm;
+		hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+		ubifs_shash_copy_state(c, inhash, hash_desc);
+
+		err = crypto_shash_final(hash_desc, hash);
+		if (err)
+			goto out;
+	}
 
 	err = ubifs_hash_calc_hmac(c, hash, auth->hmac);
 	if (err)
