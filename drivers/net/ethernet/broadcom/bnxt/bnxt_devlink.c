@@ -9,6 +9,7 @@
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <net/devlink.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_vfr.h"
