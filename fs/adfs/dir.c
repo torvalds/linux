@@ -100,6 +100,13 @@ out:
 	return ret;
 }
 
+static unsigned char adfs_tolower(unsigned char c)
+{
+	if (c >= 'A' && c <= 'Z')
+		c += 'a' - 'A';
+	return c;
+}
+
 static int __adfs_compare(const unsigned char *qstr, u32 qlen,
 			  const char *str, u32 len)
 {
@@ -108,20 +115,10 @@ static int __adfs_compare(const unsigned char *qstr, u32 qlen,
 	if (qlen != len)
 		return 1;
 
-	for (i = 0; i < qlen; i++) {
-		unsigned char qc, c;
-
-		qc = qstr[i];
-		c = str[i];
-
-		if (qc >= 'A' && qc <= 'Z')
-			qc += 'a' - 'A';
-		if (c >= 'A' && c <= 'Z')
-			c += 'a' - 'A';
-
-		if (qc != c)
+	for (i = 0; i < qlen; i++)
+		if (adfs_tolower(qstr[i]) != adfs_tolower(str[i]))
 			return 1;
-	}
+
 	return 0;
 }
 
@@ -198,15 +195,8 @@ adfs_hash(const struct dentry *parent, struct qstr *qstr)
 	qstr->len = i = name_len;
 	name = qstr->name;
 	hash = init_name_hash(parent);
-	while (i--) {
-		char c;
-
-		c = *name++;
-		if (c >= 'A' && c <= 'Z')
-			c += 'a' - 'A';
-
-		hash = partial_name_hash(c, hash);
-	}
+	while (i--)
+		hash = partial_name_hash(adfs_tolower(*name++), hash);
 	qstr->hash = end_name_hash(hash);
 
 	return 0;
