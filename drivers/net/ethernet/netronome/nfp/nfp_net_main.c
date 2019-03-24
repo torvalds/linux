@@ -160,6 +160,7 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 		err = nfp_devlink_port_register(pf->app, nn->port);
 		if (err)
 			goto err_dfs_clean;
+		nfp_devlink_port_type_eth_set(nn->port);
 	}
 
 	nfp_net_info(nn);
@@ -173,8 +174,10 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 	return 0;
 
 err_devlink_port_clean:
-	if (nn->port)
+	if (nn->port) {
+		nfp_devlink_port_type_clear(nn->port);
 		nfp_devlink_port_unregister(nn->port);
+	}
 err_dfs_clean:
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
@@ -220,8 +223,10 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
 	if (nfp_net_is_data_vnic(nn))
 		nfp_app_vnic_clean(pf->app, nn);
-	if (nn->port)
+	if (nn->port) {
+		nfp_devlink_port_type_clear(nn->port);
 		nfp_devlink_port_unregister(nn->port);
+	}
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
 }
