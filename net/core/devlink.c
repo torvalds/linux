@@ -5328,6 +5328,8 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 				    enum devlink_port_type type,
 				    void *type_dev)
 {
+	if (WARN_ON(!devlink_port->registered))
+		return;
 	devlink_port->type = type;
 	devlink_port->type_dev = type_dev;
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
