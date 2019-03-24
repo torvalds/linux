@@ -100,37 +100,39 @@ out:
 	return ret;
 }
 
-static int
-adfs_match(const struct qstr *name, struct object_info *obj)
+static int __adfs_compare(const unsigned char *qstr, u32 qlen,
+			  const char *str, u32 len)
 {
-	int i;
+	u32 i;
 
-	if (name->len != obj->name_len)
-		return 0;
+	if (qlen != len)
+		return 1;
 
-	for (i = 0; i < name->len; i++) {
-		char c1, c2;
+	for (i = 0; i < qlen; i++) {
+		unsigned char qc, c;
 
-		c1 = name->name[i];
-		c2 = obj->name[i];
+		qc = qstr[i];
+		c = str[i];
 
-		if (c1 >= 'A' && c1 <= 'Z')
-			c1 += 'a' - 'A';
-		if (c2 >= 'A' && c2 <= 'Z')
-			c2 += 'a' - 'A';
+		if (qc >= 'A' && qc <= 'Z')
+			qc += 'a' - 'A';
+		if (c >= 'A' && c <= 'Z')
+			c += 'a' - 'A';
 
-		if (c1 != c2)
-			return 0;
+		if (qc != c)
+			return 1;
 	}
-	return 1;
+	return 0;
 }
 
-static int
-adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct object_info *obj)
+static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
+				  struct object_info *obj)
 {
 	struct super_block *sb = inode->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
+	const unsigned char *name;
 	struct adfs_dir dir;
+	u32 name_len;
 	int ret;
 
 	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
@@ -153,8 +155,10 @@ adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct obje
 		goto unlock_out;
 
 	ret = -ENOENT;
+	name = qstr->name;
+	name_len = qstr->len;
 	while (ops->getnext(&dir, obj) == 0) {
-		if (adfs_match(name, obj)) {
+		if (!__adfs_compare(name, name_len, obj->name, obj->name_len)) {
 			ret = 0;
 			break;
 		}
@@ -212,30 +216,10 @@ adfs_hash(const struct dentry *parent, struct qstr *qstr)
  * Compare two names, taking note of the name length
  * requirements of the underlying filesystem.
  */
-static int
-adfs_compare(const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name)
+static int adfs_compare(const struct dentry *dentry, unsigned int len,
+			const char *str, const struct qstr *qstr)
 {
-	int i;
-
-	if (len != name->len)
-		return 1;
-
-	for (i = 0; i < name->len; i++) {
-		char a, b;
-
-		a = str[i];
-		b = name->name[i];
-
-		if (a >= 'A' && a <= 'Z')
-			a += 'a' - 'A';
-		if (b >= 'A' && b <= 'Z')
-			b += 'a' - 'A';
-
-		if (a != b)
-			return 1;
-	}
-	return 0;
+	return __adfs_compare(qstr->name, qstr->len, str, len);
 }
 
 const struct dentry_operations adfs_dentry_operations = {
