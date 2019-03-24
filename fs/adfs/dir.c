@@ -42,11 +42,14 @@ void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
 
 		/* optionally append the ,xyz hex filetype suffix */
-		if (ADFS_SB(dir->sb)->s_ftsuffix)
-			obj->name_len +=
-				append_filetype_suffix(
-					&obj->name[obj->name_len],
-					obj->filetype);
+		if (ADFS_SB(dir->sb)->s_ftsuffix) {
+			__u16 filetype = obj->filetype;
+
+			obj->name[obj->name_len++] = ',';
+			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 8);
+			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 4);
+			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 0);
+		}
 	}
 }
 
