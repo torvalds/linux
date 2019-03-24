@@ -59,7 +59,8 @@ static int blk_mq_poll_stats_bkt(const struct request *rq)
 }
 
 /*
- * Check if any of the ctx's have pending work in this hardware queue
+ * Check if any of the ctx, dispatch list or elevator
+ * have pending work in this hardware queue.
  */
 static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 {
