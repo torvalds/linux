@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/spinlock.h>
 #include <rdma/ib_verbs.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -543,12 +544,14 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 		goto nla_put_failure;
 	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
 		goto nla_put_failure;
+
+	spin_lock(&devlink_port->type_lock);
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_TYPE, devlink_port->type))
-		goto nla_put_failure;
+		goto nla_put_failure_type_locked;
 	if (devlink_port->desired_type != DEVLINK_PORT_TYPE_NOTSET &&
 	    nla_put_u16(msg, DEVLINK_ATTR_PORT_DESIRED_TYPE,
 			devlink_port->desired_type))
-		goto nla_put_failure;
+		goto nla_put_failure_type_locked;
 	if (devlink_port->type == DEVLINK_PORT_TYPE_ETH) {
 		struct net_device *netdev = devlink_port->type_dev;
 
@@ -557,7 +560,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 				 netdev->ifindex) ||
 		     nla_put_string(msg, DEVLINK_ATTR_PORT_NETDEV_NAME,
 				    netdev->name)))
-			goto nla_put_failure;
+			goto nla_put_failure_type_locked;
 	}
 	if (devlink_port->type == DEVLINK_PORT_TYPE_IB) {
 		struct ib_device *ibdev = devlink_port->type_dev;
@@ -565,14 +568,17 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 		if (ibdev &&
 		    nla_put_string(msg, DEVLINK_ATTR_PORT_IBDEV_NAME,
 				   ibdev->name))
-			goto nla_put_failure;
+			goto nla_put_failure_type_locked;
 	}
+	spin_unlock(&devlink_port->type_lock);
 	if (devlink_nl_port_attrs_put(msg, devlink_port))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 	return 0;
 
+nla_put_failure_type_locked:
+	spin_unlock(&devlink_port->type_lock);
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	return -EMSGSIZE;
@@ -5300,6 +5306,7 @@ int devlink_port_register(struct devlink *devlink,
 	devlink_port->devlink = devlink;
 	devlink_port->index = port_index;
 	devlink_port->registered = true;
+	spin_lock_init(&devlink_port->type_lock);
 	list_add_tail(&devlink_port->list, &devlink->port_list);
 	INIT_LIST_HEAD(&devlink_port->param_list);
 	mutex_unlock(&devlink->lock);
@@ -5330,8 +5337,10 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 {
 	if (WARN_ON(!devlink_port->registered))
 		return;
+	spin_lock(&devlink_port->type_lock);
 	devlink_port->type = type;
 	devlink_port->type_dev = type_dev;
+	spin_unlock(&devlink_port->type_lock);
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
 

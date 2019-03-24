@@ -16,6 +16,7 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <uapi/linux/devlink.h>
 
@@ -53,6 +54,9 @@ struct devlink_port {
 	struct devlink *devlink;
 	unsigned index;
 	bool registered;
+	spinlock_t type_lock; /* Protects type and type_dev
+			       * pointer consistency.
+			       */
 	enum devlink_port_type type;
 	enum devlink_port_type desired_type;
 	void *type_dev;
