@@ -18,18 +18,25 @@ static DEFINE_RWLOCK(adfs_dir_lock);
 
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 {
-	unsigned int i;
+	unsigned int dots, i;
 
 	/*
 	 * RISC OS allows the use of '/' in directory entry names, so we need
 	 * to fix these up.  '/' is typically used for FAT compatibility to
 	 * represent '.', so do the same conversion here.  In any case, '.'
 	 * will never be in a RISC OS name since it is used as the pathname
-	 * separator.
+	 * separator.  Handle the case where we may generate a '.' or '..'
+	 * name, replacing the first character with '^' (the RISC OS "parent
+	 * directory" character.)
 	 */
-	for (i = 0; i < obj->name_len; i++)
-		if (obj->name[i] == '/')
+	for (i = dots = 0; i < obj->name_len; i++)
+		if (obj->name[i] == '/') {
 			obj->name[i] = '.';
+			dots++;
+		}
+
+	if (obj->name_len <= 2 && dots == obj->name_len)
+		obj->name[0] = '^';
 
 	obj->filetype = -1;
 
