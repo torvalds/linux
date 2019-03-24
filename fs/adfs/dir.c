@@ -214,22 +214,17 @@ const struct file_operations adfs_dir_operations = {
 static int
 adfs_hash(const struct dentry *parent, struct qstr *qstr)
 {
-	const unsigned int name_len = ADFS_SB(parent->d_sb)->s_namelen;
 	const unsigned char *name;
 	unsigned long hash;
-	int i;
+	u32 len;
 
-	if (qstr->len < name_len)
-		return 0;
+	if (qstr->len > ADFS_SB(parent->d_sb)->s_namelen)
+		return -ENAMETOOLONG;
 
-	/*
-	 * Truncate the name in place, avoids
-	 * having to define a compare function.
-	 */
-	qstr->len = i = name_len;
+	len = qstr->len;
 	name = qstr->name;
 	hash = init_name_hash(parent);
-	while (i--)
+	while (len--)
 		hash = partial_name_hash(adfs_tolower(*name++), hash);
 	qstr->hash = end_name_hash(hash);
 
