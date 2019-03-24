@@ -229,7 +229,6 @@ int bnxt_dl_register(struct bnxt *bp)
 		goto err_dl_unreg;
 	}
 
-	devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 	devlink_port_attrs_set(&bp->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
 			       bp->pf.port_id, false, 0);
 	rc = devlink_port_register(dl, &bp->dl_port, bp->pf.port_id);
@@ -237,6 +236,7 @@ int bnxt_dl_register(struct bnxt *bp)
 		netdev_err(bp->dev, "devlink_port_register failed");
 		goto err_dl_param_unreg;
 	}
+	devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 
 	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
 					  ARRAY_SIZE(bnxt_dl_port_params));
