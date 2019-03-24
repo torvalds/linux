@@ -818,7 +818,7 @@ static int gdma_dma_probe(struct platform_device *pdev)
 	match = of_match_device(gdma_of_match_table, &pdev->dev);
 	if (!match)
 		return -EINVAL;
-	data = (struct gdma_data *) match->data;
+	data = (struct gdma_data *)match->data;
 
 	dma_dev = devm_kzalloc(&pdev->dev,
 			       struct_size(dma_dev, chan, data->chancnt),
