@@ -78,6 +78,10 @@
 #define VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID	GENMASK(7, 4)
 #define VEND1_GLOBAL_RSVD_STAT1_PROV_ID		GENMASK(3, 0)
 
+#define VEND1_GLOBAL_RSVD_STAT9			0xc88d
+#define VEND1_GLOBAL_RSVD_STAT9_MODE		GENMASK(7, 0)
+#define VEND1_GLOBAL_RSVD_STAT9_1000BT2		0x23
+
 #define VEND1_GLOBAL_INT_STD_STATUS		0xfc00
 #define VEND1_GLOBAL_INT_VEND_STATUS		0xfc01
 
@@ -433,7 +437,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 {
 	u8 fw_major, fw_minor;
 	bool downshift, short_reach, afr;
-	int val;
+	int mode, val;
 
 	if (phydev->state != PHY_RUNNING || phydev->autoneg == AUTONEG_DISABLE)
 		return;
@@ -464,6 +468,14 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 		   short_reach ? ", short reach mode" : "",
 		   downshift ? ", fast-retrain downshift advertised" : "",
 		   afr ? ", fast reframe advertised" : "");
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT9);
+	if (val < 0)
+		return;
+
+	mode = FIELD_GET(VEND1_GLOBAL_RSVD_STAT9_MODE, val);
+	if (mode == VEND1_GLOBAL_RSVD_STAT9_1000BT2)
+		phydev_info(phydev, "Aquantia 1000Base-T2 mode active\n");
 }
 
 static struct phy_driver aqr_driver[] = {
