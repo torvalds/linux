@@ -826,30 +826,30 @@ out:
 }
 
 static IIO_DEVICE_ATTR_NAMED(in_thresh_low_value,
-		in_voltage-voltage_thresh_low_value,
-		0644,
-		ad7280_read_channel_config,
-		ad7280_write_channel_config,
-		AD7280A_CELL_UNDERVOLTAGE);
+			     in_voltage-voltage_thresh_low_value,
+			     0644,
+			     ad7280_read_channel_config,
+			     ad7280_write_channel_config,
+			     AD7280A_CELL_UNDERVOLTAGE);
 
 static IIO_DEVICE_ATTR_NAMED(in_thresh_high_value,
-		in_voltage-voltage_thresh_high_value,
-		0644,
-		ad7280_read_channel_config,
-		ad7280_write_channel_config,
-		AD7280A_CELL_OVERVOLTAGE);
+			     in_voltage-voltage_thresh_high_value,
+			     0644,
+			     ad7280_read_channel_config,
+			     ad7280_write_channel_config,
+			     AD7280A_CELL_OVERVOLTAGE);
 
 static IIO_DEVICE_ATTR(in_temp_thresh_low_value,
-		0644,
-		ad7280_read_channel_config,
-		ad7280_write_channel_config,
-		AD7280A_AUX_ADC_UNDERVOLTAGE);
+		       0644,
+		       ad7280_read_channel_config,
+		       ad7280_write_channel_config,
+		       AD7280A_AUX_ADC_UNDERVOLTAGE);
 
 static IIO_DEVICE_ATTR(in_temp_thresh_high_value,
-		0644,
-		ad7280_read_channel_config,
-		ad7280_write_channel_config,
-		AD7280A_AUX_ADC_OVERVOLTAGE);
+		       0644,
+		       ad7280_read_channel_config,
+		       ad7280_write_channel_config,
+		       AD7280A_AUX_ADC_OVERVOLTAGE);
 
 static struct attribute *ad7280_event_attributes[] = {
 	&iio_dev_attr_in_thresh_low_value.dev_attr.attr,
