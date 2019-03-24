@@ -435,7 +435,6 @@
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
-			qcom,controlled-remotely = <1>;
 			qcom,ee = <0>;
 			status = "okay";
 		};
@@ -680,7 +679,6 @@
 			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
-			qcom,controlled-remotely = <1>;
 			qcom,ee = <0>;
 			status = "disabled";
 		};

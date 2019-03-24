@@ -21,6 +21,14 @@
 	};
 };
 
+&blsp1_dma {
+	qcom,controlled-remotely;
+};
+
+&blsp2_dma {
+	qcom,controlled-remotely;
+};
+
 &remoteproc_adsp {
 	status = "ok";
 };
