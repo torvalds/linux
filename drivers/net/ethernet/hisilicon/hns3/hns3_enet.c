@@ -826,12 +826,12 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
  */
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
-#define IANA_VXLAN_PORT	4789
 	union l4_hdr_info l4;
 
 	l4.hdr = skb_transport_header(skb);
 
-	if (!(!skb->encapsulation && l4.udp->dest == htons(IANA_VXLAN_PORT)))
+	if (!(!skb->encapsulation &&
+	      l4.udp->dest == htons(IANA_VXLAN_UDP_PORT)))
 		return false;
 
 	skb_checksum_help(skb);

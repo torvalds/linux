@@ -884,6 +884,53 @@ static inline bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
 		MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ft_field_support.inner_ip_version));
 }
 
+static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_ETH(mdev, swp) &&
+		MLX5_CAP_ETH(mdev, swp_csum) && MLX5_CAP_ETH(mdev, swp_lso);
+}
+
+struct mlx5e_swp_spec {
+	__be16 l3_proto;
+	u8 l4_proto;
+	u8 is_tun;
+	__be16 tun_l3_proto;
+	u8 tun_l4_proto;
+};
+
+static inline void
+mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
+		   struct mlx5e_swp_spec *swp_spec)
+{
+	/* SWP offsets are in 2-bytes words */
+	eseg->swp_outer_l3_offset = skb_network_offset(skb) / 2;
+	if (swp_spec->l3_proto == htons(ETH_P_IPV6))
+		eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L3_IPV6;
+	if (swp_spec->l4_proto) {
+		eseg->swp_outer_l4_offset = skb_transport_offset(skb) / 2;
+		if (swp_spec->l4_proto == IPPROTO_UDP)
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L4_UDP;
+	}
+
+	if (swp_spec->is_tun) {
+		eseg->swp_inner_l3_offset = skb_inner_network_offset(skb) / 2;
+		if (swp_spec->tun_l3_proto == htons(ETH_P_IPV6))
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
+	} else { /* typically for ipsec when xfrm mode != XFRM_MODE_TUNNEL */
+		eseg->swp_inner_l3_offset = skb_network_offset(skb) / 2;
+		if (swp_spec->l3_proto == htons(ETH_P_IPV6))
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
+	}
+	switch (swp_spec->tun_l4_proto) {
+	case IPPROTO_UDP:
+		eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
+		/* fall through */
+	case IPPROTO_TCP:
+		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
+		break;
+	}
+}
+
 static inline void mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq,
 				      struct mlx5e_tx_wqe **wqe,
 				      u16 *pi)

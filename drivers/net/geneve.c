@@ -22,8 +22,6 @@
 
 #define GENEVE_NETDEV_VER	"0.6"
 
-#define GENEVE_UDP_PORT		6081
-
 #define GENEVE_N_VID		(1u << 24)
 #define GENEVE_VID_MASK		(GENEVE_N_VID - 1)
 
