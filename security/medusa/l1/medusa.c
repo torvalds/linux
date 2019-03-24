@@ -894,6 +894,13 @@ static int medusa_l1_socket_connect(struct socket *sock, struct sockaddr *addres
 
 static int medusa_l1_socket_listen(struct socket *sock, int backlog)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_listen(sock, backlog) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 
