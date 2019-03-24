@@ -169,7 +169,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 		(struct adfs_bigdirheader *) dir->bh_fplus[0]->b_data;
 	struct adfs_bigdirentry bde;
 	unsigned int offset;
-	int i, ret = -ENOENT;
+	int ret = -ENOENT;
 
 	if (dir->pos >= le32_to_cpu(h->bigdirentries))
 		goto out;
@@ -193,10 +193,6 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	offset += le32_to_cpu(bde.bigdirobnameptr);
 
 	dir_memcpy(dir, offset, obj->name, obj->name_len);
-	for (i = 0; i < obj->name_len; i++)
-		if (obj->name[i] == '/')
-			obj->name[i] = '.';
-
 	adfs_object_fixup(dir, obj);
 
 	dir->pos += 1;
