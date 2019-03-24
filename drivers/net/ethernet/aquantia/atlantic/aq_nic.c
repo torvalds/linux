@@ -73,6 +73,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->tx_itr = aq_itr_tx;
 	cfg->rx_itr = aq_itr_rx;
 
+	cfg->rxpageorder = AQ_CFG_RX_PAGEORDER;
 	cfg->is_rss = AQ_CFG_IS_RSS_DEF;
 	cfg->num_rss_queues = AQ_CFG_NUM_RSS_QUEUES_DEF;
 	cfg->aq_rss.base_cpu_number = AQ_CFG_RSS_BASE_CPU_NUM_DEF;

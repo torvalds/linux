@@ -315,6 +315,21 @@ void hw_atl_itr_res_irq_set(struct aq_hw_s *aq_hw, u32 res_irq)
 			    HW_ATL_ITR_RES_SHIFT, res_irq);
 }
 
+/* set RSC interrupt */
+void hw_atl_itr_rsc_en_set(struct aq_hw_s *aq_hw, u32 enable)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_ITR_RSC_EN_ADR, enable);
+}
+
+/* set RSC delay */
+void hw_atl_itr_rsc_delay_set(struct aq_hw_s *aq_hw, u32 delay)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_ITR_RSC_DELAY_ADR,
+			    HW_ATL_ITR_RSC_DELAY_MSK,
+			    HW_ATL_ITR_RSC_DELAY_SHIFT,
+			    delay);
+}
+
 /* rdm */
 void hw_atl_rdm_cpu_id_set(struct aq_hw_s *aq_hw, u32 cpuid, u32 dca)
 {
