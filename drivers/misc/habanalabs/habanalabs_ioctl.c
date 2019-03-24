@@ -12,6 +12,21 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
+static int device_status_info(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_device_status dev_stat = {0};
+	u32 size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!size) || (!out))
+		return -EINVAL;
+
+	dev_stat.status = hl_device_status(hdev);
+
+	return copy_to_user(out, &dev_stat,
+			min((size_t)size, sizeof(dev_stat))) ? -EFAULT : 0;
+}
+
 static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 {
 	struct hl_info_hw_ip_info hw_ip = {0};
@@ -104,6 +119,10 @@ static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_info_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	int rc;
+
+	/* We want to return device status even if it disabled or in reset */
+	if (args->op == HL_INFO_DEVICE_STATUS)
+		return device_status_info(hdev, args);
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
 		dev_warn_ratelimited(hdev->dev,

@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/sched/signal.h>
 #include <linux/hwmon.h>
+#include <uapi/misc/habanalabs.h>
 
 #define HL_PLDM_PENDING_RESET_PER_SEC	(HL_PENDING_RESET_PER_SEC * 10)
 
@@ -20,6 +21,20 @@ bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
 	else
 		return false;
 }
+
+enum hl_device_status hl_device_status(struct hl_device *hdev)
+{
+	enum hl_device_status status;
+
+	if (hdev->disabled)
+		status = HL_DEVICE_STATUS_MALFUNCTION;
+	else if (atomic_read(&hdev->in_reset))
+		status = HL_DEVICE_STATUS_IN_RESET;
+	else
+		status = HL_DEVICE_STATUS_OPERATIONAL;
+
+	return status;
+};
 
 static void hpriv_release(struct kref *ref)
 {

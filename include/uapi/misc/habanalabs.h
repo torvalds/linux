@@ -45,11 +45,18 @@ enum goya_queue_id {
 	GOYA_QUEUE_ID_SIZE
 };
 
+enum hl_device_status {
+	HL_DEVICE_STATUS_OPERATIONAL,
+	HL_DEVICE_STATUS_IN_RESET,
+	HL_DEVICE_STATUS_MALFUNCTION
+};
+
 /* Opcode for management ioctl */
 #define HL_INFO_HW_IP_INFO	0
 #define HL_INFO_HW_EVENTS	1
 #define HL_INFO_DRAM_USAGE	2
 #define HL_INFO_HW_IDLE		3
+#define HL_INFO_DEVICE_STATUS	4
 
 #define HL_INFO_VERSION_MAX_LEN	128
 
@@ -79,6 +86,11 @@ struct hl_info_dram_usage {
 
 struct hl_info_hw_idle {
 	__u32 is_idle;
+	__u32 pad;
+};
+
+struct hl_info_device_status {
+	__u32 status;
 	__u32 pad;
 };
 
