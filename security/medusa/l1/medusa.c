@@ -882,7 +882,13 @@ static int medusa_l1_socket_bind(struct socket *sock, struct sockaddr *address,
 static int medusa_l1_socket_connect(struct socket *sock, struct sockaddr *address,
 				int addrlen)
 {
-	//printk("medusa: socket_connect called\n");
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_connect(sock, address, addrlen) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 
