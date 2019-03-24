@@ -1156,8 +1156,9 @@ ice_get_settings_link_down(struct ethtool_link_ksettings *ks,
  *
  * Reports speed/duplex settings based on media_type
  */
-static int ice_get_link_ksettings(struct net_device *netdev,
-				  struct ethtool_link_ksettings *ks)
+static int
+ice_get_link_ksettings(struct net_device *netdev,
+		       struct ethtool_link_ksettings *ks)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_link_status *hw_link_info;
@@ -1565,8 +1566,9 @@ done:
  *
  * Returns Success if the command is supported.
  */
-static int ice_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
-			 u32 __always_unused *rule_locs)
+static int
+ice_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
+	      u32 __always_unused *rule_locs)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -2023,8 +2025,9 @@ out:
  * Returns -EINVAL if the table specifies an invalid queue id, otherwise
  * returns 0 after programming the table.
  */
-static int ice_set_rxfh(struct net_device *netdev, const u32 *indir,
-			const u8 *key, const u8 hfunc)
+static int
+ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
+	     const u8 hfunc)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -2179,8 +2182,9 @@ ice_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
 	return __ice_get_coalesce(netdev, ec, -1);
 }
 
-static int ice_get_per_q_coalesce(struct net_device *netdev, u32 q_num,
-				  struct ethtool_coalesce *ec)
+static int
+ice_get_per_q_coalesce(struct net_device *netdev, u32 q_num,
+		       struct ethtool_coalesce *ec)
 {
 	return __ice_get_coalesce(netdev, ec, q_num);
 }
@@ -2324,8 +2328,9 @@ ice_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
 	return __ice_set_coalesce(netdev, ec, -1);
 }
 
-static int ice_set_per_q_coalesce(struct net_device *netdev, u32 q_num,
-				  struct ethtool_coalesce *ec)
+static int
+ice_set_per_q_coalesce(struct net_device *netdev, u32 q_num,
+		       struct ethtool_coalesce *ec)
 {
 	return __ice_set_coalesce(netdev, ec, q_num);
 }

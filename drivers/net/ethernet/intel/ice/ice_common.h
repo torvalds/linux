@@ -9,8 +9,8 @@
 #include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
 
-void ice_debug_cq(struct ice_hw *hw, u32 mask, void *desc, void *buf,
-		  u16 buf_len);
+void
+ice_debug_cq(struct ice_hw *hw, u32 mask, void *desc, void *buf, u16 buf_len);
 enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);
 enum ice_status ice_check_reset(struct ice_hw *hw);
@@ -28,8 +28,8 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		enum ice_aq_res_access_type access, u32 timeout);
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res);
 enum ice_status ice_init_nvm(struct ice_hw *hw);
-enum ice_status ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words,
-				u16 *data);
+enum ice_status
+ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words, u16 *data);
 enum ice_status
 ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		struct ice_aq_desc *desc, void *buf, u16 buf_size,
@@ -106,8 +106,10 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_qgrps,
 enum ice_status ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle);
 void ice_replay_post(struct ice_hw *hw);
 void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf);
-void ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
-		       bool prev_stat_loaded, u64 *prev_stat, u64 *cur_stat);
-void ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
-		       u64 *prev_stat, u64 *cur_stat);
+void
+ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
+		  bool prev_stat_loaded, u64 *prev_stat, u64 *cur_stat);
+void
+ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
+		  u64 *prev_stat, u64 *cur_stat);
 #endif /* _ICE_COMMON_H_ */

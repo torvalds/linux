@@ -322,8 +322,8 @@ struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
  *
  * save the VSI context entry for a given VSI handle
  */
-static void ice_save_vsi_ctx(struct ice_hw *hw, u16 vsi_handle,
-			     struct ice_vsi_ctx *vsi)
+static void
+ice_save_vsi_ctx(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi)
 {
 	hw->vsi_ctx[vsi_handle] = vsi;
 }
@@ -398,7 +398,7 @@ ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 			tmp_vsi_ctx->vsi_num = vsi_ctx->vsi_num;
 	}
 
-	return status;
+	return 0;
 }
 
 /**
@@ -643,21 +643,43 @@ static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *fi)
 	     fi->fltr_act == ICE_FWD_TO_VSI_LIST ||
 	     fi->fltr_act == ICE_FWD_TO_Q ||
 	     fi->fltr_act == ICE_FWD_TO_QGRP)) {
-		fi->lb_en = true;
-		/* Do not set lan_en to TRUE if
+		/* Setting LB for prune actions will result in replicated
+		 * packets to the internal switch that will be dropped.
+		 */
+		if (fi->lkup_type != ICE_SW_LKUP_VLAN)
+			fi->lb_en = true;
+
+		/* Set lan_en to TRUE if
 		 * 1. The switch is a VEB AND
 		 * 2
-		 * 2.1 The lookup is MAC with unicast addr for MAC, OR
-		 * 2.2 The lookup is MAC_VLAN with unicast addr for MAC
+		 * 2.1 The lookup is a directional lookup like ethertype,
+		 * promiscuous, ethertype-mac, promiscuous-vlan
+		 * and default-port OR
+		 * 2.2 The lookup is VLAN, OR
+		 * 2.3 The lookup is MAC with mcast or bcast addr for MAC, OR
+		 * 2.4 The lookup is MAC_VLAN with mcast or bcast addr for MAC.
 		 *
-		 * In all other cases, the LAN enable has to be set to true.
+		 * OR
+		 *
+		 * The switch is a VEPA.
+		 *
+		 * In all other cases, the LAN enable has to be set to false.
 		 */
-		if (!(hw->evb_veb &&
-		      ((fi->lkup_type == ICE_SW_LKUP_MAC &&
-			is_unicast_ether_addr(fi->l_data.mac.mac_addr)) ||
-		       (fi->lkup_type == ICE_SW_LKUP_MAC_VLAN &&
-			is_unicast_ether_addr(fi->l_data.mac_vlan.mac_addr)))))
+		if (hw->evb_veb) {
+			if (fi->lkup_type == ICE_SW_LKUP_ETHERTYPE ||
+			    fi->lkup_type == ICE_SW_LKUP_PROMISC ||
+			    fi->lkup_type == ICE_SW_LKUP_ETHERTYPE_MAC ||
+			    fi->lkup_type == ICE_SW_LKUP_PROMISC_VLAN ||
+			    fi->lkup_type == ICE_SW_LKUP_DFLT ||
+			    fi->lkup_type == ICE_SW_LKUP_VLAN ||
+			    (fi->lkup_type == ICE_SW_LKUP_MAC &&
+			     !is_unicast_ether_addr(fi->l_data.mac.mac_addr)) ||
+			    (fi->lkup_type == ICE_SW_LKUP_MAC_VLAN &&
+			     !is_unicast_ether_addr(fi->l_data.mac.mac_addr)))
+				fi->lan_en = true;
+		} else {
 			fi->lan_en = true;
+		}
 	}
 }
 
@@ -2190,6 +2212,291 @@ ice_add_to_vsi_fltr_list(struct ice_hw *hw, u16 vsi_handle,
 }
 
 /**
+ * ice_determine_promisc_mask
+ * @fi: filter info to parse
+ *
+ * Helper function to determine which ICE_PROMISC_ mask corresponds
+ * to given filter into.
+ */
+static u8 ice_determine_promisc_mask(struct ice_fltr_info *fi)
+{
+	u16 vid = fi->l_data.mac_vlan.vlan_id;
+	u8 *macaddr = fi->l_data.mac.mac_addr;
+	bool is_tx_fltr = false;
+	u8 promisc_mask = 0;
+
+	if (fi->flag == ICE_FLTR_TX)
+		is_tx_fltr = true;
+
+	if (is_broadcast_ether_addr(macaddr))
+		promisc_mask |= is_tx_fltr ?
+			ICE_PROMISC_BCAST_TX : ICE_PROMISC_BCAST_RX;
+	else if (is_multicast_ether_addr(macaddr))
+		promisc_mask |= is_tx_fltr ?
+			ICE_PROMISC_MCAST_TX : ICE_PROMISC_MCAST_RX;
+	else if (is_unicast_ether_addr(macaddr))
+		promisc_mask |= is_tx_fltr ?
+			ICE_PROMISC_UCAST_TX : ICE_PROMISC_UCAST_RX;
+	if (vid)
+		promisc_mask |= is_tx_fltr ?
+			ICE_PROMISC_VLAN_TX : ICE_PROMISC_VLAN_RX;
+
+	return promisc_mask;
+}
+
+/**
+ * ice_remove_promisc - Remove promisc based filter rules
+ * @hw: pointer to the hardware structure
+ * @recp_id: recipe id for which the rule needs to removed
+ * @v_list: list of promisc entries
+ */
+static enum ice_status
+ice_remove_promisc(struct ice_hw *hw, u8 recp_id,
+		   struct list_head *v_list)
+{
+	struct ice_fltr_list_entry *v_list_itr, *tmp;
+
+	list_for_each_entry_safe(v_list_itr, tmp, v_list, list_entry) {
+		v_list_itr->status =
+			ice_remove_rule_internal(hw, recp_id, v_list_itr);
+		if (v_list_itr->status)
+			return v_list_itr->status;
+	}
+	return 0;
+}
+
+/**
+ * ice_clear_vsi_promisc - clear specified promiscuous mode(s) for given VSI
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: VSI handle to clear mode
+ * @promisc_mask: mask of promiscuous config bits to clear
+ * @vid: VLAN ID to clear VLAN promiscuous
+ */
+enum ice_status
+ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
+		      u16 vid)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	struct ice_fltr_list_entry *fm_entry, *tmp;
+	struct list_head remove_list_head;
+	struct ice_fltr_mgmt_list_entry *itr;
+	struct list_head *rule_head;
+	struct mutex *rule_lock;	/* Lock to protect filter rule list */
+	enum ice_status status = 0;
+	u8 recipe_id;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
+	if (vid)
+		recipe_id = ICE_SW_LKUP_PROMISC_VLAN;
+	else
+		recipe_id = ICE_SW_LKUP_PROMISC;
+
+	rule_head = &sw->recp_list[recipe_id].filt_rules;
+	rule_lock = &sw->recp_list[recipe_id].filt_rule_lock;
+
+	INIT_LIST_HEAD(&remove_list_head);
+
+	mutex_lock(rule_lock);
+	list_for_each_entry(itr, rule_head, list_entry) {
+		u8 fltr_promisc_mask = 0;
+
+		if (!ice_vsi_uses_fltr(itr, vsi_handle))
+			continue;
+
+		fltr_promisc_mask |=
+			ice_determine_promisc_mask(&itr->fltr_info);
+
+		/* Skip if filter is not completely specified by given mask */
+		if (fltr_promisc_mask & ~promisc_mask)
+			continue;
+
+		status = ice_add_entry_to_vsi_fltr_list(hw, vsi_handle,
+							&remove_list_head,
+							&itr->fltr_info);
+		if (status) {
+			mutex_unlock(rule_lock);
+			goto free_fltr_list;
+		}
+	}
+	mutex_unlock(rule_lock);
+
+	status = ice_remove_promisc(hw, recipe_id, &remove_list_head);
+
+free_fltr_list:
+	list_for_each_entry_safe(fm_entry, tmp, &remove_list_head, list_entry) {
+		list_del(&fm_entry->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), fm_entry);
+	}
+
+	return status;
+}
+
+/**
+ * ice_set_vsi_promisc - set given VSI to given promiscuous mode(s)
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: VSI handle to configure
+ * @promisc_mask: mask of promiscuous config bits
+ * @vid: VLAN ID to set VLAN promiscuous
+ */
+enum ice_status
+ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask, u16 vid)
+{
+	enum { UCAST_FLTR = 1, MCAST_FLTR, BCAST_FLTR };
+	struct ice_fltr_list_entry f_list_entry;
+	struct ice_fltr_info new_fltr;
+	enum ice_status status = 0;
+	bool is_tx_fltr;
+	u16 hw_vsi_id;
+	int pkt_type;
+	u8 recipe_id;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+	hw_vsi_id = ice_get_hw_vsi_num(hw, vsi_handle);
+
+	memset(&new_fltr, 0, sizeof(new_fltr));
+
+	if (promisc_mask & (ICE_PROMISC_VLAN_RX | ICE_PROMISC_VLAN_TX)) {
+		new_fltr.lkup_type = ICE_SW_LKUP_PROMISC_VLAN;
+		new_fltr.l_data.mac_vlan.vlan_id = vid;
+		recipe_id = ICE_SW_LKUP_PROMISC_VLAN;
+	} else {
+		new_fltr.lkup_type = ICE_SW_LKUP_PROMISC;
+		recipe_id = ICE_SW_LKUP_PROMISC;
+	}
+
+	/* Separate filters must be set for each direction/packet type
+	 * combination, so we will loop over the mask value, store the
+	 * individual type, and clear it out in the input mask as it
+	 * is found.
+	 */
+	while (promisc_mask) {
+		u8 *mac_addr;
+
+		pkt_type = 0;
+		is_tx_fltr = false;
+
+		if (promisc_mask & ICE_PROMISC_UCAST_RX) {
+			promisc_mask &= ~ICE_PROMISC_UCAST_RX;
+			pkt_type = UCAST_FLTR;
+		} else if (promisc_mask & ICE_PROMISC_UCAST_TX) {
+			promisc_mask &= ~ICE_PROMISC_UCAST_TX;
+			pkt_type = UCAST_FLTR;
+			is_tx_fltr = true;
+		} else if (promisc_mask & ICE_PROMISC_MCAST_RX) {
+			promisc_mask &= ~ICE_PROMISC_MCAST_RX;
+			pkt_type = MCAST_FLTR;
+		} else if (promisc_mask & ICE_PROMISC_MCAST_TX) {
+			promisc_mask &= ~ICE_PROMISC_MCAST_TX;
+			pkt_type = MCAST_FLTR;
+			is_tx_fltr = true;
+		} else if (promisc_mask & ICE_PROMISC_BCAST_RX) {
+			promisc_mask &= ~ICE_PROMISC_BCAST_RX;
+			pkt_type = BCAST_FLTR;
+		} else if (promisc_mask & ICE_PROMISC_BCAST_TX) {
+			promisc_mask &= ~ICE_PROMISC_BCAST_TX;
+			pkt_type = BCAST_FLTR;
+			is_tx_fltr = true;
+		}
+
+		/* Check for VLAN promiscuous flag */
+		if (promisc_mask & ICE_PROMISC_VLAN_RX) {
+			promisc_mask &= ~ICE_PROMISC_VLAN_RX;
+		} else if (promisc_mask & ICE_PROMISC_VLAN_TX) {
+			promisc_mask &= ~ICE_PROMISC_VLAN_TX;
+			is_tx_fltr = true;
+		}
+
+		/* Set filter DA based on packet type */
+		mac_addr = new_fltr.l_data.mac.mac_addr;
+		if (pkt_type == BCAST_FLTR) {
+			eth_broadcast_addr(mac_addr);
+		} else if (pkt_type == MCAST_FLTR ||
+			   pkt_type == UCAST_FLTR) {
+			/* Use the dummy ether header DA */
+			ether_addr_copy(mac_addr, dummy_eth_header);
+			if (pkt_type == MCAST_FLTR)
+				mac_addr[0] |= 0x1;	/* Set multicast bit */
+		}
+
+		/* Need to reset this to zero for all iterations */
+		new_fltr.flag = 0;
+		if (is_tx_fltr) {
+			new_fltr.flag |= ICE_FLTR_TX;
+			new_fltr.src = hw_vsi_id;
+		} else {
+			new_fltr.flag |= ICE_FLTR_RX;
+			new_fltr.src = hw->port_info->lport;
+		}
+
+		new_fltr.fltr_act = ICE_FWD_TO_VSI;
+		new_fltr.vsi_handle = vsi_handle;
+		new_fltr.fwd_id.hw_vsi_id = hw_vsi_id;
+		f_list_entry.fltr_info = new_fltr;
+
+		status = ice_add_rule_internal(hw, recipe_id, &f_list_entry);
+		if (status)
+			goto set_promisc_exit;
+	}
+
+set_promisc_exit:
+	return status;
+}
+
+/**
+ * ice_set_vlan_vsi_promisc
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: VSI handle to configure
+ * @promisc_mask: mask of promiscuous config bits
+ * @rm_vlan_promisc: Clear VLANs VSI promisc mode
+ *
+ * Configure VSI with all associated VLANs to given promiscuous mode(s)
+ */
+enum ice_status
+ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
+			 bool rm_vlan_promisc)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	struct ice_fltr_list_entry *list_itr, *tmp;
+	struct list_head vsi_list_head;
+	struct list_head *vlan_head;
+	struct mutex *vlan_lock; /* Lock to protect filter rule list */
+	enum ice_status status;
+	u16 vlan_id;
+
+	INIT_LIST_HEAD(&vsi_list_head);
+	vlan_lock = &sw->recp_list[ICE_SW_LKUP_VLAN].filt_rule_lock;
+	vlan_head = &sw->recp_list[ICE_SW_LKUP_VLAN].filt_rules;
+	mutex_lock(vlan_lock);
+	status = ice_add_to_vsi_fltr_list(hw, vsi_handle, vlan_head,
+					  &vsi_list_head);
+	mutex_unlock(vlan_lock);
+	if (status)
+		goto free_fltr_list;
+
+	list_for_each_entry(list_itr, &vsi_list_head, list_entry) {
+		vlan_id = list_itr->fltr_info.l_data.vlan.vlan_id;
+		if (rm_vlan_promisc)
+			status = ice_clear_vsi_promisc(hw, vsi_handle,
+						       promisc_mask, vlan_id);
+		else
+			status = ice_set_vsi_promisc(hw, vsi_handle,
+						     promisc_mask, vlan_id);
+		if (status)
+			break;
+	}
+
+free_fltr_list:
+	list_for_each_entry_safe(list_itr, tmp, &vsi_list_head, list_entry) {
+		list_del(&list_itr->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), list_itr);
+	}
+	return status;
+}
+
+/**
  * ice_remove_vsi_lkup_fltr - Remove lookup type filters for a VSI
  * @hw: pointer to the hardware structure
  * @vsi_handle: VSI handle to remove filters from
@@ -2224,12 +2531,14 @@ ice_remove_vsi_lkup_fltr(struct ice_hw *hw, u16 vsi_handle,
 	case ICE_SW_LKUP_VLAN:
 		ice_remove_vlan(hw, &remove_list_head);
 		break;
+	case ICE_SW_LKUP_PROMISC:
+	case ICE_SW_LKUP_PROMISC_VLAN:
+		ice_remove_promisc(hw, lkup, &remove_list_head);
+		break;
 	case ICE_SW_LKUP_MAC_VLAN:
 	case ICE_SW_LKUP_ETHERTYPE:
 	case ICE_SW_LKUP_ETHERTYPE_MAC:
-	case ICE_SW_LKUP_PROMISC:
 	case ICE_SW_LKUP_DFLT:
-	case ICE_SW_LKUP_PROMISC_VLAN:
 	case ICE_SW_LKUP_LAST:
 	default:
 		ice_debug(hw, ICE_DBG_SW, "Unsupported lookup type %d\n", lkup);

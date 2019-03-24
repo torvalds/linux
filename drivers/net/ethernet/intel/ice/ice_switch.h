@@ -178,6 +178,17 @@ struct ice_fltr_mgmt_list_entry {
 	u8 counter_index;
 };
 
+enum ice_promisc_flags {
+	ICE_PROMISC_UCAST_RX = 0x1,
+	ICE_PROMISC_UCAST_TX = 0x2,
+	ICE_PROMISC_MCAST_RX = 0x4,
+	ICE_PROMISC_MCAST_TX = 0x8,
+	ICE_PROMISC_BCAST_RX = 0x10,
+	ICE_PROMISC_BCAST_TX = 0x20,
+	ICE_PROMISC_VLAN_RX = 0x40,
+	ICE_PROMISC_VLAN_TX = 0x80,
+};
+
 /* VSI related commands */
 enum ice_status
 ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
@@ -199,10 +210,22 @@ enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
-enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
+enum ice_status
+ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
+
+/* Promisc/defport setup for VSIs */
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);
+enum ice_status
+ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
+		    u16 vid);
+enum ice_status
+ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
+		      u16 vid);
+enum ice_status
+ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
+			 bool rm_vlan_promisc);
 
 enum ice_status ice_init_def_sw_recp(struct ice_hw *hw);
 u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);

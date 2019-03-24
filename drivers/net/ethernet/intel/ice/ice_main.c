@@ -168,6 +168,39 @@ static bool ice_vsi_fltr_changed(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_cfg_promisc - Enable or disable promiscuous mode for a given PF
+ * @vsi: the VSI being configured
+ * @promisc_m: mask of promiscuous config bits
+ * @set_promisc: enable or disable promisc flag request
+ *
+ */
+static int ice_cfg_promisc(struct ice_vsi *vsi, u8 promisc_m, bool set_promisc)
+{
+	struct ice_hw *hw = &vsi->back->hw;
+	enum ice_status status = 0;
+
+	if (vsi->type != ICE_VSI_PF)
+		return 0;
+
+	if (vsi->vlan_ena) {
+		status = ice_set_vlan_vsi_promisc(hw, vsi->idx, promisc_m,
+						  set_promisc);
+	} else {
+		if (set_promisc)
+			status = ice_set_vsi_promisc(hw, vsi->idx, promisc_m,
+						     0);
+		else
+			status = ice_clear_vsi_promisc(hw, vsi->idx, promisc_m,
+						       0);
+	}
+
+	if (status)
+		return -EIO;
+
+	return 0;
+}
+
+/**
  * ice_vsi_sync_fltr - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
  *
@@ -182,6 +215,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status = 0;
 	u32 changed_flags = 0;
+	u8 promisc_m;
 	int err = 0;
 
 	if (!vsi->netdev)
@@ -245,8 +279,35 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		}
 	}
 	/* check for changes in promiscuous modes */
-	if (changed_flags & IFF_ALLMULTI)
-		netdev_warn(netdev, "Unsupported configuration\n");
+	if (changed_flags & IFF_ALLMULTI) {
+		if (vsi->current_netdev_flags & IFF_ALLMULTI) {
+			if (vsi->vlan_ena)
+				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
+			else
+				promisc_m = ICE_MCAST_PROMISC_BITS;
+
+			err = ice_cfg_promisc(vsi, promisc_m, true);
+			if (err) {
+				netdev_err(netdev, "Error setting Multicast promiscuous mode on VSI %i\n",
+					   vsi->vsi_num);
+				vsi->current_netdev_flags &= ~IFF_ALLMULTI;
+				goto out_promisc;
+			}
+		} else if (!(vsi->current_netdev_flags & IFF_ALLMULTI)) {
+			if (vsi->vlan_ena)
+				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
+			else
+				promisc_m = ICE_MCAST_PROMISC_BITS;
+
+			err = ice_cfg_promisc(vsi, promisc_m, false);
+			if (err) {
+				netdev_err(netdev, "Error clearing Multicast promiscuous mode on VSI %i\n",
+					   vsi->vsi_num);
+				vsi->current_netdev_flags |= IFF_ALLMULTI;
+				goto out_promisc;
+			}
+		}
+	}
 
 	if (((changed_flags & IFF_PROMISC) || promisc_forced_on) ||
 	    test_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags)) {
@@ -1113,8 +1174,9 @@ static void ice_set_ctrlq_len(struct ice_hw *hw)
  * This is a callback function used by the irq_set_affinity_notifier function
  * so that we may register to receive changes to the irq affinity masks.
  */
-static void ice_irq_affinity_notify(struct irq_affinity_notify *notify,
-				    const cpumask_t *mask)
+static void
+ice_irq_affinity_notify(struct irq_affinity_notify *notify,
+			const cpumask_t *mask)
 {
 	struct ice_q_vector *q_vector =
 		container_of(notify, struct ice_q_vector, affinity_notify);
@@ -1658,11 +1720,13 @@ ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
  *
  * net_device_ops implementation for adding vlan ids
  */
-static int ice_vlan_rx_add_vid(struct net_device *netdev,
-			       __always_unused __be16 proto, u16 vid)
+static int
+ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
+		    u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
+	int ret;
 
 	if (vid >= VLAN_N_VID) {
 		netdev_err(netdev, "VLAN id requested %d is out of range %d\n",
@@ -1675,8 +1739,7 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 
 	/* Enable VLAN pruning when VLAN 0 is added */
 	if (unlikely(!vid)) {
-		int ret = ice_cfg_vlan_pruning(vsi, true);
-
+		ret = ice_cfg_vlan_pruning(vsi, true, false);
 		if (ret)
 			return ret;
 	}
@@ -1685,7 +1748,13 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 	 * needed to continue allowing all untagged packets since VLAN prune
 	 * list is applied to all packets by the switch
 	 */
-	return ice_vsi_add_vlan(vsi, vid);
+	ret = ice_vsi_add_vlan(vsi, vid);
+	if (!ret) {
+		vsi->vlan_ena = true;
+		set_bit(ICE_VSI_FLAG_VLAN_FLTR_CHANGED, vsi->flags);
+	}
+
+	return ret;
 }
 
 /**
@@ -1696,12 +1765,13 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
  *
  * net_device_ops implementation for removing vlan ids
  */
-static int ice_vlan_rx_kill_vid(struct net_device *netdev,
-				__always_unused __be16 proto, u16 vid)
+static int
+ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
+		     u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
-	int status;
+	int ret;
 
 	if (vsi->info.pvid)
 		return -EINVAL;
@@ -1709,15 +1779,17 @@ static int ice_vlan_rx_kill_vid(struct net_device *netdev,
 	/* Make sure ice_vsi_kill_vlan is successful before updating VLAN
 	 * information
 	 */
-	status = ice_vsi_kill_vlan(vsi, vid);
-	if (status)
-		return status;
+	ret = ice_vsi_kill_vlan(vsi, vid);
+	if (ret)
+		return ret;
 
 	/* Disable VLAN pruning when VLAN 0 is removed */
 	if (unlikely(!vid))
-		status = ice_cfg_vlan_pruning(vsi, false);
+		ret = ice_cfg_vlan_pruning(vsi, false, false);
 
-	return status;
+	vsi->vlan_ena = false;
+	set_bit(ICE_VSI_FLAG_VLAN_FLTR_CHANGED, vsi->flags);
+	return ret;
 }
 
 /**
@@ -2057,8 +2129,8 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
  *
  * Returns 0 on success, negative on failure
  */
-static int ice_probe(struct pci_dev *pdev,
-		     const struct pci_device_id __always_unused *ent)
+static int
+ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ice_pf *pf;
@@ -2493,9 +2565,10 @@ ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
  * @addr: the MAC address entry being added
  * @vid: VLAN id
  */
-static int ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
-		       struct net_device *dev, const unsigned char *addr,
-		       __always_unused u16 vid)
+static int
+ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
+	    struct net_device *dev, const unsigned char *addr,
+	    __always_unused u16 vid)
 {
 	int err;
 
@@ -2519,8 +2592,8 @@ static int ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
  * @netdev: ptr to the netdev being adjusted
  * @features: the feature set that the stack is suggesting
  */
-static int ice_set_features(struct net_device *netdev,
-			    netdev_features_t features)
+static int
+ice_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -2647,7 +2720,7 @@ static int ice_up_complete(struct ice_vsi *vsi)
 
 	ice_service_task_schedule(pf);
 
-	return err;
+	return 0;
 }
 
 /**
@@ -2674,8 +2747,8 @@ int ice_up(struct ice_vsi *vsi)
  * This function fetches stats from the ring considering the atomic operations
  * that needs to be performed to read u64 values in 32 bit machine.
  */
-static void ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts,
-					 u64 *bytes)
+static void
+ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts, u64 *bytes)
 {
 	unsigned int start;
 	*pkts = 0;

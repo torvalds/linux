@@ -276,7 +276,8 @@ ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
 	status = ice_aq_delete_sched_elems(hw, 1, buf, buf_size,
 					   &num_groups_removed, NULL);
 	if (status || num_groups_removed != 1)
-		ice_debug(hw, ICE_DBG_SCHED, "remove elements failed\n");
+		ice_debug(hw, ICE_DBG_SCHED, "remove node failed FW error %d\n",
+			  hw->adminq.sq_last_status);
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
 	return status;
@@ -360,12 +361,8 @@ void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
 	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT &&
 	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF) {
 		u32 teid = le32_to_cpu(node->info.node_teid);
-		enum ice_status status;
 
-		status = ice_sched_remove_elems(hw, node->parent, 1, &teid);
-		if (status)
-			ice_debug(hw, ICE_DBG_SCHED,
-				  "remove element failed %d\n", status);
+		ice_sched_remove_elems(hw, node->parent, 1, &teid);
 	}
 	parent = node->parent;
 	/* root has no parent */
@@ -697,7 +694,8 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	status = ice_aq_add_sched_elems(hw, 1, buf, buf_size,
 					&num_groups_added, NULL);
 	if (status || num_groups_added != 1) {
-		ice_debug(hw, ICE_DBG_SCHED, "add elements failed\n");
+		ice_debug(hw, ICE_DBG_SCHED, "add node failed FW Error %d\n",
+			  hw->adminq.sq_last_status);
 		devm_kfree(ice_hw_to_dev(hw), buf);
 		return ICE_ERR_CFG;
 	}
@@ -1502,7 +1500,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 
 	vsi_ctx->sched.max_lanq[tc] = new_numqs;
 
-	return status;
+	return 0;
 }
 
 /**
@@ -1527,6 +1525,7 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 
+	ice_debug(pi->hw, ICE_DBG_SCHED, "add/config VSI %d\n", vsi_handle);
 	tc_node = ice_sched_get_tc_node(pi, tc);
 	if (!tc_node)
 		return ICE_ERR_PARAM;
@@ -1646,8 +1645,9 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 {
 	enum ice_status status = ICE_ERR_PARAM;
 	struct ice_vsi_ctx *vsi_ctx;
-	u8 i, j = 0;
+	u8 i;
 
+	ice_debug(pi->hw, ICE_DBG_SCHED, "removing VSI %d\n", vsi_handle);
 	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
 		return status;
 	mutex_lock(&pi->sched_lock);
@@ -1657,6 +1657,7 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 
 	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
 		struct ice_sched_node *vsi_node, *tc_node;
+		u8 j = 0;
 
 		tc_node = ice_sched_get_tc_node(pi, i);
 		if (!tc_node)

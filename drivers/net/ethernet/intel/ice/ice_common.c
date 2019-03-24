@@ -331,7 +331,7 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	/* flag cleared so calling functions don't call AQ again */
 	pi->phy.get_link_info = false;
 
-	return status;
+	return 0;
 }
 
 /**
@@ -1100,8 +1100,9 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
  *
  * Dumps debug log about control command with descriptor contents.
  */
-void ice_debug_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc,
-		  void *buf, u16 buf_len)
+void
+ice_debug_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc, void *buf,
+	     u16 buf_len)
 {
 	struct ice_aq_desc *cq_desc = (struct ice_aq_desc *)desc;
 	u16 len;
@@ -1620,8 +1621,8 @@ ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
  * @hw: pointer to the hardware structure
  * @opc: capabilities type to discover - pass in the command opcode
  */
-static enum ice_status ice_discover_caps(struct ice_hw *hw,
-					 enum ice_adminq_opc opc)
+static enum ice_status
+ice_discover_caps(struct ice_hw *hw, enum ice_adminq_opc opc)
 {
 	enum ice_status status;
 	u32 cap_count;
@@ -2548,8 +2549,8 @@ do_aq:
  * @dest_ctx: the context to be written to
  * @ce_info:  a description of the struct to be filled
  */
-static void ice_write_byte(u8 *src_ctx, u8 *dest_ctx,
-			   const struct ice_ctx_ele *ce_info)
+static void
+ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u8 src_byte, dest_byte, mask;
 	u8 *from, *dest;
@@ -2587,8 +2588,8 @@ static void ice_write_byte(u8 *src_ctx, u8 *dest_ctx,
  * @dest_ctx: the context to be written to
  * @ce_info:  a description of the struct to be filled
  */
-static void ice_write_word(u8 *src_ctx, u8 *dest_ctx,
-			   const struct ice_ctx_ele *ce_info)
+static void
+ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u16 src_word, mask;
 	__le16 dest_word;
@@ -2630,8 +2631,8 @@ static void ice_write_word(u8 *src_ctx, u8 *dest_ctx,
  * @dest_ctx: the context to be written to
  * @ce_info:  a description of the struct to be filled
  */
-static void ice_write_dword(u8 *src_ctx, u8 *dest_ctx,
-			    const struct ice_ctx_ele *ce_info)
+static void
+ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u32 src_dword, mask;
 	__le32 dest_dword;
@@ -2681,8 +2682,8 @@ static void ice_write_dword(u8 *src_ctx, u8 *dest_ctx,
  * @dest_ctx: the context to be written to
  * @ce_info:  a description of the struct to be filled
  */
-static void ice_write_qword(u8 *src_ctx, u8 *dest_ctx,
-			    const struct ice_ctx_ele *ce_info)
+static void
+ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u64 src_qword, mask;
 	__le64 dest_qword;
@@ -3026,8 +3027,9 @@ void ice_replay_post(struct ice_hw *hw)
  * @prev_stat: ptr to previous loaded stat value
  * @cur_stat: ptr to current stat value
  */
-void ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
-		       bool prev_stat_loaded, u64 *prev_stat, u64 *cur_stat)
+void
+ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
+		  bool prev_stat_loaded, u64 *prev_stat, u64 *cur_stat)
 {
 	u64 new_data;
 
@@ -3057,8 +3059,9 @@ void ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
  * @prev_stat: ptr to previous loaded stat value
  * @cur_stat: ptr to current stat value
  */
-void ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
-		       u64 *prev_stat, u64 *cur_stat)
+void
+ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
+		  u64 *prev_stat, u64 *cur_stat)
 {
 	u32 new_data;
 
