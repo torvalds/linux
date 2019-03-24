@@ -150,7 +150,8 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	struct net_device *dev;
 	int err;
 
-	err = mlxsw_core_port_init(mlxsw_m->core, local_port);
+	err = mlxsw_core_port_init(mlxsw_m->core, local_port,
+				   module + 1, false, 0);
 	if (err) {
 		dev_err(mlxsw_m->bus_info->dev, "Port %d: Failed to init core port\n",
 			local_port);
@@ -190,7 +191,7 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_m->core, mlxsw_m_port->local_port,
-				mlxsw_m_port, dev, module + 1, false, 0);
+				mlxsw_m_port, dev);
 
 	return 0;
 

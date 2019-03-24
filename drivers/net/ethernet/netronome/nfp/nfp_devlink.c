@@ -362,7 +362,6 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 	if (ret)
 		return ret;
 
-	devlink_port_type_eth_set(&port->dl_port, port->netdev);
 	devlink_port_attrs_set(&port->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
 			       eth_port.label_port, eth_port.is_split,
 			       eth_port.label_subport);
@@ -375,6 +374,16 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 void nfp_devlink_port_unregister(struct nfp_port *port)
 {
 	devlink_port_unregister(&port->dl_port);
+}
+
+void nfp_devlink_port_type_eth_set(struct nfp_port *port)
+{
+	devlink_port_type_eth_set(&port->dl_port, port->netdev);
+}
+
+void nfp_devlink_port_type_clear(struct nfp_port *port)
+{
+	devlink_port_type_clear(&port->dl_port);
 }
 
 struct devlink *nfp_devlink_get_devlink(struct net_device *netdev)
