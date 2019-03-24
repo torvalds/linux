@@ -147,6 +147,7 @@
 
 struct cqhci_host_ops;
 struct mmc_host;
+struct mmc_request;
 struct cqhci_slot;
 
 struct cqhci_host {
@@ -210,6 +211,8 @@ struct cqhci_host_ops {
 	u32 (*read_l)(struct cqhci_host *host, int reg);
 	void (*enable)(struct mmc_host *mmc);
 	void (*disable)(struct mmc_host *mmc, bool recovery);
+	void (*update_dcmd_desc)(struct mmc_host *mmc, struct mmc_request *mrq,
+				 u64 *data);
 };
 
 static inline void cqhci_writel(struct cqhci_host *host, u32 val, int reg)
