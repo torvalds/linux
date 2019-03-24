@@ -61,7 +61,7 @@ static const struct regulator_linear_range tps65217_uv1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1550000, 25, 30, 50000),
 	REGULATOR_LINEAR_RANGE(1850000, 31, 52, 50000),
 	REGULATOR_LINEAR_RANGE(3000000, 53, 55, 100000),
-	REGULATOR_LINEAR_RANGE(3300000, 56, 62, 0),
+	REGULATOR_LINEAR_RANGE(3300000, 56, 63, 0),
 };
 
 static const struct regulator_linear_range tps65217_uv2_ranges[] = {
