@@ -149,7 +149,7 @@ static int tps65217_pmic_set_suspend_disable(struct regulator_dev *dev)
 }
 
 /* Operations permitted on DCDCx, LDO2, LDO3 and LDO4 */
-static struct regulator_ops tps65217_pmic_ops = {
+static const struct regulator_ops tps65217_pmic_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
@@ -162,7 +162,7 @@ static struct regulator_ops tps65217_pmic_ops = {
 };
 
 /* Operations permitted on LDO1 */
-static struct regulator_ops tps65217_pmic_ldo1_ops = {
+static const struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
