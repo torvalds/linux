@@ -172,6 +172,7 @@ extern const struct dentry_operations adfs_dentry_operations;
 extern const struct adfs_dir_ops adfs_f_dir_ops;
 extern const struct adfs_dir_ops adfs_fplus_dir_ops;
 
+void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj);
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);
 
