@@ -70,6 +70,14 @@
 #define MDIO_AN_RX_VEND_STAT3_AFR		BIT(0)
 
 /* Vendor specific 1, MDIO_MMD_VEND1 */
+#define VEND1_GLOBAL_FW_ID			0x0020
+#define VEND1_GLOBAL_FW_ID_MAJOR		GENMASK(15, 8)
+#define VEND1_GLOBAL_FW_ID_MINOR		GENMASK(7, 0)
+
+#define VEND1_GLOBAL_RSVD_STAT1			0xc885
+#define VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID	GENMASK(7, 4)
+#define VEND1_GLOBAL_RSVD_STAT1_PROV_ID		GENMASK(3, 0)
+
 #define VEND1_GLOBAL_INT_STD_STATUS		0xfc00
 #define VEND1_GLOBAL_INT_VEND_STATUS		0xfc01
 
@@ -330,13 +338,63 @@ static int aqr107_set_tunable(struct phy_device *phydev,
 	}
 }
 
+/* If we configure settings whilst firmware is still initializing the chip,
+ * then these settings may be overwritten. Therefore make sure chip
+ * initialization has completed. Use presence of the firmware ID as
+ * indicator for initialization having completed.
+ * The chip also provides a "reset completed" bit, but it's cleared after
+ * read. Therefore function would time out if called again.
+ */
+static int aqr107_wait_reset_complete(struct phy_device *phydev)
+{
+	int val, retries = 100;
+
+	do {
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
+		if (val < 0)
+			return val;
+		msleep(20);
+	} while (!val && --retries);
+
+	return val ? 0 : -ETIMEDOUT;
+}
+
+static void aqr107_chip_info(struct phy_device *phydev)
+{
+	u8 fw_major, fw_minor, build_id, prov_id;
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
+	if (val < 0)
+		return;
+
+	fw_major = FIELD_GET(VEND1_GLOBAL_FW_ID_MAJOR, val);
+	fw_minor = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT1);
+	if (val < 0)
+		return;
+
+	build_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID, val);
+	prov_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val);
+
+	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u\n",
+		   fw_major, fw_minor, build_id, prov_id);
+}
+
 static int aqr107_config_init(struct phy_device *phydev)
 {
+	int ret;
+
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
 		return -ENODEV;
+
+	ret = aqr107_wait_reset_complete(phydev);
+	if (!ret)
+		aqr107_chip_info(phydev);
 
 	/* ensure that a latched downshift event is cleared */
 	aqr107_read_downshift_event(phydev);
@@ -352,6 +410,10 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
 		return -ENODEV;
+
+	ret = aqr107_wait_reset_complete(phydev);
+	if (!ret)
+		aqr107_chip_info(phydev);
 
 	/* AQCS109 belongs to a chip family partially supporting 10G and 5G.
 	 * PMA speed ability bits are the same for all members of the family,
