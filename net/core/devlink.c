@@ -6407,17 +6407,15 @@ void devlink_compat_running_version(struct net_device *dev,
 	dev_hold(dev);
 	rtnl_unlock();
 
-	mutex_lock(&devlink_mutex);
 	devlink = netdev_to_devlink(dev);
 	if (!devlink || !devlink->ops->info_get)
-		goto unlock_list;
+		goto out;
 
 	mutex_lock(&devlink->lock);
 	__devlink_compat_running_version(devlink, buf, len);
 	mutex_unlock(&devlink->lock);
-unlock_list:
-	mutex_unlock(&devlink_mutex);
 
+out:
 	rtnl_lock();
 	dev_put(dev);
 }
@@ -6425,22 +6423,22 @@ unlock_list:
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 {
 	struct devlink *devlink;
-	int ret = -EOPNOTSUPP;
+	int ret;
 
 	dev_hold(dev);
 	rtnl_unlock();
 
-	mutex_lock(&devlink_mutex);
 	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops->flash_update)
-		goto unlock_list;
+	if (!devlink || !devlink->ops->flash_update) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	mutex_lock(&devlink->lock);
 	ret = devlink->ops->flash_update(devlink, file_name, NULL, NULL);
 	mutex_unlock(&devlink->lock);
-unlock_list:
-	mutex_unlock(&devlink_mutex);
 
+out:
 	rtnl_lock();
 	dev_put(dev);
 
