@@ -153,7 +153,7 @@
 #define DAT_PRTCT               0x07    /* read/write is desable            */
 #define BLNC_CHK                0x08    /* find blank/DOF in read           */
 					/* write to unblank area            */
-#define CPY_ABRT                0x0a    /* Copy/Compare/Copy&Verify illgal  */
+#define CPY_ABRT                0x0a    /* Copy/Compare/Copy&Verify illegal */
 #define ABRT_CMD                0x0b    /* Target make the command in error */
 #define EQUAL                   0x0c    /* Search Data end with Equal       */
 #define VLM_OVRFLW              0x0d    /* Some data are left in buffer     */
