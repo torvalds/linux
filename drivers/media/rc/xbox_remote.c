@@ -107,7 +107,7 @@ static void xbox_remote_input_report(struct urb *urb)
 		return;
 	}
 
-	rc_keydown(xbox_remote->rdev, RC_PROTO_UNKNOWN,
+	rc_keydown(xbox_remote->rdev, RC_PROTO_XBOX_DVD,
 		   le16_to_cpup((__le16 *)(data + 2)), 0);
 }
 
@@ -148,7 +148,7 @@ static void xbox_remote_rc_init(struct xbox_remote *xbox_remote)
 	struct rc_dev *rdev = xbox_remote->rdev;
 
 	rdev->priv = xbox_remote;
-	rdev->allowed_protocols = RC_PROTO_BIT_UNKNOWN;
+	rdev->allowed_protocols = RC_PROTO_BIT_XBOX_DVD;
 	rdev->driver_name = "xbox_remote";
 
 	rdev->open = xbox_remote_rc_open;
@@ -156,6 +156,8 @@ static void xbox_remote_rc_init(struct xbox_remote *xbox_remote)
 
 	rdev->device_name = xbox_remote->rc_name;
 	rdev->input_phys = xbox_remote->rc_phys;
+
+	rdev->timeout = MS_TO_NS(10);
 
 	usb_to_input_id(xbox_remote->udev, &rdev->input_id);
 	rdev->dev.parent = &xbox_remote->interface->dev;
