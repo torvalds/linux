@@ -58,6 +58,16 @@
 #define MDIO_AN_RX_LP_STAT1			0xe820
 #define MDIO_AN_RX_LP_STAT1_1000BASET_FULL	BIT(15)
 #define MDIO_AN_RX_LP_STAT1_1000BASET_HALF	BIT(14)
+#define MDIO_AN_RX_LP_STAT1_SHORT_REACH		BIT(13)
+#define MDIO_AN_RX_LP_STAT1_AQRATE_DOWNSHIFT	BIT(12)
+#define MDIO_AN_RX_LP_STAT1_AQ_PHY		BIT(2)
+
+#define MDIO_AN_RX_LP_STAT4			0xe823
+#define MDIO_AN_RX_LP_STAT4_FW_MAJOR		GENMASK(15, 8)
+#define MDIO_AN_RX_LP_STAT4_FW_MINOR		GENMASK(7, 0)
+
+#define MDIO_AN_RX_VEND_STAT3			0xe832
+#define MDIO_AN_RX_VEND_STAT3_AFR		BIT(0)
 
 /* Vendor specific 1, MDIO_MMD_VEND1 */
 #define VEND1_GLOBAL_INT_STD_STATUS		0xfc00
@@ -357,6 +367,43 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 }
 
+static void aqr107_link_change_notify(struct phy_device *phydev)
+{
+	u8 fw_major, fw_minor;
+	bool downshift, short_reach, afr;
+	int val;
+
+	if (phydev->state != PHY_RUNNING || phydev->autoneg == AUTONEG_DISABLE)
+		return;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT1);
+	/* call failed or link partner is no Aquantia PHY */
+	if (val < 0 || !(val & MDIO_AN_RX_LP_STAT1_AQ_PHY))
+		return;
+
+	short_reach = val & MDIO_AN_RX_LP_STAT1_SHORT_REACH;
+	downshift = val & MDIO_AN_RX_LP_STAT1_AQRATE_DOWNSHIFT;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT4);
+	if (val < 0)
+		return;
+
+	fw_major = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MAJOR, val);
+	fw_minor = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MINOR, val);
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_VEND_STAT3);
+	if (val < 0)
+		return;
+
+	afr = val & MDIO_AN_RX_VEND_STAT3_AFR;
+
+	phydev_dbg(phydev, "Link partner is Aquantia PHY, FW %u.%u%s%s%s\n",
+		   fw_major, fw_minor,
+		   short_reach ? ", short reach mode" : "",
+		   downshift ? ", fast-retrain downshift advertised" : "",
+		   afr ? ", fast reframe advertised" : "");
+}
+
 static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ1202),
@@ -411,6 +458,7 @@ static struct phy_driver aqr_driver[] = {
 	.read_status	= aqr107_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
+	.link_change_notify = aqr107_link_change_notify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
@@ -425,6 +473,7 @@ static struct phy_driver aqr_driver[] = {
 	.read_status	= aqr107_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
+	.link_change_notify = aqr107_link_change_notify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
