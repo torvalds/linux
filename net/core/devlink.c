@@ -4486,6 +4486,7 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
 	mutex_lock(&reporter->devlink->lock);
 	list_del(&reporter->list);
+	mutex_destroy(&reporter->dump_lock);
 	mutex_unlock(&reporter->devlink->lock);
 	if (reporter->dump_fmsg)
 		devlink_fmsg_free(reporter->dump_fmsg);
@@ -5261,6 +5262,7 @@ EXPORT_SYMBOL_GPL(devlink_unregister);
  */
 void devlink_free(struct devlink *devlink)
 {
+	mutex_destroy(&devlink->lock);
 	WARN_ON(!list_empty(&devlink->reporter_list));
 	WARN_ON(!list_empty(&devlink->region_list));
 	WARN_ON(!list_empty(&devlink->param_list));
