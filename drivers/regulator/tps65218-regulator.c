@@ -162,7 +162,7 @@ static int tps65218_pmic_set_suspend_disable(struct regulator_dev *dev)
 }
 
 /* Operations permitted on DCDC1, DCDC2 */
-static struct regulator_ops tps65218_dcdc12_ops = {
+static const struct regulator_ops tps65218_dcdc12_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65218_pmic_enable,
 	.disable		= tps65218_pmic_disable,
@@ -176,7 +176,7 @@ static struct regulator_ops tps65218_dcdc12_ops = {
 };
 
 /* Operations permitted on DCDC3, DCDC4 and LDO1 */
-static struct regulator_ops tps65218_ldo1_dcdc34_ops = {
+static const struct regulator_ops tps65218_ldo1_dcdc34_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65218_pmic_enable,
 	.disable		= tps65218_pmic_disable,
@@ -245,7 +245,7 @@ static int tps65218_pmic_get_current_limit(struct regulator_dev *dev)
 	return ls3_currents[index];
 }
 
-static struct regulator_ops tps65218_ls23_ops = {
+static const struct regulator_ops tps65218_ls23_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65218_pmic_enable,
 	.disable		= tps65218_pmic_disable,
@@ -255,7 +255,7 @@ static struct regulator_ops tps65218_ls23_ops = {
 };
 
 /* Operations permitted on DCDC5, DCDC6 */
-static struct regulator_ops tps65218_dcdc56_pmic_ops = {
+static const struct regulator_ops tps65218_dcdc56_pmic_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65218_pmic_enable,
 	.disable		= tps65218_pmic_disable,
