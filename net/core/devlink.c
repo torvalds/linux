@@ -5388,12 +5388,13 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 
+	if (WARN_ON(devlink_port->registered))
+		return;
 	attrs->set = true;
 	attrs->flavour = flavour;
 	attrs->port_number = port_number;
 	attrs->split = split;
 	attrs->split_subport_number = split_subport_number;
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
 
