@@ -328,6 +328,16 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"ssp%d-port", ssp_port);
 	} else {
+		/*
+		 * Currently, On SKL+ platforms MCLK will be turned off in sof
+		 * runtime suspended, and it will go into runtime suspended
+		 * right after playback is stop. However, rt5682 will output
+		 * static noise if sysclk turns off during playback. Set
+		 * ignore_pmdown_time to power down rt5682 immediately and
+		 * avoid the noise.
+		 * It can be removed once we can control MCLK by driver.
+		 */
+		links[id].ignore_pmdown_time = 1;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"SSP%d Pin", ssp_port);
 	}
