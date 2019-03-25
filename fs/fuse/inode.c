@@ -473,8 +473,7 @@ static const struct fs_parameter_spec fuse_param_specs[] = {
 	fsparam_flag	("allow_other",		OPT_ALLOW_OTHER),
 	fsparam_u32	("max_read",		OPT_MAX_READ),
 	fsparam_u32	("blksize",		OPT_BLKSIZE),
-	__fsparam(fs_param_is_string, "subtype", OPT_SUBTYPE,
-		  fs_param_v_optional),
+	fsparam_string	("subtype",		OPT_SUBTYPE),
 	{}
 };
 
