@@ -563,8 +563,6 @@
 			clocks = <&ccu CLK_BUS_SATA>, <&ccu CLK_SATA>;
 			resets = <&ccu RST_BUS_SATA>;
 			reset-names = "ahci";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 
 		};
