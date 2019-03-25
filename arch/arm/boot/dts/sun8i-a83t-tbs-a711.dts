@@ -417,7 +417,7 @@
 &usbphy {
 	usb0_id_det-gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>; /* PH11 */
 	usb0_vbus-supply = <&reg_drivevbus>;
-	usb1_vbus_supply = <&reg_vmain>;
-	usb2_vbus_supply = <&reg_vmain>;
+	usb1_vbus-supply = <&reg_vmain>;
+	usb2_vbus-supply = <&reg_vmain>;
 	status = "okay";
 };
