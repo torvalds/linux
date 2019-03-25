@@ -37,7 +37,9 @@
 
 /* HHI VDAC Registers */
 #define HHI_VDAC_CNTL0		0x2F4 /* 0xbd offset in data sheet */
+#define HHI_VDAC_CNTL0_G12A	0x2EC /* 0xbd offset in data sheet */
 #define HHI_VDAC_CNTL1		0x2F8 /* 0xbe offset in data sheet */
+#define HHI_VDAC_CNTL1_G12A	0x2F0 /* 0xbe offset in data sheet */
 
 struct meson_venc_cvbs {
 	struct drm_encoder	encoder;
@@ -166,8 +168,13 @@ static void meson_venc_cvbs_encoder_disable(struct drm_encoder *encoder)
 	struct meson_drm *priv = meson_venc_cvbs->priv;
 
 	/* Disable CVBS VDAC */
-	regmap_write(priv->hhi, HHI_VDAC_CNTL0, 0);
-	regmap_write(priv->hhi, HHI_VDAC_CNTL1, 8);
+	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+		regmap_write(priv->hhi, HHI_VDAC_CNTL0_G12A, 0);
+		regmap_write(priv->hhi, HHI_VDAC_CNTL1_G12A, 0);
+	} else {
+		regmap_write(priv->hhi, HHI_VDAC_CNTL0, 0);
+		regmap_write(priv->hhi, HHI_VDAC_CNTL1, 8);
+	}
 }
 
 static void meson_venc_cvbs_encoder_enable(struct drm_encoder *encoder)
@@ -179,13 +186,17 @@ static void meson_venc_cvbs_encoder_enable(struct drm_encoder *encoder)
 	/* VDAC0 source is not from ATV */
 	writel_bits_relaxed(BIT(5), 0, priv->io_base + _REG(VENC_VDAC_DACSEL0));
 
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxbb-vpu"))
+	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxbb-vpu")) {
 		regmap_write(priv->hhi, HHI_VDAC_CNTL0, 1);
-	else if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
-		 meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
+		regmap_write(priv->hhi, HHI_VDAC_CNTL1, 0);
+	} else if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
+		 meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu")) {
 		regmap_write(priv->hhi, HHI_VDAC_CNTL0, 0xf0001);
-
-	regmap_write(priv->hhi, HHI_VDAC_CNTL1, 0);
+		regmap_write(priv->hhi, HHI_VDAC_CNTL1, 0);
+	} else if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+		regmap_write(priv->hhi, HHI_VDAC_CNTL0_G12A, 0x906001);
+		regmap_write(priv->hhi, HHI_VDAC_CNTL1_G12A, 0);
+	}
 }
 
 static void meson_venc_cvbs_encoder_mode_set(struct drm_encoder *encoder,
