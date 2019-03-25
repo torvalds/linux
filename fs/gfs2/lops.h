@@ -77,7 +77,7 @@ static inline void lops_before_scan(struct gfs2_jdesc *jd,
 			gfs2_log_ops[x]->lo_before_scan(jd, head, pass);
 }
 
-static inline int lops_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
+static inline int lops_scan_elements(struct gfs2_jdesc *jd, u32 start,
 				     struct gfs2_log_descriptor *ld,
 				     __be64 *ptr,
 				     unsigned int pass)
