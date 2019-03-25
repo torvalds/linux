@@ -107,6 +107,29 @@ void ocxl_pasid_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
 int ocxl_actag_afu_alloc(struct ocxl_fn *fn, u32 size);
 void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
 
+/*
+ * Get the max PASID value that can be used by the function
+ */
+int ocxl_config_get_pasid_info(struct pci_dev *dev, int *count);
+
+/*
+ * Check if an AFU index is valid for the given function.
+ *
+ * AFU indexes can be sparse, so a driver should check all indexes up
+ * to the maximum found in the function description
+ */
+int ocxl_config_check_afu_index(struct pci_dev *dev,
+				struct ocxl_fn_config *fn, int afu_idx);
+
+/**
+ * Update values within a Process Element
+ *
+ * link_handle: the link handle associated with the process element
+ * pasid: the PASID for the AFU context
+ * tid: the new thread id for the process element
+ */
+int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid);
+
 struct ocxl_context *ocxl_context_alloc(void);
 int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
 			struct address_space *mapping);
