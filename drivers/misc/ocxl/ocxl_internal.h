@@ -16,7 +16,6 @@
 
 extern struct pci_driver ocxl_pci_driver;
 
-
 struct ocxl_fn {
 	struct device dev;
 	int bar_used[3];
@@ -92,41 +91,40 @@ struct ocxl_process_element {
 	__be32 software_state;
 };
 
+struct ocxl_afu *ocxl_afu_get(struct ocxl_afu *afu);
+void ocxl_afu_put(struct ocxl_afu *afu);
 
-extern struct ocxl_afu *ocxl_afu_get(struct ocxl_afu *afu);
-extern void ocxl_afu_put(struct ocxl_afu *afu);
+int ocxl_create_cdev(struct ocxl_afu *afu);
+void ocxl_destroy_cdev(struct ocxl_afu *afu);
+int ocxl_register_afu(struct ocxl_afu *afu);
+void ocxl_unregister_afu(struct ocxl_afu *afu);
 
-extern int ocxl_create_cdev(struct ocxl_afu *afu);
-extern void ocxl_destroy_cdev(struct ocxl_afu *afu);
-extern int ocxl_register_afu(struct ocxl_afu *afu);
-extern void ocxl_unregister_afu(struct ocxl_afu *afu);
+int ocxl_file_init(void);
+void ocxl_file_exit(void);
 
-extern int ocxl_file_init(void);
-extern void ocxl_file_exit(void);
+int ocxl_pasid_afu_alloc(struct ocxl_fn *fn, u32 size);
+void ocxl_pasid_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
+int ocxl_actag_afu_alloc(struct ocxl_fn *fn, u32 size);
+void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
 
-extern int ocxl_pasid_afu_alloc(struct ocxl_fn *fn, u32 size);
-extern void ocxl_pasid_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
-extern int ocxl_actag_afu_alloc(struct ocxl_fn *fn, u32 size);
-extern void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
-
-extern struct ocxl_context *ocxl_context_alloc(void);
-extern int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
+struct ocxl_context *ocxl_context_alloc(void);
+int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
 			struct address_space *mapping);
-extern int ocxl_context_attach(struct ocxl_context *ctx, u64 amr);
-extern int ocxl_context_mmap(struct ocxl_context *ctx,
+int ocxl_context_attach(struct ocxl_context *ctx, u64 amr);
+int ocxl_context_mmap(struct ocxl_context *ctx,
 			struct vm_area_struct *vma);
-extern int ocxl_context_detach(struct ocxl_context *ctx);
-extern void ocxl_context_detach_all(struct ocxl_afu *afu);
-extern void ocxl_context_free(struct ocxl_context *ctx);
+int ocxl_context_detach(struct ocxl_context *ctx);
+void ocxl_context_detach_all(struct ocxl_afu *afu);
+void ocxl_context_free(struct ocxl_context *ctx);
 
-extern int ocxl_sysfs_add_afu(struct ocxl_afu *afu);
-extern void ocxl_sysfs_remove_afu(struct ocxl_afu *afu);
+int ocxl_sysfs_add_afu(struct ocxl_afu *afu);
+void ocxl_sysfs_remove_afu(struct ocxl_afu *afu);
 
-extern int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset);
-extern int ocxl_afu_irq_free(struct ocxl_context *ctx, u64 irq_offset);
-extern void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
-extern int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
+int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset);
+int ocxl_afu_irq_free(struct ocxl_context *ctx, u64 irq_offset);
+void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
+int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
 			int eventfd);
-extern u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
+u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
 
 #endif /* _OCXL_INTERNAL_H_ */
