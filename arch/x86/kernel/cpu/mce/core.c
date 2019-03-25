@@ -1801,6 +1801,11 @@ static void __mcheck_cpu_init_timer(void)
 	mce_start_timer(t);
 }
 
+bool filter_mce(struct mce *m)
+{
+	return false;
+}
+
 /* Handle unconfigured int18 (should never happen) */
 static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 {

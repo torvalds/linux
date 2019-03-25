@@ -173,4 +173,7 @@ struct mca_msr_regs {
 
 extern struct mca_msr_regs msr_ops;
 
+/* Decide whether to add MCE record to MCE event pool or filter it out. */
+extern bool filter_mce(struct mce *m);
+
 #endif /* __X86_MCE_INTERNAL_H__ */
