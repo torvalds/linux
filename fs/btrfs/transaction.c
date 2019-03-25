@@ -75,6 +75,7 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 			btrfs_put_block_group_trimming(cache);
 			btrfs_put_block_group(cache);
 		}
+		WARN_ON(!list_empty(&transaction->dev_update_list));
 		kfree(transaction);
 	}
 }
@@ -264,6 +265,7 @@ loop:
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	INIT_LIST_HEAD(&cur_trans->pending_chunks);
+	INIT_LIST_HEAD(&cur_trans->dev_update_list);
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
 	INIT_LIST_HEAD(&cur_trans->dirty_bgs);
 	INIT_LIST_HEAD(&cur_trans->io_bgs);
@@ -2241,8 +2243,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	memcpy(fs_info->super_for_commit, fs_info->super_copy,
 	       sizeof(*fs_info->super_copy));
 
-	btrfs_update_commit_device_size(fs_info);
-	btrfs_update_commit_device_bytes_used(cur_trans);
+	btrfs_commit_device_sizes(cur_trans);
 
 	clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags);
 	clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags);

@@ -4479,9 +4479,16 @@ void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *cur_trans,
 void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 				   struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_device *dev, *tmp;
+
 	btrfs_cleanup_dirty_bgs(cur_trans, fs_info);
 	ASSERT(list_empty(&cur_trans->dirty_bgs));
 	ASSERT(list_empty(&cur_trans->io_bgs));
+
+	list_for_each_entry_safe(dev, tmp, &cur_trans->dev_update_list,
+				 post_commit_list) {
+		list_del_init(&dev->post_commit_list);
+	}
 
 	btrfs_destroy_delayed_refs(cur_trans, fs_info);
 

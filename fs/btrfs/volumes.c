@@ -319,7 +319,6 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
 	mutex_init(&fs_devs->device_list_mutex);
 
 	INIT_LIST_HEAD(&fs_devs->devices);
-	INIT_LIST_HEAD(&fs_devs->resized_devices);
 	INIT_LIST_HEAD(&fs_devs->alloc_list);
 	INIT_LIST_HEAD(&fs_devs->fs_list);
 	if (fsid)
@@ -335,6 +334,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
 
 void btrfs_free_device(struct btrfs_device *device)
 {
+	WARN_ON(!list_empty(&device->post_commit_list));
 	rcu_string_free(device->name);
 	bio_put(device->flush_bio);
 	kfree(device);
@@ -403,7 +403,7 @@ static struct btrfs_device *__alloc_device(void)
 
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_alloc_list);
-	INIT_LIST_HEAD(&dev->resized_list);
+	INIT_LIST_HEAD(&dev->post_commit_list);
 
 	spin_lock_init(&dev->io_lock);
 
@@ -2853,7 +2853,6 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = device->fs_info;
 	struct btrfs_super_block *super_copy = fs_info->super_copy;
-	struct btrfs_fs_devices *fs_devices;
 	u64 old_total;
 	u64 diff;
 
@@ -2872,8 +2871,6 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 	}
 
-	fs_devices = fs_info->fs_devices;
-
 	btrfs_set_super_total_bytes(super_copy,
 			round_down(old_total + diff, fs_info->sectorsize));
 	device->fs_devices->total_rw_bytes += diff;
@@ -2881,9 +2878,9 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 	btrfs_device_set_total_bytes(device, new_size);
 	btrfs_device_set_disk_total_bytes(device, new_size);
 	btrfs_clear_space_info_full(device->fs_info);
-	if (list_empty(&device->resized_list))
-		list_add_tail(&device->resized_list,
-			      &fs_devices->resized_devices);
+	if (list_empty(&device->post_commit_list))
+		list_add_tail(&device->post_commit_list,
+			      &trans->transaction->dev_update_list);
 	mutex_unlock(&fs_info->chunk_mutex);
 
 	return btrfs_update_device(trans, device);
@@ -4872,9 +4869,9 @@ again:
 	}
 
 	btrfs_device_set_disk_total_bytes(device, new_size);
-	if (list_empty(&device->resized_list))
-		list_add_tail(&device->resized_list,
-			      &fs_info->fs_devices->resized_devices);
+	if (list_empty(&device->post_commit_list))
+		list_add_tail(&device->post_commit_list,
+			      &trans->transaction->dev_update_list);
 
 	WARN_ON(diff > old_total);
 	btrfs_set_super_total_bytes(super_copy,
@@ -5214,9 +5211,14 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto error_del_extent;
 
-	for (i = 0; i < map->num_stripes; i++)
-		btrfs_device_set_bytes_used(map->stripes[i].dev,
-				map->stripes[i].dev->bytes_used + stripe_size);
+	for (i = 0; i < map->num_stripes; i++) {
+		struct btrfs_device *dev = map->stripes[i].dev;
+
+		btrfs_device_set_bytes_used(dev, dev->bytes_used + stripe_size);
+		if (list_empty(&dev->post_commit_list))
+			list_add_tail(&dev->post_commit_list,
+				      &trans->transaction->dev_update_list);
+	}
 
 	atomic64_sub(stripe_size * map->num_stripes, &info->free_chunk_space);
 
@@ -7579,51 +7581,34 @@ void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_pat
 }
 
 /*
- * Update the size of all devices, which is used for writing out the
- * super blocks.
+ * Update the size and bytes used for each device where it changed.  This is
+ * delayed since we would otherwise get errors while writing out the
+ * superblocks.
+ *
+ * Must be invoked during transaction commit.
  */
-void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info)
+void btrfs_commit_device_sizes(struct btrfs_transaction *trans)
 {
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *curr, *next;
 
-	if (list_empty(&fs_devices->resized_devices))
+	ASSERT(trans->state == TRANS_STATE_COMMIT_DOING);
+
+	if (list_empty(&trans->dev_update_list))
 		return;
 
-	mutex_lock(&fs_devices->device_list_mutex);
-	mutex_lock(&fs_info->chunk_mutex);
-	list_for_each_entry_safe(curr, next, &fs_devices->resized_devices,
-				 resized_list) {
-		list_del_init(&curr->resized_list);
+	/*
+	 * We don't need the device_list_mutex here.  This list is owned by the
+	 * transaction and the transaction must complete before the device is
+	 * released.
+	 */
+	mutex_lock(&trans->fs_info->chunk_mutex);
+	list_for_each_entry_safe(curr, next, &trans->dev_update_list,
+				 post_commit_list) {
+		list_del_init(&curr->post_commit_list);
 		curr->commit_total_bytes = curr->disk_total_bytes;
+		curr->commit_bytes_used = curr->bytes_used;
 	}
-	mutex_unlock(&fs_info->chunk_mutex);
-	mutex_unlock(&fs_devices->device_list_mutex);
-}
-
-/* Must be invoked during the transaction commit */
-void btrfs_update_commit_device_bytes_used(struct btrfs_transaction *trans)
-{
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct extent_map *em;
-	struct map_lookup *map;
-	struct btrfs_device *dev;
-	int i;
-
-	if (list_empty(&trans->pending_chunks))
-		return;
-
-	/* In order to kick the device replace finish process */
-	mutex_lock(&fs_info->chunk_mutex);
-	list_for_each_entry(em, &trans->pending_chunks, list) {
-		map = em->map_lookup;
-
-		for (i = 0; i < map->num_stripes; i++) {
-			dev = map->stripes[i].dev;
-			dev->commit_bytes_used = dev->bytes_used;
-		}
-	}
-	mutex_unlock(&fs_info->chunk_mutex);
+	mutex_unlock(&trans->fs_info->chunk_mutex);
 }
 
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info)

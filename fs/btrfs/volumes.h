@@ -45,6 +45,7 @@ struct btrfs_pending_bios {
 struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
+	struct list_head post_commit_list; /* chunk mutex */
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_fs_info *fs_info;
 
@@ -102,18 +103,12 @@ struct btrfs_device {
 	 * size of the device on the current transaction
 	 *
 	 * This variant is update when committing the transaction,
-	 * and protected by device_list_mutex
+	 * and protected by chunk mutex
 	 */
 	u64 commit_total_bytes;
 
 	/* bytes used on the current transaction */
 	u64 commit_bytes_used;
-	/*
-	 * used to manage the device which is resized
-	 *
-	 * It is protected by chunk_lock.
-	 */
-	struct list_head resized_list;
 
 	/* for sending down flush barriers */
 	struct bio *flush_bio;
@@ -235,7 +230,6 @@ struct btrfs_fs_devices {
 	struct mutex device_list_mutex;
 	struct list_head devices;
 
-	struct list_head resized_devices;
 	/* devices not currently being allocated */
 	struct list_head alloc_list;
 
@@ -567,8 +561,7 @@ static inline enum btrfs_raid_types btrfs_bg_flags_to_raid_index(u64 flags)
 
 const char *get_raid_name(enum btrfs_raid_types type);
 
-void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
-void btrfs_update_commit_device_bytes_used(struct btrfs_transaction *trans);
+void btrfs_commit_device_sizes(struct btrfs_transaction *trans);
 
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
