@@ -3797,6 +3797,7 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  u32 info_flags)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct sk_buff *next;
 
@@ -3810,7 +3811,15 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (ieee80211_lookup_ra_sta(sdata, skb, &sta))
 		goto out_free;
 
-	if (!IS_ERR_OR_NULL(sta)) {
+	if (IS_ERR(sta))
+		sta = NULL;
+
+	if (local->ops->wake_tx_queue) {
+		u16 queue = __ieee80211_select_queue(sdata, sta, skb);
+		skb_set_queue_mapping(skb, queue);
+	}
+
+	if (sta) {
 		struct ieee80211_fast_tx *fast_tx;
 
 		sk_pacing_shift_update(skb->sk, sdata->local->hw.tx_sk_pacing_shift);
