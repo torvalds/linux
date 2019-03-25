@@ -102,8 +102,7 @@ static bool kvm_is_device_pfn(unsigned long pfn)
  * @addr:	IPA
  * @pmd:	pmd pointer for IPA
  *
- * Function clears a PMD entry, flushes addr 1st and 2nd stage TLBs. Marks all
- * pages in the range dirty.
+ * Function clears a PMD entry, flushes addr 1st and 2nd stage TLBs.
  */
 static void stage2_dissolve_pmd(struct kvm *kvm, phys_addr_t addr, pmd_t *pmd)
 {
@@ -121,8 +120,7 @@ static void stage2_dissolve_pmd(struct kvm *kvm, phys_addr_t addr, pmd_t *pmd)
  * @addr:	IPA
  * @pud:	pud pointer for IPA
  *
- * Function clears a PUD entry, flushes addr 1st and 2nd stage TLBs. Marks all
- * pages in the range dirty.
+ * Function clears a PUD entry, flushes addr 1st and 2nd stage TLBs.
  */
 static void stage2_dissolve_pud(struct kvm *kvm, phys_addr_t addr, pud_t *pudp)
 {
@@ -899,9 +897,8 @@ int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
  * kvm_alloc_stage2_pgd - allocate level-1 table for stage-2 translation.
  * @kvm:	The KVM struct pointer for the VM.
  *
- * Allocates only the stage-2 HW PGD level table(s) (can support either full
- * 40-bit input addresses or limited to 32-bit input addresses). Clears the
- * allocated pages.
+ * Allocates only the stage-2 HW PGD level table(s) of size defined by
+ * stage2_pgd_size(kvm).
  *
  * Note we don't need locking here as this is only called when the VM is
  * created, which can only be done once.
@@ -1478,13 +1475,11 @@ static void stage2_wp_pmds(struct kvm *kvm, pud_t *pud,
 }
 
 /**
-  * stage2_wp_puds - write protect PGD range
-  * @pgd:	pointer to pgd entry
-  * @addr:	range start address
-  * @end:	range end address
-  *
-  * Process PUD entries, for a huge PUD we cause a panic.
-  */
+ * stage2_wp_puds - write protect PGD range
+ * @pgd:	pointer to pgd entry
+ * @addr:	range start address
+ * @end:	range end address
+ */
 static void  stage2_wp_puds(struct kvm *kvm, pgd_t *pgd,
 			    phys_addr_t addr, phys_addr_t end)
 {
