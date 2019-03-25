@@ -30,7 +30,6 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
-#include <linux/acpi.h>
 
 /* SCH SMBus address offsets */
 #define SMBHSTCNT	(0 + sch_smba)
