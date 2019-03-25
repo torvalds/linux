@@ -156,6 +156,11 @@ struct iommu_resv_region {
 	enum iommu_resv_type	type;
 };
 
+/* Per device IOMMU features */
+enum iommu_dev_features {
+	IOMMU_DEV_FEAT_AUX,	/* Aux-domain feature */
+};
+
 #ifdef CONFIG_IOMMU_API
 
 /**
@@ -186,6 +191,11 @@ struct iommu_resv_region {
  * @of_xlate: add OF master IDs to iommu grouping
  * @is_attach_deferred: Check if domain attach should be deferred from iommu
  *                      driver init to device driver init (default no)
+ * @dev_has/enable/disable_feat: per device entries to check/enable/disable
+ *                               iommu specific features.
+ * @dev_feat_enabled: check enabled feature
+ * @aux_attach/detach_dev: aux-domain specific attach/detach entries.
+ * @aux_get_pasid: get the pasid given an aux-domain
  * @pgsize_bitmap: bitmap of all possible supported page sizes
  */
 struct iommu_ops {
@@ -229,6 +239,17 @@ struct iommu_ops {
 
 	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
 	bool (*is_attach_deferred)(struct iommu_domain *domain, struct device *dev);
+
+	/* Per device IOMMU features */
+	bool (*dev_has_feat)(struct device *dev, enum iommu_dev_features f);
+	bool (*dev_feat_enabled)(struct device *dev, enum iommu_dev_features f);
+	int (*dev_enable_feat)(struct device *dev, enum iommu_dev_features f);
+	int (*dev_disable_feat)(struct device *dev, enum iommu_dev_features f);
+
+	/* Aux-domain specific attach/detach entries */
+	int (*aux_attach_dev)(struct iommu_domain *domain, struct device *dev);
+	void (*aux_detach_dev)(struct iommu_domain *domain, struct device *dev);
+	int (*aux_get_pasid)(struct iommu_domain *domain, struct device *dev);
 
 	unsigned long pgsize_bitmap;
 };
@@ -415,6 +436,14 @@ static inline void dev_iommu_fwspec_set(struct device *dev,
 
 int iommu_probe_device(struct device *dev);
 void iommu_release_device(struct device *dev);
+
+bool iommu_dev_has_feature(struct device *dev, enum iommu_dev_features f);
+int iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features f);
+int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features f);
+bool iommu_dev_feature_enabled(struct device *dev, enum iommu_dev_features f);
+int iommu_aux_attach_device(struct iommu_domain *domain, struct device *dev);
+void iommu_aux_detach_device(struct iommu_domain *domain, struct device *dev);
+int iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev);
 
 #else /* CONFIG_IOMMU_API */
 
@@ -698,6 +727,47 @@ static inline
 const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 {
 	return NULL;
+}
+
+static inline bool
+iommu_dev_has_feature(struct device *dev, enum iommu_dev_features feat)
+{
+	return false;
+}
+
+static inline bool
+iommu_dev_feature_enabled(struct device *dev, enum iommu_dev_features feat)
+{
+	return false;
+}
+
+static inline int
+iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features feat)
+{
+	return -ENODEV;
+}
+
+static inline int
+iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features feat)
+{
+	return -ENODEV;
+}
+
+static inline int
+iommu_aux_attach_device(struct iommu_domain *domain, struct device *dev)
+{
+	return -ENODEV;
+}
+
+static inline void
+iommu_aux_detach_device(struct iommu_domain *domain, struct device *dev)
+{
+}
+
+static inline int
+iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev)
+{
+	return -ENODEV;
 }
 
 #endif /* CONFIG_IOMMU_API */
