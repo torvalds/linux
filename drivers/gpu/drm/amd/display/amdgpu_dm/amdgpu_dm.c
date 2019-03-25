@@ -2386,50 +2386,53 @@ static const struct drm_encoder_funcs amdgpu_dm_encoder_funcs = {
 };
 
 static bool fill_rects_from_plane_state(const struct drm_plane_state *state,
-					struct dc_plane_state *plane_state)
+					struct rect *src_rect,
+					struct rect *dst_rect,
+					struct rect *clip_rect,
+					enum dc_rotation_angle *rotation)
 {
-	plane_state->src_rect.x = state->src_x >> 16;
-	plane_state->src_rect.y = state->src_y >> 16;
+	src_rect->x = state->src_x >> 16;
+	src_rect->y = state->src_y >> 16;
 	/* we ignore the mantissa for now and do not deal with floating pixels :( */
-	plane_state->src_rect.width = state->src_w >> 16;
+	src_rect->width = state->src_w >> 16;
 
-	if (plane_state->src_rect.width == 0)
+	if (src_rect->width == 0)
 		return false;
 
-	plane_state->src_rect.height = state->src_h >> 16;
-	if (plane_state->src_rect.height == 0)
+	src_rect->height = state->src_h >> 16;
+	if (src_rect->height == 0)
 		return false;
 
-	plane_state->dst_rect.x = state->crtc_x;
-	plane_state->dst_rect.y = state->crtc_y;
+	dst_rect->x = state->crtc_x;
+	dst_rect->y = state->crtc_y;
 
 	if (state->crtc_w == 0)
 		return false;
 
-	plane_state->dst_rect.width = state->crtc_w;
+	dst_rect->width = state->crtc_w;
 
 	if (state->crtc_h == 0)
 		return false;
 
-	plane_state->dst_rect.height = state->crtc_h;
+	dst_rect->height = state->crtc_h;
 
-	plane_state->clip_rect = plane_state->dst_rect;
+	*clip_rect = *dst_rect;
 
 	switch (state->rotation & DRM_MODE_ROTATE_MASK) {
 	case DRM_MODE_ROTATE_0:
-		plane_state->rotation = ROTATION_ANGLE_0;
+		*rotation = ROTATION_ANGLE_0;
 		break;
 	case DRM_MODE_ROTATE_90:
-		plane_state->rotation = ROTATION_ANGLE_90;
+		*rotation = ROTATION_ANGLE_90;
 		break;
 	case DRM_MODE_ROTATE_180:
-		plane_state->rotation = ROTATION_ANGLE_180;
+		*rotation = ROTATION_ANGLE_180;
 		break;
 	case DRM_MODE_ROTATE_270:
-		plane_state->rotation = ROTATION_ANGLE_270;
+		*rotation = ROTATION_ANGLE_270;
 		break;
 	default:
-		plane_state->rotation = ROTATION_ANGLE_0;
+		*rotation = ROTATION_ANGLE_0;
 		break;
 	}
 
@@ -2809,7 +2812,11 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 	const struct drm_crtc *crtc = plane_state->crtc;
 	int ret = 0;
 
-	if (!fill_rects_from_plane_state(plane_state, dc_plane_state))
+	if (!fill_rects_from_plane_state(plane_state,
+					 &dc_plane_state->src_rect,
+					 &dc_plane_state->dst_rect,
+					 &dc_plane_state->clip_rect,
+					 &dc_plane_state->rotation))
 		return -EINVAL;
 
 	ret = fill_plane_attributes_from_fb(
@@ -4028,12 +4035,17 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 {
 	struct amdgpu_device *adev = plane->dev->dev_private;
 	struct dc *dc = adev->dm.dc;
-	struct dm_plane_state *dm_plane_state = to_dm_plane_state(state);
+	struct dm_plane_state *dm_plane_state;
+	struct rect src_rect, dst_rect, clip_rect;
+	enum dc_rotation_angle rotation;
+
+	dm_plane_state = to_dm_plane_state(state);
 
 	if (!dm_plane_state->dc_state)
 		return 0;
 
-	if (!fill_rects_from_plane_state(state, dm_plane_state->dc_state))
+	if (!fill_rects_from_plane_state(state, &src_rect, &dst_rect,
+					 &clip_rect, &rotation))
 		return -EINVAL;
 
 	if (dc_validate_plane(dc, dm_plane_state->dc_state) == DC_OK)
@@ -5107,9 +5119,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 
 		bundle->scaling_infos[planes_count].scaling_quality = dc_plane->scaling_quality;
-		bundle->scaling_infos[planes_count].src_rect = dc_plane->src_rect;
-		bundle->scaling_infos[planes_count].dst_rect = dc_plane->dst_rect;
-		bundle->scaling_infos[planes_count].clip_rect = dc_plane->clip_rect;
+
+		fill_rects_from_plane_state(new_plane_state,
+			&bundle->scaling_infos[planes_count].src_rect,
+			&bundle->scaling_infos[planes_count].dst_rect,
+			&bundle->scaling_infos[planes_count].clip_rect,
+			&bundle->plane_infos[planes_count].rotation);
+
 		bundle->surface_updates[planes_count].scaling_info = &bundle->scaling_infos[planes_count];
 
 		fill_plane_color_attributes(
@@ -5118,7 +5134,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		bundle->plane_infos[planes_count].format = dc_plane->format;
 		bundle->plane_infos[planes_count].plane_size = dc_plane->plane_size;
-		bundle->plane_infos[planes_count].rotation = dc_plane->rotation;
 		bundle->plane_infos[planes_count].horizontal_mirror = dc_plane->horizontal_mirror;
 		bundle->plane_infos[planes_count].stereo_format = dc_plane->stereo_format;
 		bundle->plane_infos[planes_count].tiling_info = dc_plane->tiling_info;
