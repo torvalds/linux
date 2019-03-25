@@ -1852,7 +1852,7 @@ void dcn10_get_hdr_visual_confirm_color(
 
 	switch (top_pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB2101010:
-		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_UNITY) {
+		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
 			/* HDR10, ARGB2101010 - set boarder color to red */
 			color->color_r_cr = color_value;
 		}
