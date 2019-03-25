@@ -12,3 +12,4 @@ obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o
 
 obj-y += rk_vendor_storage.o
 obj-y += rockchip-system-status.o
+obj-$(CONFIG_RK_FLASH) += flash_vendor_storage.o

@@ -384,8 +384,8 @@ static int rkflash_blktrans_thread(void *arg)
 		rq_len = 0;
 		buf = 0;
 		res = 0;
-
-		if (req->cmd_flags & REQ_DISCARD) {
+		rw_flag = req_op(req);
+		if (rw_flag == REQ_OP_DISCARD) {
 			spin_unlock_irq(rq->queue_lock);
 			if (rkflash_blk_discard(blk_rq_pos(req) +
 						dev->off_size, totle_nsect))
@@ -394,14 +394,11 @@ static int rkflash_blktrans_thread(void *arg)
 			if (!__blk_end_request_cur(req, res))
 				req = NULL;
 			continue;
-		} else if (req->cmd_flags & REQ_FLUSH) {
+		} else if (rw_flag == REQ_OP_FLUSH) {
 			if (!__blk_end_request_cur(req, res))
 				req = NULL;
 			continue;
-		}
-
-		rw_flag = req->cmd_flags & REQ_WRITE;
-		if (rw_flag == READ && mtd_read_temp_buffer) {
+		} else if (rw_flag == REQ_OP_READ && mtd_read_temp_buffer) {
 			buf = mtd_read_temp_buffer;
 			req_check_buffer_align(req, &buf);
 			spin_unlock_irq(rq->queue_lock);
@@ -423,7 +420,7 @@ static int rkflash_blktrans_thread(void *arg)
 					p += bvec.bv_len;
 				}
 			}
-		} else {
+		} else if (rw_flag == REQ_OP_WRITE){
 			rq_for_each_segment(bvec, req, rq_iter) {
 				if ((page_address(bvec.bv_page)
 					+ bvec.bv_offset)
@@ -456,6 +453,8 @@ static int rkflash_blktrans_thread(void *arg)
 						   totle_nsect);
 				spin_lock_irq(rq->queue_lock);
 			}
+		} else {
+			pr_err("%s error req flag\n", __func__);
 		}
 		__blk_end_request_all(req, res);
 		req = NULL;
@@ -654,7 +653,7 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 	blk_queue_max_hw_sectors(blk_ops->rq, MTD_RW_SECTORS);
 	blk_queue_max_segments(blk_ops->rq, MTD_RW_SECTORS);
 
-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, blk_ops->rq);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, blk_ops->rq);
 	blk_queue_max_discard_sectors(blk_ops->rq, UINT_MAX >> 9);
 
 	blk_ops->rq->queuedata = blk_ops;
