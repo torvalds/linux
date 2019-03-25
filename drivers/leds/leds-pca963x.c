@@ -32,6 +32,7 @@
 #include <linux/leds.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/platform_data/leds-pca963x.h>
@@ -277,16 +278,15 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_OF)
 static struct pca963x_platform_data *
-pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
+pca963x_get_pdata(struct i2c_client *client, struct pca963x_chipdef *chip)
 {
-	struct device_node *np = client->dev.of_node, *child;
 	struct pca963x_platform_data *pdata;
 	struct led_info *pca963x_leds;
+	struct fwnode_handle *child;
 	int count;
 
-	count = of_get_child_count(np);
+	count = device_get_child_node_count(&client->dev);
 	if (!count || count > chip->n_leds)
 		return ERR_PTR(-ENODEV);
 
@@ -295,18 +295,22 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 	if (!pca963x_leds)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, child) {
+	device_for_each_child_node(&client->dev, child) {
 		struct led_info led = {};
 		u32 reg;
 		int res;
 
-		res = of_property_read_u32(child, "reg", &reg);
+		res = fwnode_property_read_u32(child, "reg", &reg);
 		if ((res != 0) || (reg >= chip->n_leds))
 			continue;
-		led.name =
-			of_get_property(child, "label", NULL) ? : child->name;
-		led.default_trigger =
-			of_get_property(child, "linux,default-trigger", NULL);
+
+		res = fwnode_property_read_string(child, "label", &led.name);
+		if ((res != 0) && is_of_node(child))
+			led.name = to_of_node(child)->name;
+
+		fwnode_property_read_string(child, "linux,default-trigger",
+					    &led.default_trigger);
+
 		pca963x_leds[reg] = led;
 	}
 	pdata = devm_kzalloc(&client->dev,
@@ -318,22 +322,23 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 	pdata->leds.num_leds = chip->n_leds;
 
 	/* default to open-drain unless totem pole (push-pull) is specified */
-	if (of_property_read_bool(np, "nxp,totem-pole"))
+	if (device_property_read_bool(&client->dev, "nxp,totem-pole"))
 		pdata->outdrv = PCA963X_TOTEM_POLE;
 	else
 		pdata->outdrv = PCA963X_OPEN_DRAIN;
 
 	/* default to software blinking unless hardware blinking is specified */
-	if (of_property_read_bool(np, "nxp,hw-blink"))
+	if (device_property_read_bool(&client->dev, "nxp,hw-blink"))
 		pdata->blink_type = PCA963X_HW_BLINK;
 	else
 		pdata->blink_type = PCA963X_SW_BLINK;
 
-	if (of_property_read_u32(np, "nxp,period-scale", &chip->scaling))
+	if (device_property_read_u32(&client->dev, "nxp,period-scale",
+				     &chip->scaling))
 		chip->scaling = 1000;
 
 	/* default to non-inverted output, unless inverted is specified */
-	if (of_property_read_bool(np, "nxp,inverted-out"))
+	if (device_property_read_bool(&client->dev, "nxp,inverted-out"))
 		pdata->dir = PCA963X_INVERTED;
 	else
 		pdata->dir = PCA963X_NORMAL;
@@ -349,13 +354,6 @@ static const struct of_device_id of_pca963x_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_pca963x_match);
-#else
-static struct pca963x_platform_data *
-pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 static int pca963x_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
@@ -370,7 +368,7 @@ static int pca963x_probe(struct i2c_client *client,
 	pdata = dev_get_platdata(&client->dev);
 
 	if (!pdata) {
-		pdata = pca963x_dt_init(client, chip);
+		pdata = pca963x_get_pdata(client, chip);
 		if (IS_ERR(pdata)) {
 			dev_warn(&client->dev, "could not parse configuration\n");
 			pdata = NULL;
@@ -476,7 +474,7 @@ static int pca963x_remove(struct i2c_client *client)
 static struct i2c_driver pca963x_driver = {
 	.driver = {
 		.name	= "leds-pca963x",
-		.of_match_table = of_match_ptr(of_pca963x_match),
+		.of_match_table = of_pca963x_match,
 	},
 	.probe	= pca963x_probe,
 	.remove	= pca963x_remove,
