@@ -1814,7 +1814,7 @@ int __intel_wait_for_register_fw(struct intel_uncore *uncore,
 
 /**
  * __intel_wait_for_register - wait until register matches expected state
- * @dev_priv: the i915 device
+ * @uncore: the struct intel_uncore
  * @reg: the register to read
  * @mask: mask to apply to register value
  * @value: expected value

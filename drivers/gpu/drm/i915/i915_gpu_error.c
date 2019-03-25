@@ -1136,7 +1136,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		ee->rc_psmi = I915_READ(RING_PSMI_CTL(engine->mmio_base));
+		ee->rc_psmi = ENGINE_READ(engine, RING_PSMI_CTL);
 		if (INTEL_GEN(dev_priv) >= 8)
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
 		else
@@ -1144,32 +1144,32 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
-		ee->faddr = I915_READ(RING_DMA_FADD(engine->mmio_base));
-		ee->ipeir = I915_READ(RING_IPEIR(engine->mmio_base));
-		ee->ipehr = I915_READ(RING_IPEHR(engine->mmio_base));
-		ee->instps = I915_READ(RING_INSTPS(engine->mmio_base));
-		ee->bbaddr = I915_READ(RING_BBADDR(engine->mmio_base));
+		ee->faddr = ENGINE_READ(engine, RING_DMA_FADD);
+		ee->ipeir = ENGINE_READ(engine, RING_IPEIR);
+		ee->ipehr = ENGINE_READ(engine, RING_IPEHR);
+		ee->instps = ENGINE_READ(engine, RING_INSTPS);
+		ee->bbaddr = ENGINE_READ(engine, RING_BBADDR);
 		if (INTEL_GEN(dev_priv) >= 8) {
-			ee->faddr |= (u64) I915_READ(RING_DMA_FADD_UDW(engine->mmio_base)) << 32;
-			ee->bbaddr |= (u64) I915_READ(RING_BBADDR_UDW(engine->mmio_base)) << 32;
+			ee->faddr |= (u64)ENGINE_READ(engine, RING_DMA_FADD_UDW) << 32;
+			ee->bbaddr |= (u64)ENGINE_READ(engine, RING_BBADDR_UDW) << 32;
 		}
-		ee->bbstate = I915_READ(RING_BBSTATE(engine->mmio_base));
+		ee->bbstate = ENGINE_READ(engine, RING_BBSTATE);
 	} else {
-		ee->faddr = I915_READ(DMA_FADD_I8XX);
-		ee->ipeir = I915_READ(IPEIR);
-		ee->ipehr = I915_READ(IPEHR);
+		ee->faddr = ENGINE_READ(engine, DMA_FADD_I8XX);
+		ee->ipeir = ENGINE_READ(engine, IPEIR);
+		ee->ipehr = ENGINE_READ(engine, IPEHR);
 	}
 
 	intel_engine_get_instdone(engine, &ee->instdone);
 
-	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
+	ee->instpm = ENGINE_READ(engine, RING_INSTPM);
 	ee->acthd = intel_engine_get_active_head(engine);
-	ee->start = I915_READ_START(engine);
-	ee->head = I915_READ_HEAD(engine);
-	ee->tail = I915_READ_TAIL(engine);
-	ee->ctl = I915_READ_CTL(engine);
+	ee->start = ENGINE_READ(engine, RING_START);
+	ee->head = ENGINE_READ(engine, RING_HEAD);
+	ee->tail = ENGINE_READ(engine, RING_TAIL);
+	ee->ctl = ENGINE_READ(engine, RING_CTL);
 	if (INTEL_GEN(dev_priv) > 2)
-		ee->mode = I915_READ_MODE(engine);
+		ee->mode = ENGINE_READ(engine, RING_MI_MODE);
 
 	if (!HWS_NEEDS_PHYSICAL(dev_priv)) {
 		i915_reg_t mmio;
@@ -1214,10 +1214,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 		if (IS_GEN(dev_priv, 6))
 			ee->vm_info.pp_dir_base =
-				I915_READ(RING_PP_DIR_BASE_READ(engine));
+				ENGINE_READ(engine, RING_PP_DIR_BASE_READ);
 		else if (IS_GEN(dev_priv, 7))
 			ee->vm_info.pp_dir_base =
-				I915_READ(RING_PP_DIR_BASE(engine));
+					ENGINE_READ(engine, RING_PP_DIR_BASE);
 		else if (INTEL_GEN(dev_priv) >= 8)
 			for (i = 0; i < 4; i++) {
 				ee->vm_info.pdp[i] =
@@ -1601,7 +1601,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 	}
 
 	if (INTEL_GEN(dev_priv) >= 5)
-		error->ccid = I915_READ(CCID);
+		error->ccid = I915_READ(CCID(RENDER_RING_BASE));
 
 	/* 3: Feature specific registers */
 	if (IS_GEN_RANGE(dev_priv, 6, 7)) {

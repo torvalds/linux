@@ -1173,19 +1173,24 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
 }
 
+static void clear_register(struct drm_i915_private *dev_priv, i915_reg_t reg)
+{
+	I915_WRITE(reg, I915_READ(reg));
+}
+
 void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
 	u32 eir;
 
 	if (!IS_GEN(dev_priv, 2))
-		I915_WRITE(PGTBL_ER, I915_READ(PGTBL_ER));
+		clear_register(dev_priv, PGTBL_ER);
 
 	if (INTEL_GEN(dev_priv) < 4)
-		I915_WRITE(IPEIR, I915_READ(IPEIR));
+		clear_register(dev_priv, IPEIR(RENDER_RING_BASE));
 	else
-		I915_WRITE(IPEIR_I965, I915_READ(IPEIR_I965));
+		clear_register(dev_priv, IPEIR_I965);
 
-	I915_WRITE(EIR, I915_READ(EIR));
+	clear_register(dev_priv, EIR);
 	eir = I915_READ(EIR);
 	if (eir) {
 		/*

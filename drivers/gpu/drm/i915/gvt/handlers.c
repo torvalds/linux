@@ -1848,7 +1848,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, mmio_read_from_hw, NULL);
 
 	MMIO_GM_RDR(_MMIO(0x2148), D_ALL, NULL, NULL);
-	MMIO_GM_RDR(CCID, D_ALL, NULL, NULL);
+	MMIO_GM_RDR(CCID(RENDER_RING_BASE), D_ALL, NULL, NULL);
 	MMIO_GM_RDR(_MMIO(0x12198), D_ALL, NULL, NULL);
 	MMIO_D(GEN7_CXT_SIZE, D_ALL);
 

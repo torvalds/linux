@@ -880,7 +880,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		for_each_engine(engine, dev_priv, id) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
-				   engine->name, I915_READ_IMR(engine));
+				   engine->name, ENGINE_READ(engine, RING_IMR));
 		}
 	}
 
