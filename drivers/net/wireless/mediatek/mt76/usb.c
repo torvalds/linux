@@ -624,27 +624,32 @@ static void mt76u_tx_tasklet(unsigned long data)
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		u32 n_dequeued = 0, n_sw_dequeued = 0;
+
 		sq = &dev->q_tx[i];
 		q = sq->q;
 
-		spin_lock_bh(&q->lock);
-		while (true) {
-			if (!q->entry[q->head].done || !q->queued)
+		while (q->queued > n_dequeued) {
+			if (!q->entry[q->head].done)
 				break;
 
 			if (q->entry[q->head].schedule) {
 				q->entry[q->head].schedule = false;
-				sq->swq_queued--;
+				n_sw_dequeued++;
 			}
 
 			entry = q->entry[q->head];
+			q->entry[q->head].done = false;
 			q->head = (q->head + 1) % q->ndesc;
-			q->queued--;
+			n_dequeued++;
 
-			spin_unlock_bh(&q->lock);
 			dev->drv->tx_complete_skb(dev, i, &entry);
-			spin_lock_bh(&q->lock);
 		}
+
+		spin_lock_bh(&q->lock);
+
+		sq->swq_queued -= n_sw_dequeued;
+		q->queued -= n_dequeued;
 
 		wake = q->stopped && q->queued < q->ndesc - 8;
 		if (wake)
@@ -741,7 +746,6 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (err < 0)
 		return err;
 
-	q->entry[idx].done = false;
 	urb = q->entry[idx].urb;
 	err = mt76u_tx_setup_buffers(dev, skb, urb);
 	if (err < 0)
