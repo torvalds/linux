@@ -1132,7 +1132,7 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 			DRM_ERROR("DDI port:%c buffer not idle\n",
 				  port_name(port));
 	}
-	gen11_dsi_ungate_clocks(encoder);
+	gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
