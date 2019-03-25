@@ -130,8 +130,8 @@ Tasklets
 --------
 
 A tasklet is a special form of deferred work that runs in interrupt
-context, just like softirqs. The main between sofirqs are tasklets are
-that tasklets can be allocated dynamically and thus they can be used
+context, just like softirqs. The main difference between sofirqs and tasklets
+is that tasklets can be allocated dynamically and thus they can be used
 by device drivers. A tasklet is represented by :c:type:`struct
 tasklet` and as many other kernel structures it needs to be
 initialized before being used. A pre-initialized tasklet can defined
@@ -201,11 +201,10 @@ To be used, a timer must first be initialized by calling :c:func:`timer_setup`:
 
    void timer_setup(struct timer_list * timer,
 		    void (*function)(struct timer_list *),
-		    unsigned long data);
+		    unsigned int flags);
 
 The above function initializes the internal fields of the structure
-and associates *function* as the timer handler; The data parameter
-will be passed to the treatment function. Since timers are planned
+and associates *function* as the timer handler. Since timers are planned
 over softirqs, blocking calls can not be used in the code associated
 with the treatment function.
 
@@ -401,7 +400,7 @@ Once declared and initialized, we can schedule the task using
 :c:func:`schedule_delayed_work` can be used to plan a work item for
 execution with a given delay. The delay time unit is jiffies.
 
-Work items can not be masked by they can be canceled by calling
+Work items can not be masked but they can be canceled by calling
 :c:func:`cancel_delayed_work_sync` or :c:func:`cancel_work_sync`:
 
 .. code-block:: c
