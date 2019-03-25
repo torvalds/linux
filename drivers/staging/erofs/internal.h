@@ -268,8 +268,15 @@ int erofs_try_to_free_cached_page(struct address_space *mapping,
 				  struct page *page);
 
 #define MNGD_MAPPING(sbi)	((sbi)->managed_cache->i_mapping)
+static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
+					 struct page *page)
+{
+	return page->mapping == MNGD_MAPPING(sbi);
+}
 #else
 #define MNGD_MAPPING(sbi)	(NULL)
+static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
+					 struct page *page) { return false; }
 #endif
 
 #define DEFAULT_MAX_SYNC_DECOMPRESS_PAGES	3

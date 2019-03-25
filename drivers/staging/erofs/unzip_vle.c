@@ -845,11 +845,9 @@ static void z_erofs_vle_unzip_kickoff(void *ptr, int bios)
 static inline void z_erofs_vle_read_endio(struct bio *bio)
 {
 	const blk_status_t err = bio->bi_status;
+	struct erofs_sb_info *sbi = NULL;
 	unsigned int i;
 	struct bio_vec *bvec;
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-	struct address_space *mc = NULL;
-#endif
 	struct bvec_iter_all iter_all;
 
 	bio_for_each_segment_all(bvec, bio, i, iter_all) {
@@ -859,20 +857,12 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 		DBG_BUGON(PageUptodate(page));
 		DBG_BUGON(!page->mapping);
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-		if (unlikely(!mc && !z_erofs_is_stagingpage(page))) {
-			struct inode *const inode = page->mapping->host;
-			struct super_block *const sb = inode->i_sb;
+		if (unlikely(!sbi && !z_erofs_is_stagingpage(page)))
+			sbi = EROFS_SB(page->mapping->host->i_sb);
 
-			mc = MNGD_MAPPING(EROFS_SB(sb));
-		}
-
-		/*
-		 * If mc has not gotten, it equals NULL,
-		 * however, page->mapping never be NULL if working properly.
-		 */
-		cachemngd = (page->mapping == mc);
-#endif
+		/* sbi should already be gotten if the page is managed */
+		if (sbi)
+			cachemngd = erofs_page_is_managed(sbi, page);
 
 		if (unlikely(err))
 			SetPageError(page);
@@ -984,13 +974,11 @@ repeat:
 		DBG_BUGON(!page->mapping);
 
 		if (!z_erofs_is_stagingpage(page)) {
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-			if (page->mapping == MNGD_MAPPING(sbi)) {
+			if (erofs_page_is_managed(sbi, page)) {
 				if (unlikely(!PageUptodate(page)))
 					err = -EIO;
 				continue;
 			}
-#endif
 
 			/*
 			 * only if non-head page can be selected
@@ -1055,10 +1043,9 @@ out:
 	for (i = 0; i < clusterpages; ++i) {
 		page = compressed_pages[i];
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-		if (page->mapping == MNGD_MAPPING(sbi))
+		if (erofs_page_is_managed(sbi, page))
 			continue;
-#endif
+
 		/* recycle all individual staging pages */
 		(void)z_erofs_gather_if_stagingpage(page_pool, page);
 
