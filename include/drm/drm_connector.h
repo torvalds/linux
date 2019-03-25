@@ -254,6 +254,68 @@ enum drm_panel_orientation {
 };
 
 /**
+ * enum drm_bus_flags - bus_flags info for &drm_display_info
+ *
+ * This enum defines signal polarities and clock edge information for signals on
+ * a bus as bitmask flags.
+ *
+ * The clock edge information is conveyed by two sets of symbols,
+ * DRM_BUS_FLAGS_*_DRIVE_\* and DRM_BUS_FLAGS_*_SAMPLE_\*. When this enum is
+ * used to describe a bus from the point of view of the transmitter, the
+ * \*_DRIVE_\* flags should be used. When used from the point of view of the
+ * receiver, the \*_SAMPLE_\* flags should be used. The \*_DRIVE_\* and
+ * \*_SAMPLE_\* flags alias each other, with the \*_SAMPLE_POSEDGE and
+ * \*_SAMPLE_NEGEDGE flags being equal to \*_DRIVE_NEGEDGE and \*_DRIVE_POSEDGE
+ * respectively. This simplifies code as signals are usually sampled on the
+ * opposite edge of the driving edge. Transmitters and receivers may however
+ * need to take other signal timings into account to convert between driving
+ * and sample edges.
+ *
+ * @DRM_BUS_FLAG_DE_LOW:		The Data Enable signal is active low
+ * @DRM_BUS_FLAG_DE_HIGH:		The Data Enable signal is active high
+ * @DRM_BUS_FLAG_PIXDATA_POSEDGE:	Legacy value, do not use
+ * @DRM_BUS_FLAG_PIXDATA_NEGEDGE:	Legacy value, do not use
+ * @DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE:	Data is driven on the rising edge of
+ *					the pixel clock
+ * @DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE:	Data is driven on the falling edge of
+ *					the pixel clock
+ * @DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE: Data is sampled on the rising edge of
+ *					the pixel clock
+ * @DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE: Data is sampled on the falling edge of
+ *					the pixel clock
+ * @DRM_BUS_FLAG_DATA_MSB_TO_LSB:	Data is transmitted MSB to LSB on the bus
+ * @DRM_BUS_FLAG_DATA_LSB_TO_MSB:	Data is transmitted LSB to MSB on the bus
+ * @DRM_BUS_FLAG_SYNC_POSEDGE:		Legacy value, do not use
+ * @DRM_BUS_FLAG_SYNC_NEGEDGE:		Legacy value, do not use
+ * @DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE:	Sync signals are driven on the rising
+ *					edge of the pixel clock
+ * @DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE:	Sync signals are driven on the falling
+ *					edge of the pixel clock
+ * @DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE:	Sync signals are sampled on the rising
+ *					edge of the pixel clock
+ * @DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE:	Sync signals are sampled on the falling
+ *					edge of the pixel clock
+ */
+enum drm_bus_flags {
+	DRM_BUS_FLAG_DE_LOW = BIT(0),
+	DRM_BUS_FLAG_DE_HIGH = BIT(1),
+	DRM_BUS_FLAG_PIXDATA_POSEDGE = BIT(2),
+	DRM_BUS_FLAG_PIXDATA_NEGEDGE = BIT(3),
+	DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+	DRM_BUS_FLAG_DATA_MSB_TO_LSB = BIT(4),
+	DRM_BUS_FLAG_DATA_LSB_TO_MSB = BIT(5),
+	DRM_BUS_FLAG_SYNC_POSEDGE = BIT(6),
+	DRM_BUS_FLAG_SYNC_NEGEDGE = BIT(7),
+	DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE = DRM_BUS_FLAG_SYNC_POSEDGE,
+	DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE = DRM_BUS_FLAG_SYNC_NEGEDGE,
+	DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE = DRM_BUS_FLAG_SYNC_NEGEDGE,
+	DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE = DRM_BUS_FLAG_SYNC_POSEDGE,
+};
+
+/**
  * struct drm_display_info - runtime data about the connected sink
  *
  * Describes a given display (e.g. CRT or flat panel) and its limitations. For
@@ -328,24 +390,10 @@ struct drm_display_info {
 	 */
 	unsigned int num_bus_formats;
 
-#define DRM_BUS_FLAG_DE_LOW		(1<<0)
-#define DRM_BUS_FLAG_DE_HIGH		(1<<1)
-/* drive data on pos. edge */
-#define DRM_BUS_FLAG_PIXDATA_POSEDGE	(1<<2)
-/* drive data on neg. edge */
-#define DRM_BUS_FLAG_PIXDATA_NEGEDGE	(1<<3)
-/* data is transmitted MSB to LSB on the bus */
-#define DRM_BUS_FLAG_DATA_MSB_TO_LSB	(1<<4)
-/* data is transmitted LSB to MSB on the bus */
-#define DRM_BUS_FLAG_DATA_LSB_TO_MSB	(1<<5)
-/* drive sync on pos. edge */
-#define DRM_BUS_FLAG_SYNC_POSEDGE	(1<<6)
-/* drive sync on neg. edge */
-#define DRM_BUS_FLAG_SYNC_NEGEDGE	(1<<7)
-
 	/**
 	 * @bus_flags: Additional information (like pixel signal polarity) for
-	 * the pixel data on the bus, using DRM_BUS_FLAGS\_ defines.
+	 * the pixel data on the bus, using &enum drm_bus_flags values
+	 * DRM_BUS_FLAGS\_.
 	 */
 	u32 bus_flags;
 

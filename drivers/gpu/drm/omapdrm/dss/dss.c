@@ -1560,7 +1560,7 @@ static void dss_shutdown(struct platform_device *pdev)
 
 	DSSDBG("shutdown\n");
 
-	for_each_dss_display(dssdev) {
+	for_each_dss_output(dssdev) {
 		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 			dssdev->ops->disable(dssdev);
 	}

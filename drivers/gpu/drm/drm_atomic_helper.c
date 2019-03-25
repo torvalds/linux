@@ -495,7 +495,7 @@ mode_fixup(struct drm_atomic_state *state)
 static enum drm_mode_status mode_valid_path(struct drm_connector *connector,
 					    struct drm_encoder *encoder,
 					    struct drm_crtc *crtc,
-					    struct drm_display_mode *mode)
+					    const struct drm_display_mode *mode)
 {
 	enum drm_mode_status ret;
 
@@ -534,7 +534,7 @@ mode_valid(struct drm_atomic_state *state)
 		struct drm_crtc *crtc = conn_state->crtc;
 		struct drm_crtc_state *crtc_state;
 		enum drm_mode_status mode_status;
-		struct drm_display_mode *mode;
+		const struct drm_display_mode *mode;
 
 		if (!crtc || !encoder)
 			continue;

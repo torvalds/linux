@@ -184,6 +184,22 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 	{},
 };
 
+static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
+	{ .compatible = "composite-video-connector" },
+	{ .compatible = "hdmi-connector" },
+	{ .compatible = "lgphilips,lb035q02" },
+	{ .compatible = "nec,nl8048hl11" },
+	{ .compatible = "panel-dsi-cm" },
+	{ .compatible = "sharp,ls037v7dw01" },
+	{ .compatible = "sony,acx565akm" },
+	{ .compatible = "svideo-connector" },
+	{ .compatible = "ti,opa362" },
+	{ .compatible = "ti,tpd12s015" },
+	{ .compatible = "toppoly,td028ttec1" },
+	{ .compatible = "tpo,td028ttec1" },
+	{ .compatible = "tpo,td043mtea1" },
+};
+
 static int __init omapdss_boot_init(void)
 {
 	struct device_node *dss, *child;
@@ -210,7 +226,7 @@ static int __init omapdss_boot_init(void)
 		n = list_first_entry(&dss_conv_list, struct dss_conv_node,
 			list);
 
-		if (!n->root)
+		if (of_match_node(omapdss_of_fixups_whitelist, n->node))
 			omapdss_omapify_node(n->node);
 
 		list_del(&n->list);

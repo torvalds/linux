@@ -295,7 +295,7 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	sig_cfg.enable_pol = !(imx_crtc_state->bus_flags & DRM_BUS_FLAG_DE_LOW);
 	/* Default to driving pixel data on negative clock edges */
 	sig_cfg.clk_pol = !!(imx_crtc_state->bus_flags &
-			     DRM_BUS_FLAG_PIXDATA_POSEDGE);
+			     DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE);
 	sig_cfg.bus_format = imx_crtc_state->bus_format;
 	sig_cfg.v_to_h_sync = 0;
 	sig_cfg.hsync_pin = imx_crtc_state->di_hsync_pin;
