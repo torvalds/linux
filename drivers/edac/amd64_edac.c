@@ -3326,8 +3326,14 @@ static int init_one_instance(unsigned int nid)
 	 * Always allocate two channels since we can have setups with DIMMs on
 	 * only one channel. Also, this simplifies handling later for the price
 	 * of a couple of KBs tops.
+	 *
+	 * On Fam17h+, the number of controllers may be greater than two. So set
+	 * the size equal to the maximum number of UMCs.
 	 */
-	layers[1].size = 2;
+	if (pvt->fam >= 0x17)
+		layers[1].size = num_umcs;
+	else
+		layers[1].size = 2;
 	layers[1].is_virt_csrow = false;
 
 	mci = edac_mc_alloc(nid, ARRAY_SIZE(layers), layers, 0);
