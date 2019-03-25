@@ -97,6 +97,9 @@ struct intel_uncore {
 
 	spinlock_t lock; /** lock is also taken in irq contexts. */
 
+	unsigned int flags;
+#define UNCORE_HAS_FORCEWAKE		BIT(0)
+
 	const struct intel_forcewake_range *fw_domains_table;
 	unsigned int fw_domains_table_entries;
 
@@ -141,6 +144,12 @@ static inline struct intel_uncore *
 forcewake_domain_to_uncore(const struct intel_uncore_forcewake_domain *d)
 {
 	return container_of(d, struct intel_uncore, fw_domain[d->id]);
+}
+
+static inline bool
+intel_uncore_has_forcewake(const struct intel_uncore *uncore)
+{
+	return uncore->flags & UNCORE_HAS_FORCEWAKE;
 }
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
