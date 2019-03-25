@@ -667,22 +667,6 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 		.configs = cfgs,					\
 	}
 
-/* SH_PFC_PIN_NAMED - Expand to a sh_pfc_pin entry with the given name */
-#define SH_PFC_PIN_NAMED(row, col, _name)				\
-	{								\
-		.pin = PIN_NUMBER(row, col),				\
-		.name = __stringify(PIN_##_name),			\
-		.configs = SH_PFC_PIN_CFG_NO_GPIO,			\
-	}
-
-/* SH_PFC_PIN_NAMED_CFG - Expand to a sh_pfc_pin entry with the given name */
-#define SH_PFC_PIN_NAMED_CFG(row, col, _name, cfgs)			\
-	{								\
-		.pin = PIN_NUMBER(row, col),				\
-		.name = __stringify(PIN_##_name),			\
-		.configs = SH_PFC_PIN_CFG_NO_GPIO | cfgs,		\
-	}
-
 /* PINMUX_DATA_ALL - Expand to a list of PORT_name_DATA, PORT_name_FN0,
  *		     PORT_name_OUT, PORT_name_IN marks
  */
