@@ -602,6 +602,12 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
 	}
 	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+	}
+	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+
 	POSTING_READ(DPCLKA_CFGCR0_ICL);
 
 	mutex_unlock(&dev_priv->dpll_lock);
