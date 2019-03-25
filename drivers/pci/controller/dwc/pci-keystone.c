@@ -28,6 +28,7 @@
 #include <linux/resource.h>
 #include <linux/signal.h>
 
+#include "../../pci.h"
 #include "pcie-designware.h"
 
 #define PCIE_VENDORID_MASK	0xffff
@@ -88,6 +89,8 @@
 #define EP				0x0
 #define LEG_EP				0x1
 #define RC				0x2
+
+#define EXP_CAP_ID_OFFSET		0x70
 
 #define KS_PCIE_SYSCLOCKOUTEN		BIT(0)
 
@@ -971,6 +974,31 @@ static int ks_pcie_am654_set_mode(struct device *dev)
 	return 0;
 }
 
+static void ks_pcie_set_link_speed(struct dw_pcie *pci, int link_speed)
+{
+	u32 val;
+
+	dw_pcie_dbi_ro_wr_en(pci);
+
+	val = dw_pcie_readl_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCAP);
+	if ((val & PCI_EXP_LNKCAP_SLS) != link_speed) {
+		val &= ~((u32)PCI_EXP_LNKCAP_SLS);
+		val |= link_speed;
+		dw_pcie_writel_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCAP,
+				   val);
+	}
+
+	val = dw_pcie_readl_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCTL2);
+	if ((val & PCI_EXP_LNKCAP_SLS) != link_speed) {
+		val &= ~((u32)PCI_EXP_LNKCAP_SLS);
+		val |= link_speed;
+		dw_pcie_writel_dbi(pci, EXP_CAP_ID_OFFSET + PCI_EXP_LNKCTL2,
+				   val);
+	}
+
+	dw_pcie_dbi_ro_wr_dis(pci);
+}
+
 static const struct ks_pcie_of_data ks_pcie_rc_of_data = {
 	.host_ops = &ks_pcie_host_ops,
 	.version = 0x365A,
@@ -1011,6 +1039,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	void __iomem *base;
 	u32 num_viewport;
 	struct phy **phy;
+	int link_speed;
 	u32 num_lanes;
 	char name[10];
 	int ret;
@@ -1164,6 +1193,12 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 		usleep_range(100, 200);
 		gpiod_set_value_cansleep(gpiod, 1);
 	}
+
+	link_speed = of_pci_get_max_link_speed(np);
+	if (link_speed < 0)
+		link_speed = 2;
+
+	ks_pcie_set_link_speed(pci, link_speed);
 
 	pci->pp.ops = host_ops;
 	ret = ks_pcie_add_pcie_port(ks_pcie, pdev);
