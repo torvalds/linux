@@ -1139,8 +1139,6 @@ struct rockchip_dmcfreq {
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
 
-	unsigned long min;
-	unsigned long max;
 	unsigned long auto_min_rate;
 	unsigned long status_rate;
 	unsigned long normal_rate;
@@ -1517,44 +1515,6 @@ static struct devfreq_dev_profile rockchip_devfreq_dmc_profile = {
 	.get_cur_freq	= rockchip_dmcfreq_get_cur_freq,
 };
 
-static int rockchip_dmcfreq_init_freq_table(struct device *dev,
-					    struct devfreq_dev_profile *devp)
-{
-	int count;
-	int i = 0;
-	unsigned long freq = 0;
-	struct dev_pm_opp *opp;
-
-	rcu_read_lock();
-	count = dev_pm_opp_get_opp_count(dev);
-	if (count < 0) {
-		rcu_read_unlock();
-		return count;
-	}
-	rcu_read_unlock();
-
-	devp->freq_table = kmalloc_array(count, sizeof(devp->freq_table[0]),
-				GFP_KERNEL);
-	if (!devp->freq_table)
-		return -ENOMEM;
-
-	rcu_read_lock();
-	for (i = 0; i < count; i++, freq++) {
-		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
-		if (IS_ERR(opp))
-			break;
-
-		devp->freq_table[i] = freq;
-	}
-	rcu_read_unlock();
-
-	if (count != i)
-		dev_warn(dev, "Unable to enumerate all OPPs (%d!=%d)\n",
-			 count, i);
-
-	devp->max_state = i;
-	return 0;
-}
 
 static inline void reset_last_status(struct devfreq *devfreq)
 {
@@ -3252,7 +3212,6 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	int err;
 	struct devfreq_dev_status *stat;
 	unsigned long long a, b;
-	unsigned long max_freq = (df->max_freq) ? df->max_freq : UINT_MAX;
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(df->dev.parent);
 	struct devfreq_simple_ondemand_data *data = &dmcfreq->ondemand_data;
 	unsigned int upthreshold = data->upthreshold;
@@ -3296,7 +3255,7 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 
 	/* Assume MAX if it is going to be divided by zero */
 	if (stat->total_time == 0) {
-		*freq = max_freq;
+		*freq = DEVFREQ_MAX_FREQ;
 		return 0;
 	}
 
@@ -3309,13 +3268,13 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	/* Set MAX if it's busy enough */
 	if (stat->busy_time * 100 >
 	    stat->total_time * upthreshold) {
-		*freq = max_freq;
+		*freq = DEVFREQ_MAX_FREQ;
 		return 0;
 	}
 
 	/* Set MAX if we do not know the initial frequency */
 	if (stat->current_frequency == 0) {
-		*freq = max_freq;
+		*freq = DEVFREQ_MAX_FREQ;
 		return 0;
 	}
 
@@ -3323,7 +3282,7 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	if (stat->busy_time * 100 >
 	    stat->total_time * (upthreshold - downdifferential)) {
 		*freq = max(target_freq, stat->current_frequency);
-		goto next;
+		return 0;
 	}
 
 	/* Set the desired frequency based on the load */
@@ -3333,15 +3292,11 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	b *= 100;
 	b = div_u64(b, (upthreshold - downdifferential / 2));
 	*freq = max_t(unsigned long, target_freq, b);
-	goto next;
+
+	return 0;
 
 reset_last_status:
 	reset_last_status(df);
-next:
-	if (df->min_freq && *freq < df->min_freq)
-		*freq = df->min_freq;
-	if (df->max_freq && *freq > df->max_freq)
-		*freq = df->max_freq;
 
 	return 0;
 }
@@ -3622,11 +3577,6 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 	}
 	rcu_read_unlock();
 
-	if (rockchip_dmcfreq_init_freq_table(dev, devp)) {
-		dev_err(dev, "failed to set init freq talbe\n");
-		return -EFAULT;
-	}
-
 	devp->initial_freq = dmcfreq->rate;
 	dmcfreq->devfreq = devm_devfreq_add_device(dev, devp,
 						   "dmc_ondemand",
@@ -3638,11 +3588,6 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 
 	devm_devfreq_register_opp_notifier(dev, dmcfreq->devfreq);
 
-	dmcfreq->min = devp->freq_table[0];
-	dmcfreq->max =
-		devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
-	dmcfreq->devfreq->min_freq = dmcfreq->min;
-	dmcfreq->devfreq->max_freq = dmcfreq->max;
 	dmcfreq->devfreq->last_status.current_frequency = opp_rate;
 
 	reset_last_status(dmcfreq->devfreq);
