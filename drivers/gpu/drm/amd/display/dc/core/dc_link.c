@@ -1396,6 +1396,15 @@ static enum dc_status enable_link_dp(
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
 
+	/* If link settings are different than current and link already enabled
+	 * then need to disable before programming to new rate.
+	 */
+	if (link->link_status.link_active &&
+		(link->cur_link_settings.lane_count != link_settings.lane_count ||
+		 link->cur_link_settings.link_rate != link_settings.link_rate)) {
+		dp_disable_link_phy(link, pipe_ctx->stream->signal);
+	}
+
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 	state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
