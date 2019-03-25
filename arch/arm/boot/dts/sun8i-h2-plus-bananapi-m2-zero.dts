@@ -28,7 +28,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
 
 		pwr_led {
 			label = "bananapi-m2-zero:red:pwr";
@@ -39,7 +38,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
 
 		sw4 {
 			label = "power";
@@ -67,7 +65,6 @@
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 	};
 };
