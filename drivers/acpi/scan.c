@@ -763,17 +763,15 @@ acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_get_ejd);
 
-static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
-					struct acpi_device_wakeup *wakeup)
+static int acpi_bus_extract_wakeup_device_power_package(struct acpi_device *dev)
 {
+	acpi_handle handle = dev->handle;
+	struct acpi_device_wakeup *wakeup = &dev->wakeup;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package = NULL;
 	union acpi_object *element = NULL;
 	acpi_status status;
 	int err = -ENODATA;
-
-	if (!wakeup)
-		return -EINVAL;
 
 	INIT_LIST_HEAD(&wakeup->resources);
 
@@ -883,8 +881,7 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	if (!acpi_has_method(device->handle, "_PRW"))
 		return;
 
-	err = acpi_bus_extract_wakeup_device_power_package(device->handle,
-							   &device->wakeup);
+	err = acpi_bus_extract_wakeup_device_power_package(device);
 	if (err) {
 		dev_err(&device->dev, "_PRW evaluation error: %d\n", err);
 		return;
