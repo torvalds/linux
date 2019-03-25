@@ -329,7 +329,7 @@ static int tipc_mcast_send_sync(struct net *net, struct sk_buff *skb,
 
 	/* Allocate dummy message */
 	_skb = tipc_buf_acquire(MCAST_H_SIZE, GFP_KERNEL);
-	if (!skb)
+	if (!_skb)
 		return -ENOMEM;
 
 	/* Preparing for 'synching' header */
