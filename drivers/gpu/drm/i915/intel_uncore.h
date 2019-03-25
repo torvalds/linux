@@ -215,6 +215,33 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 					    2, timeout_ms, NULL);
 }
 
+/* register access functions */
+#define __raw_read(x__, s__) \
+static inline u##x__ __raw_uncore_read##x__(const struct intel_uncore *uncore, \
+					    i915_reg_t reg) \
+{ \
+	return read##s__(uncore->regs + i915_mmio_reg_offset(reg)); \
+}
+
+#define __raw_write(x__, s__) \
+static inline void __raw_uncore_write##x__(const struct intel_uncore *uncore, \
+					   i915_reg_t reg, u##x__ val) \
+{ \
+	write##s__(val, uncore->regs + i915_mmio_reg_offset(reg)); \
+}
+__raw_read(8, b)
+__raw_read(16, w)
+__raw_read(32, l)
+__raw_read(64, q)
+
+__raw_write(8, b)
+__raw_write(16, w)
+__raw_write(32, l)
+__raw_write(64, q)
+
+#undef __raw_read
+#undef __raw_write
+
 #define raw_reg_read(base, reg) \
 	readl(base + i915_mmio_reg_offset(reg))
 #define raw_reg_write(base, reg, value) \

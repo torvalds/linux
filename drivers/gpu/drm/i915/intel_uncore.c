@@ -31,7 +31,7 @@
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 #define GT_FIFO_TIMEOUT_MS	 10
 
-#define __raw_posting_read(uncore__, reg__) (void)__raw_i915_read32((uncore__), (reg__))
+#define __raw_posting_read(...) ((void)__raw_uncore_read32(__VA_ARGS__))
 
 static const char * const forcewake_domain_names[] = {
 	"render",
@@ -279,7 +279,7 @@ static inline u32 gt_thread_status(struct intel_uncore *uncore)
 {
 	u32 val;
 
-	val = __raw_i915_read32(uncore, GEN6_GT_THREAD_STATUS_REG);
+	val = __raw_uncore_read32(uncore, GEN6_GT_THREAD_STATUS_REG);
 	val &= GEN6_GT_THREAD_STATUS_CORE_MASK;
 
 	return val;
@@ -306,7 +306,7 @@ static void fw_domains_get_with_thread_status(struct intel_uncore *uncore,
 
 static inline u32 fifo_free_entries(struct intel_uncore *uncore)
 {
-	u32 count = __raw_i915_read32(uncore, GTFIFOCTL);
+	u32 count = __raw_uncore_read32(uncore, GTFIFOCTL);
 
 	return count & GT_FIFO_FREE_ENTRIES_MASK;
 }
@@ -451,8 +451,8 @@ static void intel_uncore_edram_detect(struct drm_i915_private *dev_priv)
 	if (IS_HASWELL(dev_priv) ||
 	    IS_BROADWELL(dev_priv) ||
 	    INTEL_GEN(dev_priv) >= 9) {
-		dev_priv->edram_cap = __raw_i915_read32(&dev_priv->uncore,
-							HSW_EDRAM_CAP);
+		dev_priv->edram_cap = __raw_uncore_read32(&dev_priv->uncore,
+							  HSW_EDRAM_CAP);
 
 		/* NB: We can't write IDICR yet because we do not have gt funcs
 		 * set up */
@@ -470,11 +470,11 @@ fpga_check_for_unclaimed_mmio(struct intel_uncore *uncore)
 {
 	u32 dbg;
 
-	dbg = __raw_i915_read32(uncore, FPGA_DBG);
+	dbg = __raw_uncore_read32(uncore, FPGA_DBG);
 	if (likely(!(dbg & FPGA_DBG_RM_NOCLAIM)))
 		return false;
 
-	__raw_i915_write32(uncore, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	__raw_uncore_write32(uncore, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 
 	return true;
 }
@@ -484,11 +484,11 @@ vlv_check_for_unclaimed_mmio(struct intel_uncore *uncore)
 {
 	u32 cer;
 
-	cer = __raw_i915_read32(uncore, CLAIM_ER);
+	cer = __raw_uncore_read32(uncore, CLAIM_ER);
 	if (likely(!(cer & (CLAIM_ER_OVERFLOW | CLAIM_ER_CTR_MASK))))
 		return false;
 
-	__raw_i915_write32(uncore, CLAIM_ER, CLAIM_ER_CLR);
+	__raw_uncore_write32(uncore, CLAIM_ER, CLAIM_ER_CLR);
 
 	return true;
 }
@@ -498,11 +498,11 @@ gen6_check_for_fifo_debug(struct intel_uncore *uncore)
 {
 	u32 fifodbg;
 
-	fifodbg = __raw_i915_read32(uncore, GTFIFODBG);
+	fifodbg = __raw_uncore_read32(uncore, GTFIFODBG);
 
 	if (unlikely(fifodbg)) {
 		DRM_DEBUG_DRIVER("GTFIFODBG = 0x08%x\n", fifodbg);
-		__raw_i915_write32(uncore, GTFIFODBG, fifodbg);
+		__raw_uncore_write32(uncore, GTFIFODBG, fifodbg);
 	}
 
 	return fifodbg;
@@ -537,10 +537,10 @@ static void __intel_uncore_early_sanitize(struct intel_uncore *uncore,
 
 	/* WaDisableShadowRegForCpd:chv */
 	if (IS_CHERRYVIEW(i915)) {
-		__raw_i915_write32(uncore, GTFIFOCTL,
-				   __raw_i915_read32(uncore, GTFIFOCTL) |
-				   GT_FIFO_CTL_BLOCK_ALL_POLICY_STALL |
-				   GT_FIFO_CTL_RC6_POLICY_STALL);
+		__raw_uncore_write32(uncore, GTFIFOCTL,
+				     __raw_uncore_read32(uncore, GTFIFOCTL) |
+				     GT_FIFO_CTL_BLOCK_ALL_POLICY_STALL |
+				     GT_FIFO_CTL_RC6_POLICY_STALL);
 	}
 
 	iosf_mbi_punit_acquire();
@@ -1068,7 +1068,7 @@ ilk_dummy_write(struct intel_uncore *uncore)
 	/* WaIssueDummyWriteToWakeupFromRC6:ilk Issue a dummy write to wake up
 	 * the chip from rc6 before touching it for real. MI_MODE is masked,
 	 * hence harmless to write 0 into. */
-	__raw_i915_write32(uncore, MI_MODE, 0);
+	__raw_uncore_write32(uncore, MI_MODE, 0);
 }
 
 static void
@@ -1110,7 +1110,7 @@ unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 static u##x \
 gen2_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	GEN2_READ_HEADER(x); \
-	val = __raw_i915_read##x(uncore, reg); \
+	val = __raw_uncore_read##x(uncore, reg); \
 	GEN2_READ_FOOTER; \
 }
 
@@ -1119,7 +1119,7 @@ static u##x \
 gen5_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	GEN2_READ_HEADER(x); \
 	ilk_dummy_write(uncore); \
-	val = __raw_i915_read##x(uncore, reg); \
+	val = __raw_uncore_read##x(uncore, reg); \
 	GEN2_READ_FOOTER; \
 }
 
@@ -1189,7 +1189,7 @@ func##_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { 
 	fw_engine = __##func##_reg_read_fw_domains(uncore, offset); \
 	if (fw_engine) \
 		__force_wake_auto(uncore, fw_engine); \
-	val = __raw_i915_read##x(uncore, reg); \
+	val = __raw_uncore_read##x(uncore, reg); \
 	GEN6_READ_FOOTER; \
 }
 #define __gen6_read(x) __gen_read(gen6, x)
@@ -1226,7 +1226,7 @@ __gen6_read(64)
 static void \
 gen2_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
 	GEN2_WRITE_HEADER; \
-	__raw_i915_write##x(uncore, reg, val); \
+	__raw_uncore_write##x(uncore, reg, val); \
 	GEN2_WRITE_FOOTER; \
 }
 
@@ -1235,7 +1235,7 @@ static void \
 gen5_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
 	GEN2_WRITE_HEADER; \
 	ilk_dummy_write(uncore); \
-	__raw_i915_write##x(uncore, reg, val); \
+	__raw_uncore_write##x(uncore, reg, val); \
 	GEN2_WRITE_FOOTER; \
 }
 
@@ -1271,7 +1271,7 @@ gen6_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 	GEN6_WRITE_HEADER; \
 	if (NEEDS_FORCE_WAKE(offset)) \
 		__gen6_gt_wait_for_fifo(uncore); \
-	__raw_i915_write##x(uncore, reg, val); \
+	__raw_uncore_write##x(uncore, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -1283,7 +1283,7 @@ func##_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, boo
 	fw_engine = __##func##_reg_write_fw_domains(uncore, offset); \
 	if (fw_engine) \
 		__force_wake_auto(uncore, fw_engine); \
-	__raw_i915_write##x(uncore, reg, val); \
+	__raw_uncore_write##x(uncore, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
 #define __gen8_write(x) __gen_write(gen8, x)
@@ -1470,7 +1470,7 @@ static void intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 		 * before the ecobus check.
 		 */
 
-		__raw_i915_write32(uncore, FORCEWAKE, 0);
+		__raw_uncore_write32(uncore, FORCEWAKE, 0);
 		__raw_posting_read(uncore, ECOBUS);
 
 		fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
@@ -1478,7 +1478,7 @@ static void intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 
 		spin_lock_irq(&uncore->lock);
 		fw_domains_get_with_thread_status(uncore, FORCEWAKE_RENDER);
-		ecobus = __raw_i915_read32(uncore, ECOBUS);
+		ecobus = __raw_uncore_read32(uncore, ECOBUS);
 		fw_domains_put(uncore, FORCEWAKE_RENDER);
 		spin_unlock_irq(&uncore->lock);
 
