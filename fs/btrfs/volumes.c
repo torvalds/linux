@@ -5038,7 +5038,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	} else {
 		btrfs_err(info, "invalid chunk type 0x%llx requested",
 		       type);
-		BUG_ON(1);
+		BUG();
 	}
 
 	/* We don't want a chunk larger than 10% of writable space */

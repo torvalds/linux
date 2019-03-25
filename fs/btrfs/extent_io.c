@@ -5786,13 +5786,13 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		btrfs_err(fs_info,
 			"memmove bogus src_offset %lu move len %lu dst len %lu",
 			 src_offset, len, dst->len);
-		BUG_ON(1);
+		BUG();
 	}
 	if (dst_offset + len > dst->len) {
 		btrfs_err(fs_info,
 			"memmove bogus dst_offset %lu move len %lu dst len %lu",
 			 dst_offset, len, dst->len);
-		BUG_ON(1);
+		BUG();
 	}
 
 	while (len > 0) {
@@ -5833,13 +5833,13 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		btrfs_err(fs_info,
 			  "memmove bogus src_offset %lu move len %lu len %lu",
 			  src_offset, len, dst->len);
-		BUG_ON(1);
+		BUG();
 	}
 	if (dst_offset + len > dst->len) {
 		btrfs_err(fs_info,
 			  "memmove bogus dst_offset %lu move len %lu len %lu",
 			  dst_offset, len, dst->len);
-		BUG_ON(1);
+		BUG();
 	}
 	if (dst_offset < src_offset) {
 		memcpy_extent_buffer(dst, dst_offset, src_offset, len);

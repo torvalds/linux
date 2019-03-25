@@ -4684,7 +4684,7 @@ void btrfs_extend_item(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		btrfs_print_leaf(leaf);
 		btrfs_crit(fs_info, "slot %d too large, nritems %d",
 			   slot, nritems);
-		BUG_ON(1);
+		BUG();
 	}
 
 	/*
@@ -4764,7 +4764,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 			btrfs_print_leaf(leaf);
 			btrfs_crit(fs_info, "slot %d old_data %d data_end %d",
 				   slot, old_data, data_end);
-			BUG_ON(1);
+			BUG();
 		}
 		/*
 		 * item0..itemN ... dataN.offset..dataN.size .. data0.size

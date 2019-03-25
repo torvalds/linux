@@ -1451,7 +1451,7 @@ next_slot:
 			extent_end = ALIGN(extent_end,
 					   fs_info->sectorsize);
 		} else {
-			BUG_ON(1);
+			BUG();
 		}
 out_check:
 		if (extent_end <= start) {
