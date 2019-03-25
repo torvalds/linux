@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
+#include <linux/fs_context.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
@@ -820,7 +821,7 @@ static const struct super_operations s_ops = {
 	.evict_inode	= bm_evict_inode,
 };
 
-static int bm_fill_super(struct super_block *sb, void *data, int silent)
+static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	int err;
 	static const struct tree_descr bm_files[] = {
@@ -835,10 +836,19 @@ static int bm_fill_super(struct super_block *sb, void *data, int silent)
 	return err;
 }
 
-static struct dentry *bm_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int bm_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, bm_fill_super);
+	return get_tree_single(fc, bm_fill_super);
+}
+
+static const struct fs_context_operations bm_context_ops = {
+	.get_tree	= bm_get_tree,
+};
+
+static int bm_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &bm_context_ops;
+	return 0;
 }
 
 static struct linux_binfmt misc_format = {
@@ -849,7 +859,7 @@ static struct linux_binfmt misc_format = {
 static struct file_system_type bm_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "binfmt_misc",
-	.mount		= bm_mount,
+	.init_fs_context = bm_init_fs_context,
 	.kill_sb	= kill_litter_super,
 };
 MODULE_ALIAS_FS("binfmt_misc");
