@@ -136,5 +136,5 @@ a high functionality RTC is integrated into the SOC.  That system might read
 the system clock from the discrete RTC, but use the integrated one for all
 other tasks, because of its greater functionality.
 
-Check out tools/testing/selftests/timers/rtctest.c for an example usage of the
+Check out tools/testing/selftests/rtc/rtctest.c for an example usage of the
 ioctl interface.
