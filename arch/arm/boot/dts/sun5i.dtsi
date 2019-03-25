@@ -275,6 +275,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon-pixel-clock";
+			#clock-cells = <0>;
 			status = "disabled";
 
 			ports {

@@ -185,6 +185,7 @@
 			clock-names = "ahb",
 				      "tcon-ch0";
 			clock-output-names = "tcon-pixel-clock";
+			#clock-cells = <0>;
 			resets = <&ccu RST_BUS_LCD>;
 			reset-names = "lcd";
 			status = "disabled";

@@ -406,6 +406,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon0-pixel-clock";
+			#clock-cells = <0>;
 			dmas = <&dma SUN4I_DMA_DEDICATED 14>;
 
 			ports {
@@ -455,6 +456,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon1-pixel-clock";
+			#clock-cells = <0>;
 			dmas = <&dma SUN4I_DMA_DEDICATED 15>;
 
 			ports {

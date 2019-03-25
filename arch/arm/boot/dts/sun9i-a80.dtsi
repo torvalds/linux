@@ -870,6 +870,7 @@
 			resets = <&ccu RST_BUS_LCD0>, <&ccu RST_BUS_EDP>;
 			reset-names = "lcd", "edp";
 			clock-output-names = "tcon0-pixel-clock";
+			#clock-cells = <0>;
 
 			ports {
 				#address-cells = <1>;
