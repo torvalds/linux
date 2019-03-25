@@ -298,6 +298,11 @@ static const struct of_device_id kirin_drm_dt_ids[] = {
 	  .data = &ade_driver_data,
 	},
 #endif
+#ifdef CONFIG_DRM_HISI_KIRIN960
+	{ .compatible = "hisilicon,hi3660-dpe",
+	  .data = &dpe_driver_data,
+	},
+#endif
 	{ /* end node */ },
 };
 MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);
