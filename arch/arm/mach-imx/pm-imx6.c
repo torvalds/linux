@@ -631,7 +631,7 @@ static void imx6_pm_stby_poweroff(void)
 static int imx6_pm_stby_poweroff_probe(void)
 {
 	if (pm_power_off) {
-		pr_warn("%s: pm_power_off already claimed  %p %pf!\n",
+		pr_warn("%s: pm_power_off already claimed  %p %ps!\n",
 			__func__, pm_power_off, pm_power_off);
 		return -EBUSY;
 	}

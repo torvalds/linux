@@ -513,7 +513,7 @@ repeat:
 		}
 		preempt_count_dec();
 		WARN_ONCE(preempt_count(),
-			  "cpu_stop: %pf(%p) leaked preempt count\n", fn, arg);
+			  "cpu_stop: %ps(%p) leaked preempt count\n", fn, arg);
 		goto repeat;
 	}
 }

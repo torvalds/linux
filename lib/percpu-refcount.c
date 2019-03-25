@@ -151,7 +151,7 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 	atomic_long_add((long)count - PERCPU_COUNT_BIAS, &ref->count);
 
 	WARN_ONCE(atomic_long_read(&ref->count) <= 0,
-		  "percpu ref (%pf) <= 0 (%ld) after switching to atomic",
+		  "percpu ref (%ps) <= 0 (%ld) after switching to atomic",
 		  ref->release, atomic_long_read(&ref->count));
 
 	/* @ref is viewed as dead on all CPUs, send out switch confirmation */
@@ -333,7 +333,7 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 	spin_lock_irqsave(&percpu_ref_switch_lock, flags);
 
 	WARN_ONCE(ref->percpu_count_ptr & __PERCPU_REF_DEAD,
-		  "%s called more than once on %pf!", __func__, ref->release);
+		  "%s called more than once on %ps!", __func__, ref->release);
 
 	ref->percpu_count_ptr |= __PERCPU_REF_DEAD;
 	__percpu_ref_switch_mode(ref, confirm_kill);

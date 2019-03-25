@@ -539,7 +539,7 @@ static int run_test_both_formats(test_func_t test_func, u32 sectorsize,
 	ret = run_test(test_func, 0, sectorsize, nodesize, alignment);
 	if (ret) {
 		test_err(
-	"%pf failed with extents, sectorsize=%u, nodesize=%u, alignment=%u",
+	"%ps failed with extents, sectorsize=%u, nodesize=%u, alignment=%u",
 			 test_func, sectorsize, nodesize, alignment);
 		test_ret = ret;
 	}
@@ -547,7 +547,7 @@ static int run_test_both_formats(test_func_t test_func, u32 sectorsize,
 	ret = run_test(test_func, 1, sectorsize, nodesize, alignment);
 	if (ret) {
 		test_err(
-	"%pf failed with bitmaps, sectorsize=%u, nodesize=%u, alignment=%u",
+	"%ps failed with bitmaps, sectorsize=%u, nodesize=%u, alignment=%u",
 			 test_func, sectorsize, nodesize, alignment);
 		test_ret = ret;
 	}

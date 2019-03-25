@@ -491,7 +491,7 @@ TRACE_EVENT(rcu_callback,
 		__entry->qlen = qlen;
 	),
 
-	TP_printk("%s rhp=%p func=%pf %ld/%ld",
+	TP_printk("%s rhp=%p func=%ps %ld/%ld",
 		  __entry->rcuname, __entry->rhp, __entry->func,
 		  __entry->qlen_lazy, __entry->qlen)
 );
@@ -587,7 +587,7 @@ TRACE_EVENT(rcu_invoke_callback,
 		__entry->func = rhp->func;
 	),
 
-	TP_printk("%s rhp=%p func=%pf",
+	TP_printk("%s rhp=%p func=%ps",
 		  __entry->rcuname, __entry->rhp, __entry->func)
 );
 

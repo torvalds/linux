@@ -102,7 +102,7 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 		__entry->flags = task->tk_flags;
 		),
 
-	TP_printk("task:%u@%d flags=%4.4x state=%4.4lx status=%d action=%pf",
+	TP_printk("task:%u@%d flags=%4.4x state=%4.4lx status=%d action=%ps",
 		__entry->task_id, __entry->client_id,
 		__entry->flags,
 		__entry->runstate,

@@ -152,7 +152,7 @@ static int irq_debug_show(struct seq_file *m, void *p)
 
 	raw_spin_lock_irq(&desc->lock);
 	data = irq_desc_get_irq_data(desc);
-	seq_printf(m, "handler:  %pf\n", desc->handle_irq);
+	seq_printf(m, "handler:  %ps\n", desc->handle_irq);
 	seq_printf(m, "device:   %s\n", desc->dev_name);
 	seq_printf(m, "status:   0x%08x\n", desc->status_use_accessors);
 	irq_debug_show_bits(m, 0, desc->status_use_accessors, irqdesc_states,

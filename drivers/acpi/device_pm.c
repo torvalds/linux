@@ -414,7 +414,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 	if (adev->wakeup.flags.notifier_present) {
 		pm_wakeup_ws_event(adev->wakeup.ws, 0, acpi_s2idle_wakeup());
 		if (adev->wakeup.context.func) {
-			acpi_handle_debug(handle, "Running %pF for %s\n",
+			acpi_handle_debug(handle, "Running %pS for %s\n",
 					  adev->wakeup.context.func,
 					  dev_name(adev->wakeup.context.dev));
 			adev->wakeup.context.func(&adev->wakeup.context);

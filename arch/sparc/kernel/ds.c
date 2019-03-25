@@ -876,7 +876,7 @@ void ldom_power_off(void)
 
 static void ds_conn_reset(struct ds_info *dp)
 {
-	printk(KERN_ERR "ds-%llu: ds_conn_reset() from %pf\n",
+	printk(KERN_ERR "ds-%llu: ds_conn_reset() from %ps\n",
 	       dp->id, __builtin_return_address(0));
 }
 
