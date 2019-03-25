@@ -567,4 +567,12 @@ config MTD_NAND_ROCKCHIP_V6
 	help
 	  Enables support for NAND controller V6 on Rockchip SoC.
 
+config MTD_NAND_ROCKCHIP_V9
+	tristate "Support for NAND controller V9 on Rockchip SoC"
+	default n
+	depends on ARCH_ROCKCHIP
+	help
+	  Enables support for NAND controller V9 on Rockchip
+	  SoC(RK3326,RKPX30).
+
 endif # MTD_NAND
