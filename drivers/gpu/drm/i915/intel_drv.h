@@ -2269,18 +2269,24 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices);
 
 static inline void
-assert_rpm_device_not_suspended(struct drm_i915_private *i915)
+assert_rpm_device_not_suspended(struct i915_runtime_pm *rpm)
 {
-	WARN_ONCE(i915->runtime_pm.suspended,
+	WARN_ONCE(rpm->suspended,
 		  "Device suspended during HW access\n");
+}
+
+static inline void
+__assert_rpm_wakelock_held(struct i915_runtime_pm *rpm)
+{
+	assert_rpm_device_not_suspended(rpm);
+	WARN_ONCE(!atomic_read(&rpm->wakeref_count),
+		  "RPM wakelock ref not held during HW access");
 }
 
 static inline void
 assert_rpm_wakelock_held(struct drm_i915_private *i915)
 {
-	assert_rpm_device_not_suspended(i915);
-	WARN_ONCE(!atomic_read(&i915->runtime_pm.wakeref_count),
-		  "RPM wakelock ref not held during HW access");
+	__assert_rpm_wakelock_held(&i915->runtime_pm);
 }
 
 /**

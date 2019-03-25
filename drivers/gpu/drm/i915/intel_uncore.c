@@ -342,7 +342,7 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	struct intel_uncore *uncore = forcewake_domain_to_uncore(domain);
 	unsigned long irqflags;
 
-	assert_rpm_device_not_suspended(uncore_to_i915(uncore));
+	assert_rpm_device_not_suspended(uncore->rpm);
 
 	if (xchg(&domain->active, false))
 		return HRTIMER_RESTART;
@@ -623,7 +623,7 @@ void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 	if (!uncore->funcs.force_wake_get)
 		return;
 
-	assert_rpm_wakelock_held(uncore_to_i915(uncore));
+	__assert_rpm_wakelock_held(uncore->rpm);
 
 	spin_lock_irqsave(&uncore->lock, irqflags);
 	__intel_uncore_forcewake_get(uncore, fw_domains);
@@ -777,7 +777,7 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 	if (!uncore->funcs.force_wake_get)
 		return;
 
-	assert_rpm_wakelock_held(uncore_to_i915(uncore));
+	__assert_rpm_wakelock_held(uncore->rpm);
 
 	fw_domains &= uncore->fw_domains;
 	WARN(fw_domains & ~uncore->fw_domains_active,
@@ -1095,7 +1095,7 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 #define GEN2_READ_HEADER(x) \
 	struct intel_uncore *uncore = &dev_priv->uncore; \
 	u##x val = 0; \
-	assert_rpm_wakelock_held(dev_priv);
+	__assert_rpm_wakelock_held(uncore->rpm);
 
 #define GEN2_READ_FOOTER \
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
@@ -1138,7 +1138,7 @@ __gen2_read(64)
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	u##x val = 0; \
-	assert_rpm_wakelock_held(dev_priv); \
+	__assert_rpm_wakelock_held(uncore->rpm); \
 	spin_lock_irqsave(&uncore->lock, irqflags); \
 	unclaimed_reg_debug(uncore, reg, true, true)
 
@@ -1213,7 +1213,7 @@ __gen6_read(64)
 #define GEN2_WRITE_HEADER \
 	struct intel_uncore *uncore = &dev_priv->uncore; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
-	assert_rpm_wakelock_held(dev_priv); \
+	__assert_rpm_wakelock_held(uncore->rpm); \
 
 #define GEN2_WRITE_FOOTER
 
@@ -1252,7 +1252,7 @@ __gen2_write(32)
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
-	assert_rpm_wakelock_held(dev_priv); \
+	__assert_rpm_wakelock_held(uncore->rpm); \
 	spin_lock_irqsave(&uncore->lock, irqflags); \
 	unclaimed_reg_debug(uncore, reg, false, true)
 
@@ -1595,6 +1595,8 @@ int intel_uncore_init(struct intel_uncore *uncore)
 	uncore->unclaimed_mmio_check = 1;
 	uncore->pmic_bus_access_nb.notifier_call =
 		i915_pmic_bus_access_notifier;
+
+	uncore->rpm = &i915->runtime_pm;
 
 	if (!intel_uncore_has_forcewake(uncore)) {
 		if (IS_GEN(i915, 5)) {
