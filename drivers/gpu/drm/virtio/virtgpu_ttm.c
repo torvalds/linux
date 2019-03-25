@@ -116,10 +116,6 @@ static const struct ttm_mem_type_manager_func virtio_gpu_bo_manager_func = {
 static int virtio_gpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				    struct ttm_mem_type_manager *man)
 {
-	struct virtio_gpu_device *vgdev;
-
-	vgdev = virtio_gpu_get_vgdev(bdev);
-
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
@@ -299,10 +295,8 @@ static void virtio_gpu_bo_move_notify(struct ttm_buffer_object *tbo,
 static void virtio_gpu_bo_swap_notify(struct ttm_buffer_object *tbo)
 {
 	struct virtio_gpu_object *bo;
-	struct virtio_gpu_device *vgdev;
 
 	bo = container_of(tbo, struct virtio_gpu_object, tbo);
-	vgdev = (struct virtio_gpu_device *)bo->gem_base.dev->dev_private;
 
 	if (bo->pages)
 		virtio_gpu_object_free_sg_table(bo);
