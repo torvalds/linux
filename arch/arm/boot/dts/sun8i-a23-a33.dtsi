@@ -170,7 +170,7 @@
 			resets = <&ccu RST_BUS_NAND>;
 			reset-names = "ahb";
 			pinctrl-names = "default";
-			pinctrl-0 = <&nand_pins &nand_pins_cs0 &nand_pins_rb0>;
+			pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -394,25 +394,25 @@
 				function = "nand0";
 			};
 
-			nand_pins_cs0: nand-pins-cs0 {
+			nand_cs0_pin: nand-cs0-pin {
 				pins = "PC4";
 				function = "nand0";
 				bias-pull-up;
 			};
 
-			nand_pins_cs1: nand-pins-cs1 {
+			nand_cs1_pin: nand-cs1-pin {
 				pins = "PC3";
 				function = "nand0";
 				bias-pull-up;
 			};
 
-			nand_pins_rb0: nand-pins-rb0 {
+			nand_rb0_pin: nand-rb0-pin {
 				pins = "PC6";
 				function = "nand0";
 				bias-pull-up;
 			};
 
-			nand_pins_rb1: nand-pins-rb1 {
+			nand_rb1_pin: nand-rb1-pin {
 				pins = "PC7";
 				function = "nand0";
 				bias-pull-up;
