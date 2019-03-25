@@ -146,7 +146,7 @@ properties:
           - const: google,gru
           - const: rockchip,rk3399
 
-      - description: Google Jaq (Haier Chromebook 11 and more)
+      - description: Google Jaq (Haier Chromebook 11 and more w/ uSD)
         items:
           - const: google,veyron-jaq-rev5
           - const: google,veyron-jaq-rev4
@@ -202,6 +202,17 @@ properties:
           - const: google,veyron-mickey-rev1
           - const: google,veyron-mickey-rev0
           - const: google,veyron-mickey
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Mighty (Haier Chromebook 11 and more w/ SD)
+        items:
+          - const: google,veyron-mighty-rev5
+          - const: google,veyron-mighty-rev4
+          - const: google,veyron-mighty-rev3
+          - const: google,veyron-mighty-rev2
+          - const: google,veyron-mighty-rev1
+          - const: google,veyron-mighty
           - const: google,veyron
           - const: rockchip,rk3288
 
