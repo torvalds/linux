@@ -14,6 +14,7 @@ can-dev-y			+= rx-offload.o
 can-dev-$(CONFIG_CAN_LEDS)	+= led.o
 
 obj-y				+= rcar/
+obj-y				+= rockchip/
 obj-y				+= spi/
 obj-y				+= usb/
 obj-y				+= softing/
