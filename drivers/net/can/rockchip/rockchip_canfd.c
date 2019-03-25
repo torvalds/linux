@@ -1038,4 +1038,5 @@ static struct platform_driver rockchip_canfd_driver = {
 module_platform_driver(rockchip_canfd_driver);
 
 MODULE_AUTHOR("Elaine Zhang <zhangqing@rock-chips.com>");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Rockchip CANFD Drivers");
