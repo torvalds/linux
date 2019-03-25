@@ -519,7 +519,7 @@ int carl9170_set_mac_tpc(struct ar9170 *ar, struct ieee80211_channel *channel)
 		power = ar->power_5G_leg[0] & 0x3f;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 	}
 
 	power = min_t(unsigned int, power, ar->hw->conf.power_level * 2);
