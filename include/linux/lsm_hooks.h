@@ -447,7 +447,7 @@
  *
  * Security hooks for kernfs node operations
  *
- * @kernfs_init_security
+ * @kernfs_init_security:
  *	Initialize the security context of a newly created kernfs node based
  *	on its own and its parent's attributes.
  *
