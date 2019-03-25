@@ -303,6 +303,7 @@ struct amdgpu_vm_manager {
 	const struct amdgpu_vm_pte_funcs	*vm_pte_funcs;
 	struct drm_sched_rq			*vm_pte_rqs[AMDGPU_MAX_RINGS];
 	unsigned				vm_pte_num_rqs;
+	struct amdgpu_ring			*page_fault;
 
 	/* partial resident texture handling */
 	spinlock_t				prt_lock;

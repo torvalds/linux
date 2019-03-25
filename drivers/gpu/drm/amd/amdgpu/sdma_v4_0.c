@@ -2291,6 +2291,7 @@ static void sdma_v4_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 				&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
 		}
 		adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances - 1;
+		adev->vm_manager.page_fault = &adev->sdma.instance[0].page;
 	} else {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
 			sched = &adev->sdma.instance[i].ring.sched;
