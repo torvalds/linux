@@ -596,12 +596,12 @@
 				function = "csi";
 			};
 
-			i2c0_pins: i2c0_pins {
+			i2c0_pins: i2c0-pins {
 				pins = "PH0", "PH1";
 				function = "i2c0";
 			};
 
-			i2c1_pins: i2c1_pins {
+			i2c1_pins: i2c1-pins {
 				pins = "PH2", "PH3";
 				function = "i2c1";
 			};
@@ -638,19 +638,19 @@
 				bias-pull-up;
 			};
 
-			pwm_pin: pwm_pin {
+			pwm_pin: pwm-pin {
 				pins = "PD22";
 				function = "pwm";
 			};
 
-			rmii_pins: rmii_pins {
+			rmii_pins: rmii-pins {
 				pins = "PD10", "PD11", "PD13", "PD14", "PD17",
 				       "PD18", "PD19", "PD20", "PD22", "PD23";
 				function = "emac";
 				drive-strength = <40>;
 			};
 
-			rgmii_pins: rgmii_pins {
+			rgmii_pins: rgmii-pins {
 				pins = "PD8", "PD9", "PD10", "PD11", "PD12",
 				       "PD13", "PD15", "PD16", "PD17", "PD18",
 				       "PD19", "PD20", "PD21", "PD22", "PD23";
@@ -658,17 +658,17 @@
 				drive-strength = <40>;
 			};
 
-			spdif_tx_pin: spdif {
+			spdif_tx_pin: spdif-tx-pin {
 				pins = "PH8";
 				function = "spdif";
 			};
 
-			spi0_pins: spi0 {
+			spi0_pins: spi0-pins {
 				pins = "PC0", "PC1", "PC2", "PC3";
 				function = "spi0";
 			};
 
-			spi1_pins: spi1 {
+			spi1_pins: spi1-pins {
 				pins = "PD0", "PD1", "PD2", "PD3";
 				function = "spi1";
 			};
@@ -678,12 +678,12 @@
 				function = "uart0";
 			};
 
-			uart1_pins: uart1_pins {
+			uart1_pins: uart1-pins {
 				pins = "PG6", "PG7";
 				function = "uart1";
 			};
 
-			uart1_rts_cts_pins: uart1_rts_cts_pins {
+			uart1_rts_cts_pins: uart1-rts-cts-pins {
 				pins = "PG8", "PG9";
 				function = "uart1";
 			};
@@ -1095,12 +1095,12 @@
 				function = "s_i2c";
 			};
 
-			r_pwm_pin: pwm {
+			r_pwm_pin: r-pwm-pin {
 				pins = "PL10";
 				function = "s_pwm";
 			};
 
-			r_rsb_pins: rsb {
+			r_rsb_pins: r-rsb-pins {
 				pins = "PL0", "PL1";
 				function = "s_rsb";
 			};

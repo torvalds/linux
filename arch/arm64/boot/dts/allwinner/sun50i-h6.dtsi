@@ -217,7 +217,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			ext_rgmii_pins: rgmii_pins {
+			ext_rgmii_pins: rgmii-pins {
 				pins = "PD0", "PD1", "PD2", "PD3", "PD4",
 				       "PD5", "PD7", "PD8", "PD9", "PD10",
 				       "PD11", "PD12", "PD13", "PD19", "PD20";
@@ -247,7 +247,7 @@
 				bias-pull-up;
 			};
 
-			uart0_ph_pins: uart0-ph {
+			uart0_ph_pins: uart0-ph-pins {
 				pins = "PH0", "PH1";
 				function = "uart0";
 			};
@@ -625,7 +625,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			r_i2c_pins: r-i2c {
+			r_i2c_pins: r-i2c-pins {
 				pins = "PL0", "PL1";
 				function = "s_i2c";
 			};
