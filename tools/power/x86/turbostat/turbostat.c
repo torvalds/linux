@@ -166,6 +166,7 @@ size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
 struct thread_data {
 	struct timeval tv_begin;
 	struct timeval tv_end;
+	struct timeval tv_delta;
 	unsigned long long tsc;
 	unsigned long long aperf;
 	unsigned long long mperf;
@@ -910,7 +911,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (DO_BIC(BIC_TOD))
 		outp += sprintf(outp, "%10ld.%06ld\t", t->tv_end.tv_sec, t->tv_end.tv_usec);
 
-	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
+	interval_float = t->tv_delta.tv_sec + t->tv_delta.tv_usec/1000000.0;
 
 	tsc = t->tsc * tsc_tweak;
 
@@ -1308,6 +1309,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	 * over-write old w/ new so we can print end of interval values
 	 */
 
+	timersub(&new->tv_begin, &old->tv_begin, &old->tv_delta);
 	old->tv_begin = new->tv_begin;
 	old->tv_end = new->tv_end;
 
@@ -1403,6 +1405,8 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	t->tv_begin.tv_usec = 0;
 	t->tv_end.tv_sec = 0;
 	t->tv_end.tv_usec = 0;
+	t->tv_delta.tv_sec = 0;
+	t->tv_delta.tv_usec = 0;
 
 	t->tsc = 0;
 	t->aperf = 0;
@@ -1571,6 +1575,9 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	clear_counters(&average.threads, &average.cores, &average.packages);
 
 	for_all_cpus(sum_counters, t, c, p);
+
+	/* Use the global time delta for the average. */
+	average.threads.tv_delta = tv_delta;
 
 	average.threads.tsc /= topo.num_cpus;
 	average.threads.aperf /= topo.num_cpus;
@@ -1761,12 +1768,12 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	struct msr_counter *mp;
 	int i;
 
-	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
-
 	if (cpu_migrate(cpu)) {
 		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
+
+	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
 
 	if (first_counter_read)
 		get_apic_id(t);
