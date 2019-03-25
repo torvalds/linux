@@ -47,7 +47,7 @@ static int flush_racache(struct inode *inode)
  */
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
     loff_t *offset, struct iov_iter *iter, size_t total_size,
-    loff_t readahead_size, struct orangefs_write_range *wr)
+    loff_t readahead_size, struct orangefs_write_range *wr, int *index_return)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
