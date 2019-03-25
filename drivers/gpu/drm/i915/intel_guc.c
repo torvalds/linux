@@ -565,7 +565,7 @@ static int guc_sleep_state_action(struct intel_guc *guc,
 	if (ret)
 		return ret;
 
-	ret = __intel_wait_for_register(dev_priv, SOFT_SCRATCH(14),
+	ret = __intel_wait_for_register(&dev_priv->uncore, SOFT_SCRATCH(14),
 					INTEL_GUC_SLEEP_STATE_INVALID_MASK,
 					0, 0, 10, &status);
 	if (ret)

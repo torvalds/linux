@@ -3046,7 +3046,7 @@ static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 	val |= DP_TP_CTL_FEC_ENABLE;
 	I915_WRITE(DP_TP_CTL(port), val);
 
-	if (intel_wait_for_register(dev_priv, DP_TP_STATUS(port),
+	if (intel_wait_for_register(&dev_priv->uncore, DP_TP_STATUS(port),
 				    DP_TP_STATUS_FEC_ENABLE_LIVE,
 				    DP_TP_STATUS_FEC_ENABLE_LIVE,
 				    1))

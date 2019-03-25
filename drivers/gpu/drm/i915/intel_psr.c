@@ -834,8 +834,8 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	}
 
 	/* Wait till PSR is idle */
-	if (intel_wait_for_register(dev_priv, psr_status, psr_status_mask, 0,
-				    2000))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    psr_status, psr_status_mask, 0, 2000))
 		DRM_ERROR("Timed out waiting PSR idle state\n");
 
 	/* Disable PSR on Sink */
@@ -956,7 +956,7 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 	 * defensive enough to cover everything.
 	 */
 
-	return __intel_wait_for_register(dev_priv, EDP_PSR_STATUS,
+	return __intel_wait_for_register(&dev_priv->uncore, EDP_PSR_STATUS,
 					 EDP_PSR_STATUS_STATE_MASK,
 					 EDP_PSR_STATUS_STATE_IDLE, 2, 50,
 					 out_value);
@@ -981,7 +981,7 @@ static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 
 	mutex_unlock(&dev_priv->psr.lock);
 
-	err = intel_wait_for_register(dev_priv, reg, mask, 0, 50);
+	err = intel_wait_for_register(&dev_priv->uncore, reg, mask, 0, 50);
 	if (err)
 		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 

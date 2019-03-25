@@ -565,7 +565,7 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 	int pw_idx = power_well->desc->hsw.idx;
 
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
-	WARN_ON(intel_wait_for_register(dev_priv,
+	WARN_ON(intel_wait_for_register(&dev_priv->uncore,
 					regs->driver,
 					HSW_PWR_WELL_CTL_STATE(pw_idx),
 					HSW_PWR_WELL_CTL_STATE(pw_idx),
@@ -620,7 +620,7 @@ static void gen9_wait_for_power_well_fuses(struct drm_i915_private *dev_priv,
 					   enum skl_power_gate pg)
 {
 	/* Timeout 5us for PG#0, for other PGs 1us */
-	WARN_ON(intel_wait_for_register(dev_priv, SKL_FUSE_STATUS,
+	WARN_ON(intel_wait_for_register(&dev_priv->uncore, SKL_FUSE_STATUS,
 					SKL_FUSE_PG_DIST_STATUS(pg),
 					SKL_FUSE_PG_DIST_STATUS(pg), 1));
 }
@@ -1521,7 +1521,7 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	 * The PHY may be busy with some initial calibration and whatnot,
 	 * so the power state can take a while to actually change.
 	 */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DISPLAY_PHY_STATUS,
 				    phy_status_mask,
 				    phy_status,
@@ -1556,7 +1556,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, true);
 
 	/* Poll for phypwrgood signal */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DISPLAY_PHY_STATUS,
 				    PHY_POWERGOOD(phy),
 				    PHY_POWERGOOD(phy),

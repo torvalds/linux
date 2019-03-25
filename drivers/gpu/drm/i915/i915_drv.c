@@ -2687,7 +2687,7 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 	if (!force_on)
 		return 0;
 
-	err = intel_wait_for_register(dev_priv,
+	err = intel_wait_for_register(&dev_priv->uncore,
 				      VLV_GTLC_SURVIVABILITY_REG,
 				      VLV_GFX_CLK_STATUS_BIT,
 				      VLV_GFX_CLK_STATUS_BIT,

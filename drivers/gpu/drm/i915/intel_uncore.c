@@ -1831,15 +1831,14 @@ int __intel_wait_for_register_fw(struct intel_uncore *uncore,
  *
  * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
  */
-int __intel_wait_for_register(struct drm_i915_private *dev_priv,
-			    i915_reg_t reg,
-			    u32 mask,
-			    u32 value,
-			    unsigned int fast_timeout_us,
-			    unsigned int slow_timeout_ms,
-			    u32 *out_value)
+int __intel_wait_for_register(struct intel_uncore *uncore,
+			      i915_reg_t reg,
+			      u32 mask,
+			      u32 value,
+			      unsigned int fast_timeout_us,
+			      unsigned int slow_timeout_ms,
+			      u32 *out_value)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned fw =
 		intel_uncore_forcewake_for_reg(uncore, reg, FW_REG_READ);
 	u32 reg_value;

@@ -965,7 +965,7 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) | LCPLL_PLL_ENABLE);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    LCPLL1_CTL, LCPLL_PLL_LOCK, LCPLL_PLL_LOCK,
 				    5))
 		DRM_ERROR("DPLL0 not locked\n");
@@ -979,9 +979,9 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 static void skl_dpll0_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
-	if (intel_wait_for_register(dev_priv,
-				   LCPLL1_CTL, LCPLL_PLL_LOCK, 0,
-				   1))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    LCPLL1_CTL, LCPLL_PLL_LOCK, 0,
+				    1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
 
 	dev_priv->cdclk.hw.vco = 0;
@@ -1324,7 +1324,7 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 0,
 				    1))
 		DRM_ERROR("timeout waiting for DE PLL unlock\n");
@@ -1345,7 +1345,7 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
 
 	/* Timeout 200us */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    BXT_DE_PLL_ENABLE,
 				    BXT_DE_PLL_LOCK,
 				    BXT_DE_PLL_LOCK,

@@ -289,7 +289,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DP_TP_STATUS(port),
 				    DP_TP_STATUS_ACT_SENT,
 				    DP_TP_STATUS_ACT_SENT,

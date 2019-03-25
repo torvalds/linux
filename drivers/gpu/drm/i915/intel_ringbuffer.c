@@ -586,7 +586,7 @@ static void flush_cs_tlb(struct intel_engine_cs *engine)
 	I915_WRITE(instpm,
 		   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
 				      INSTPM_SYNC_FLUSH));
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    instpm, INSTPM_SYNC_FLUSH, 0,
 				    1000))
 		DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
@@ -607,7 +607,7 @@ static bool stop_ring(struct intel_engine_cs *engine)
 
 	if (INTEL_GEN(dev_priv) > 2) {
 		I915_WRITE_MODE(engine, _MASKED_BIT_ENABLE(STOP_RING));
-		if (intel_wait_for_register(dev_priv,
+		if (intel_wait_for_register(&dev_priv->uncore,
 					    RING_MI_MODE(engine->mmio_base),
 					    MODE_IDLE,
 					    MODE_IDLE,
@@ -699,7 +699,8 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	I915_WRITE_CTL(engine, RING_CTL_SIZE(ring->size) | RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
-	if (intel_wait_for_register(dev_priv, RING_CTL(engine->mmio_base),
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    RING_CTL(engine->mmio_base),
 				    RING_VALID, RING_VALID,
 				    50)) {
 		DRM_ERROR("%s initialization failed "

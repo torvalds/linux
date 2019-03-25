@@ -1920,10 +1920,10 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 
 static void gen7_oa_disable(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_uncore *uncore = &stream->dev_priv->uncore;
 
-	I915_WRITE(GEN7_OACONTROL, 0);
-	if (intel_wait_for_register(dev_priv,
+	intel_uncore_write(uncore, GEN7_OACONTROL, 0);
+	if (intel_wait_for_register(uncore,
 				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
 				    50))
 		DRM_ERROR("wait for OA to be disabled timed out\n");
@@ -1931,10 +1931,10 @@ static void gen7_oa_disable(struct i915_perf_stream *stream)
 
 static void gen8_oa_disable(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_uncore *uncore = &stream->dev_priv->uncore;
 
-	I915_WRITE(GEN8_OACONTROL, 0);
-	if (intel_wait_for_register(dev_priv,
+	intel_uncore_write(uncore, GEN8_OACONTROL, 0);
+	if (intel_wait_for_register(uncore,
 				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
 				    50))
 		DRM_ERROR("wait for OA to be disabled timed out\n");

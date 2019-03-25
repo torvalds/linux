@@ -213,7 +213,7 @@ void intel_uncore_forcewake_put__locked(struct intel_uncore *uncore,
 void intel_uncore_forcewake_user_get(struct intel_uncore *uncore);
 void intel_uncore_forcewake_user_put(struct intel_uncore *uncore);
 
-int __intel_wait_for_register(struct drm_i915_private *dev_priv,
+int __intel_wait_for_register(struct intel_uncore *uncore,
 			      i915_reg_t reg,
 			      u32 mask,
 			      u32 value,
@@ -221,13 +221,13 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 			      unsigned int slow_timeout_ms,
 			      u32 *out_value);
 static inline int
-intel_wait_for_register(struct drm_i915_private *dev_priv,
+intel_wait_for_register(struct intel_uncore *uncore,
 			i915_reg_t reg,
 			u32 mask,
 			u32 value,
 			unsigned int timeout_ms)
 {
-	return __intel_wait_for_register(dev_priv, reg, mask, value, 2,
+	return __intel_wait_for_register(uncore, reg, mask, value, 2,
 					 timeout_ms, NULL);
 }
 
