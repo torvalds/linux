@@ -211,7 +211,8 @@ static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 			ASIC_REV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
 
 		vupdate_line = get_vupdate_offset_from_vsync(pipe_ctx);
-		dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos);
+		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))
+			return;
 
 		if (vpos >= vupdate_line)
 			return;
