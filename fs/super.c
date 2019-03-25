@@ -540,6 +540,7 @@ retry:
 	}
 	fc->s_fs_info = NULL;
 	s->s_type = fc->fs_type;
+	s->s_iflags |= fc->s_iflags;
 	strlcpy(s->s_id, s->s_type->name, sizeof(s->s_id));
 	list_add_tail(&s->s_list, &super_blocks);
 	hlist_add_head(&s->s_instances, &s->s_type->fs_supers);
