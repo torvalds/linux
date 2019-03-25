@@ -817,20 +817,20 @@ u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_uncore *uncore = &engine->i915->uncore;
 	const u32 base = engine->mmio_base;
 	const i915_reg_t mode = RING_MI_MODE(base);
 	int err;
 
-	if (INTEL_GEN(dev_priv) < 3)
+	if (INTEL_GEN(engine->i915) < 3)
 		return -ENODEV;
 
 	GEM_TRACE("%s\n", engine->name);
 
-	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
+	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
 
 	err = 0;
-	if (__intel_wait_for_register_fw(dev_priv,
+	if (__intel_wait_for_register_fw(uncore,
 					 mode, MODE_IDLE, MODE_IDLE,
 					 1000, 0,
 					 NULL)) {
@@ -839,7 +839,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	}
 
 	/* A final mmio read to let GPU writes be hopefully flushed to memory */
-	POSTING_READ_FW(mode);
+	intel_uncore_posting_read_fw(uncore, mode);
 
 	return err;
 }

@@ -2051,23 +2051,23 @@ int intel_ring_cacheline_align(struct i915_request *rq)
 
 static void gen6_bsd_submit_request(struct i915_request *request)
 {
-	struct drm_i915_private *dev_priv = request->i915;
+	struct intel_uncore *uncore = &request->i915->uncore;
 
-	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
        /* Every tail move must follow the sequence below */
 
 	/* Disable notification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
-	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
-		      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
+			      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 
 	/* Clear the context id. Here be magic! */
-	I915_WRITE64_FW(GEN6_BSD_RNCID, 0x0);
+	intel_uncore_write64_fw(uncore, GEN6_BSD_RNCID, 0x0);
 
 	/* Wait for the ring not to be idle, i.e. for it to wake up. */
-	if (__intel_wait_for_register_fw(dev_priv,
+	if (__intel_wait_for_register_fw(uncore,
 					 GEN6_BSD_SLEEP_PSMI_CONTROL,
 					 GEN6_BSD_SLEEP_INDICATOR,
 					 0,
@@ -2080,10 +2080,10 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Let the ring send IDLE messages to the GT again,
 	 * and so let it sleep to conserve power when idle.
 	 */
-	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
-		      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
+			      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 
-	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 }
 
 static int mi_flush_dw(struct i915_request *rq, u32 flags)

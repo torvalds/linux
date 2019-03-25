@@ -398,6 +398,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 status;
 	int i;
 	int ret;
@@ -414,12 +415,12 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 		*action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
 
 	mutex_lock(&guc->send_mutex);
-	intel_uncore_forcewake_get(&dev_priv->uncore, guc->send_regs.fw_domains);
+	intel_uncore_forcewake_get(uncore, guc->send_regs.fw_domains);
 
 	for (i = 0; i < len; i++)
-		I915_WRITE(guc_send_reg(guc, i), action[i]);
+		intel_uncore_write(uncore, guc_send_reg(guc, i), action[i]);
 
-	POSTING_READ(guc_send_reg(guc, i - 1));
+	intel_uncore_posting_read(uncore, guc_send_reg(guc, i - 1));
 
 	intel_guc_notify(guc);
 
@@ -427,7 +428,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 	 * No GuC command should ever take longer than 10ms.
 	 * Fast commands should still complete in 10us.
 	 */
-	ret = __intel_wait_for_register_fw(dev_priv,
+	ret = __intel_wait_for_register_fw(uncore,
 					   guc_send_reg(guc, 0),
 					   INTEL_GUC_MSG_TYPE_MASK,
 					   INTEL_GUC_MSG_TYPE_RESPONSE <<
@@ -454,7 +455,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 	ret = INTEL_GUC_MSG_TO_DATA(status);
 
 out:
-	intel_uncore_forcewake_put(&dev_priv->uncore, guc->send_regs.fw_domains);
+	intel_uncore_forcewake_put(uncore, guc->send_regs.fw_domains);
 	mutex_unlock(&guc->send_mutex);
 
 	return ret;

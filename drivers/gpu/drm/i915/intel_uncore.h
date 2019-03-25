@@ -220,31 +220,32 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 			      unsigned int fast_timeout_us,
 			      unsigned int slow_timeout_ms,
 			      u32 *out_value);
-static inline
-int intel_wait_for_register(struct drm_i915_private *dev_priv,
-			    i915_reg_t reg,
-			    u32 mask,
-			    u32 value,
-			    unsigned int timeout_ms)
+static inline int
+intel_wait_for_register(struct drm_i915_private *dev_priv,
+			i915_reg_t reg,
+			u32 mask,
+			u32 value,
+			unsigned int timeout_ms)
 {
 	return __intel_wait_for_register(dev_priv, reg, mask, value, 2,
 					 timeout_ms, NULL);
 }
-int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
+
+int __intel_wait_for_register_fw(struct intel_uncore *uncore,
 				 i915_reg_t reg,
 				 u32 mask,
 				 u32 value,
 				 unsigned int fast_timeout_us,
 				 unsigned int slow_timeout_ms,
 				 u32 *out_value);
-static inline
-int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
-			       i915_reg_t reg,
-			       u32 mask,
-			       u32 value,
+static inline int
+intel_wait_for_register_fw(struct intel_uncore *uncore,
+			   i915_reg_t reg,
+			   u32 mask,
+			   u32 value,
 			       unsigned int timeout_ms)
 {
-	return __intel_wait_for_register_fw(dev_priv, reg, mask, value,
+	return __intel_wait_for_register_fw(uncore, reg, mask, value,
 					    2, timeout_ms, NULL);
 }
 
@@ -366,6 +367,13 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 #define intel_uncore_write_fw(...) __raw_uncore_write32(__VA_ARGS__)
 #define intel_uncore_write64_fw(...) __raw_uncore_write64(__VA_ARGS__)
 #define intel_uncore_posting_read_fw(...) ((void)intel_uncore_read_fw(__VA_ARGS__))
+
+static inline void intel_uncore_rmw_or_fw(struct intel_uncore *uncore,
+					  i915_reg_t reg, u32 or_val)
+{
+	intel_uncore_write_fw(uncore, reg,
+			      intel_uncore_read_fw(uncore, reg) | or_val);
+}
 
 #define raw_reg_read(base, reg) \
 	readl(base + i915_mmio_reg_offset(reg))
