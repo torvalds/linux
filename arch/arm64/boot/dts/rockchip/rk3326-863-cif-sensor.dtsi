@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
-#include "../../../../drivers/soc/rockchip/rk_camera_sensor_info.h"
+#include "../../../../../drivers/soc/rockchip/rk_camera_sensor_info.h"
 /{
 	cif_sensor: cif_sensor {
 		compatible = "rockchip,sensor";
