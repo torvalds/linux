@@ -27,6 +27,9 @@
 				 EXTENT_CLEAR_DATA_RESV)
 #define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING)
 
+/* Redefined bits above which are used only in the device allocation tree */
+#define CHUNK_ALLOCATED EXTENT_DIRTY
+
 /*
  * flags for bio submission. The high bits indicate the compression
  * type for this bio
