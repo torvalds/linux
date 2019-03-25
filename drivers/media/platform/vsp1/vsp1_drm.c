@@ -34,14 +34,16 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 				       unsigned int completion)
 {
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
-	bool complete = completion == VSP1_DL_FRAME_END_COMPLETED;
 
 	if (drm_pipe->du_complete) {
 		struct vsp1_entity *uif = drm_pipe->uif;
+		unsigned int status = completion
+				    & (VSP1_DU_STATUS_COMPLETE |
+				       VSP1_DU_STATUS_WRITEBACK);
 		u32 crc;
 
 		crc = uif ? vsp1_uif_get_crc(to_uif(&uif->subdev)) : 0;
-		drm_pipe->du_complete(drm_pipe->du_private, complete, crc);
+		drm_pipe->du_complete(drm_pipe->du_private, status, crc);
 	}
 
 	if (completion & VSP1_DL_FRAME_END_INTERNAL) {
@@ -537,6 +539,12 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *next;
 	struct vsp1_dl_list *dl;
 	struct vsp1_dl_body *dlb;
+	unsigned int dl_flags = 0;
+
+	if (drm_pipe->force_brx_release)
+		dl_flags |= VSP1_DL_FRAME_END_INTERNAL;
+	if (pipe->output->writeback)
+		dl_flags |= VSP1_DL_FRAME_END_WRITEBACK;
 
 	dl = vsp1_dl_list_get(pipe->output->dlm);
 	dlb = vsp1_dl_list_get_body0(dl);
@@ -554,12 +562,42 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		}
 
 		vsp1_entity_route_setup(entity, pipe, dlb);
-		vsp1_entity_configure_stream(entity, pipe, dlb);
+		vsp1_entity_configure_stream(entity, pipe, dl, dlb);
 		vsp1_entity_configure_frame(entity, pipe, dl, dlb);
 		vsp1_entity_configure_partition(entity, pipe, dl, dlb);
 	}
 
-	vsp1_dl_list_commit(dl, drm_pipe->force_brx_release);
+	vsp1_dl_list_commit(dl, dl_flags);
+}
+
+static int vsp1_du_pipeline_set_rwpf_format(struct vsp1_device *vsp1,
+					    struct vsp1_rwpf *rwpf,
+					    u32 pixelformat, unsigned int pitch)
+{
+	const struct vsp1_format_info *fmtinfo;
+	unsigned int chroma_hsub;
+
+	fmtinfo = vsp1_get_format_info(vsp1, pixelformat);
+	if (!fmtinfo) {
+		dev_dbg(vsp1->dev, "Unsupported pixel format %08x\n",
+			pixelformat);
+		return -EINVAL;
+	}
+
+	/*
+	 * Only formats with three planes can affect the chroma planes pitch.
+	 * All formats with two planes have a horizontal subsampling value of 2,
+	 * but combine U and V in a single chroma plane, which thus results in
+	 * the luma plane and chroma plane having the same pitch.
+	 */
+	chroma_hsub = (fmtinfo->planes == 3) ? fmtinfo->hsub : 1;
+
+	rwpf->fmtinfo = fmtinfo;
+	rwpf->format.num_planes = fmtinfo->planes;
+	rwpf->format.plane_fmt[0].bytesperline = pitch;
+	rwpf->format.plane_fmt[1].bytesperline = pitch / chroma_hsub;
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -700,8 +738,8 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	drm_pipe->du_private = cfg->callback_data;
 
 	/* Disable the display interrupts. */
-	vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
-	vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
+	vsp1_write(vsp1, VI6_DISP_IRQ_STA(pipe_index), 0);
+	vsp1_write(vsp1, VI6_DISP_IRQ_ENB(pipe_index), 0);
 
 	/* Configure all entities in the pipeline. */
 	vsp1_du_pipeline_configure(pipe);
@@ -769,9 +807,8 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
-	const struct vsp1_format_info *fmtinfo;
-	unsigned int chroma_hsub;
 	struct vsp1_rwpf *rpf;
+	int ret;
 
 	if (rpf_index >= vsp1->info->rpf_count)
 		return -EINVAL;
@@ -804,25 +841,11 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	 * Store the format, stride, memory buffer address, crop and compose
 	 * rectangles and Z-order position and for the input.
 	 */
-	fmtinfo = vsp1_get_format_info(vsp1, cfg->pixelformat);
-	if (!fmtinfo) {
-		dev_dbg(vsp1->dev, "Unsupported pixel format %08x for RPF\n",
-			cfg->pixelformat);
-		return -EINVAL;
-	}
+	ret = vsp1_du_pipeline_set_rwpf_format(vsp1, rpf, cfg->pixelformat,
+					       cfg->pitch);
+	if (ret < 0)
+		return ret;
 
-	/*
-	 * Only formats with three planes can affect the chroma planes pitch.
-	 * All formats with two planes have a horizontal subsampling value of 2,
-	 * but combine U and V in a single chroma plane, which thus results in
-	 * the luma plane and chroma plane having the same pitch.
-	 */
-	chroma_hsub = (fmtinfo->planes == 3) ? fmtinfo->hsub : 1;
-
-	rpf->fmtinfo = fmtinfo;
-	rpf->format.num_planes = fmtinfo->planes;
-	rpf->format.plane_fmt[0].bytesperline = cfg->pitch;
-	rpf->format.plane_fmt[1].bytesperline = cfg->pitch / chroma_hsub;
 	rpf->alpha = cfg->alpha;
 
 	rpf->mem.addr[0] = cfg->mem[0];
@@ -851,12 +874,31 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
 	struct vsp1_pipeline *pipe = &drm_pipe->pipe;
+	int ret;
 
 	drm_pipe->crc = cfg->crc;
 
 	mutex_lock(&vsp1->drm->lock);
+
+	if (cfg->writeback.pixelformat) {
+		const struct vsp1_du_writeback_config *wb_cfg = &cfg->writeback;
+
+		ret = vsp1_du_pipeline_set_rwpf_format(vsp1, pipe->output,
+						       wb_cfg->pixelformat,
+						       wb_cfg->pitch);
+		if (WARN_ON(ret < 0))
+			goto done;
+
+		pipe->output->mem.addr[0] = wb_cfg->mem[0];
+		pipe->output->mem.addr[1] = wb_cfg->mem[1];
+		pipe->output->mem.addr[2] = wb_cfg->mem[2];
+		pipe->output->writeback = true;
+	}
+
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
 	vsp1_du_pipeline_configure(pipe);
+
+done:
 	mutex_unlock(&vsp1->drm->lock);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
