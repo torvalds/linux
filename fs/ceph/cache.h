@@ -16,7 +16,7 @@ extern struct fscache_netfs ceph_cache_netfs;
 int ceph_fscache_register(void);
 void ceph_fscache_unregister(void);
 
-int ceph_fscache_register_fs(struct ceph_fs_client* fsc);
+int ceph_fscache_register_fs(struct ceph_fs_client* fsc, struct fs_context *fc);
 void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc);
 
 void ceph_fscache_register_inode_cookie(struct inode *inode);
@@ -88,7 +88,8 @@ static inline void ceph_fscache_unregister(void)
 {
 }
 
-static inline int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
+static inline int ceph_fscache_register_fs(struct ceph_fs_client* fsc,
+					   struct fs_context *fc)
 {
 	return 0;
 }

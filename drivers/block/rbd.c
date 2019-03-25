@@ -34,7 +34,7 @@
 #include <linux/ceph/cls_lock_client.h>
 #include <linux/ceph/striper.h>
 #include <linux/ceph/decode.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
 #include <linux/bsearch.h>
 
 #include <linux/kernel.h>
@@ -838,34 +838,34 @@ enum {
 	Opt_queue_depth,
 	Opt_alloc_size,
 	Opt_lock_timeout,
-	Opt_last_int,
 	/* int args above */
 	Opt_pool_ns,
-	Opt_last_string,
 	/* string args above */
 	Opt_read_only,
 	Opt_read_write,
 	Opt_lock_on_read,
 	Opt_exclusive,
 	Opt_notrim,
-	Opt_err
 };
 
-static match_table_t rbd_opts_tokens = {
-	{Opt_queue_depth, "queue_depth=%d"},
-	{Opt_alloc_size, "alloc_size=%d"},
-	{Opt_lock_timeout, "lock_timeout=%d"},
-	/* int args above */
-	{Opt_pool_ns, "_pool_ns=%s"},
-	/* string args above */
-	{Opt_read_only, "read_only"},
-	{Opt_read_only, "ro"},		/* Alternate spelling */
-	{Opt_read_write, "read_write"},
-	{Opt_read_write, "rw"},		/* Alternate spelling */
-	{Opt_lock_on_read, "lock_on_read"},
-	{Opt_exclusive, "exclusive"},
-	{Opt_notrim, "notrim"},
-	{Opt_err, NULL}
+static const struct fs_parameter_spec rbd_param_specs[] = {
+	fsparam_u32	("alloc_size",			Opt_alloc_size),
+	fsparam_flag	("exclusive",			Opt_exclusive),
+	fsparam_flag	("lock_on_read",		Opt_lock_on_read),
+	fsparam_u32	("lock_timeout",		Opt_lock_timeout),
+	fsparam_flag	("notrim",			Opt_notrim),
+	fsparam_string	("_pool_ns",			Opt_pool_ns),
+	fsparam_u32	("queue_depth",			Opt_queue_depth),
+	fsparam_flag	("read_only",			Opt_read_only),
+	fsparam_flag	("read_write",			Opt_read_write),
+	fsparam_flag	("ro",				Opt_read_only),
+	fsparam_flag	("rw",				Opt_read_write),
+	{}
+};
+
+static const struct fs_parameter_description rbd_parameters = {
+	.name		= "rbd",
+	.specs		= rbd_param_specs,
 };
 
 struct rbd_options {
@@ -886,86 +886,11 @@ struct rbd_options {
 #define RBD_EXCLUSIVE_DEFAULT	false
 #define RBD_TRIM_DEFAULT	true
 
-struct parse_rbd_opts_ctx {
+struct rbd_parse_opts_ctx {
 	struct rbd_spec		*spec;
+	struct ceph_options	*copts;
 	struct rbd_options	*opts;
 };
-
-static int parse_rbd_opts_token(char *c, void *private)
-{
-	struct parse_rbd_opts_ctx *pctx = private;
-	substring_t argstr[MAX_OPT_ARGS];
-	int token, intval, ret;
-
-	token = match_token(c, rbd_opts_tokens, argstr);
-	if (token < Opt_last_int) {
-		ret = match_int(&argstr[0], &intval);
-		if (ret < 0) {
-			pr_err("bad option arg (not int) at '%s'\n", c);
-			return ret;
-		}
-		dout("got int token %d val %d\n", token, intval);
-	} else if (token > Opt_last_int && token < Opt_last_string) {
-		dout("got string token %d val %s\n", token, argstr[0].from);
-	} else {
-		dout("got token %d\n", token);
-	}
-
-	switch (token) {
-	case Opt_queue_depth:
-		if (intval < 1) {
-			pr_err("queue_depth out of range\n");
-			return -EINVAL;
-		}
-		pctx->opts->queue_depth = intval;
-		break;
-	case Opt_alloc_size:
-		if (intval < SECTOR_SIZE) {
-			pr_err("alloc_size out of range\n");
-			return -EINVAL;
-		}
-		if (!is_power_of_2(intval)) {
-			pr_err("alloc_size must be a power of 2\n");
-			return -EINVAL;
-		}
-		pctx->opts->alloc_size = intval;
-		break;
-	case Opt_lock_timeout:
-		/* 0 is "wait forever" (i.e. infinite timeout) */
-		if (intval < 0 || intval > INT_MAX / 1000) {
-			pr_err("lock_timeout out of range\n");
-			return -EINVAL;
-		}
-		pctx->opts->lock_timeout = msecs_to_jiffies(intval * 1000);
-		break;
-	case Opt_pool_ns:
-		kfree(pctx->spec->pool_ns);
-		pctx->spec->pool_ns = match_strdup(argstr);
-		if (!pctx->spec->pool_ns)
-			return -ENOMEM;
-		break;
-	case Opt_read_only:
-		pctx->opts->read_only = true;
-		break;
-	case Opt_read_write:
-		pctx->opts->read_only = false;
-		break;
-	case Opt_lock_on_read:
-		pctx->opts->lock_on_read = true;
-		break;
-	case Opt_exclusive:
-		pctx->opts->exclusive = true;
-		break;
-	case Opt_notrim:
-		pctx->opts->trim = false;
-		break;
-	default:
-		/* libceph prints "bad option" msg */
-		return -EINVAL;
-	}
-
-	return 0;
-}
 
 static char* obj_op_name(enum obj_operation_type op_type)
 {
@@ -6423,6 +6348,122 @@ static inline char *dup_token(const char **buf, size_t *lenp)
 	return dup;
 }
 
+static int rbd_parse_param(struct fs_parameter *param,
+			    struct rbd_parse_opts_ctx *pctx)
+{
+	struct rbd_options *opt = pctx->opts;
+	struct fs_parse_result result;
+	int token, ret;
+
+	ret = ceph_parse_param(param, pctx->copts, NULL);
+	if (ret != -ENOPARAM)
+		return ret;
+
+	token = fs_parse(NULL, &rbd_parameters, param, &result);
+	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
+	if (token < 0) {
+		if (token == -ENOPARAM) {
+			return invalf(NULL, "rbd: Unknown parameter '%s'",
+				      param->key);
+		}
+		return token;
+	}
+
+	switch (token) {
+	case Opt_queue_depth:
+		if (result.uint_32 < 1)
+			goto out_of_range;
+		opt->queue_depth = result.uint_32;
+		break;
+	case Opt_alloc_size:
+		if (result.uint_32 < SECTOR_SIZE)
+			goto out_of_range;
+		if (!is_power_of_2(result.uint_32)) {
+			return invalf(NULL, "rbd: alloc_size must be a power of 2");
+		}
+		opt->alloc_size = result.uint_32;
+		break;
+	case Opt_lock_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->lock_timeout = msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_pool_ns:
+		kfree(pctx->spec->pool_ns);
+		pctx->spec->pool_ns = param->string;
+		param->string = NULL;
+		break;
+	case Opt_read_only:
+		opt->read_only = true;
+		break;
+	case Opt_read_write:
+		opt->read_only = false;
+		break;
+	case Opt_lock_on_read:
+		opt->lock_on_read = true;
+		break;
+	case Opt_exclusive:
+		opt->exclusive = true;
+		break;
+	case Opt_notrim:
+		opt->trim = false;
+		break;
+	default:
+		BUG();
+	}
+
+	return 0;
+
+out_of_range:
+	return invalf(NULL, "rbd: %s out of range", param->key);
+}
+
+/*
+ * This duplicates most of generic_parse_monolithic(), untying it from
+ * fs_context and skipping standard superblock and security options.
+ */
+static int rbd_parse_options(char *options, struct rbd_parse_opts_ctx *pctx)
+{
+	char *key;
+	int ret = 0;
+
+	dout("%s '%s'\n", __func__, options);
+	while ((key = strsep(&options, ",")) != NULL) {
+		if (*key) {
+			struct fs_parameter param = {
+				.key	= key,
+				.type	= fs_value_is_string,
+			};
+			char *value = strchr(key, '=');
+			size_t v_len = 0;
+
+			if (value) {
+				if (value == key)
+					continue;
+				*value++ = 0;
+				v_len = strlen(value);
+			}
+
+
+			if (v_len > 0) {
+				param.string = kmemdup_nul(value, v_len,
+							   GFP_KERNEL);
+				if (!param.string)
+					return -ENOMEM;
+			}
+			param.size = v_len;
+
+			ret = rbd_parse_param(&param, pctx);
+			kfree(param.string);
+			if (ret)
+				break;
+		}
+	}
+
+	return ret;
+}
+
 /*
  * Parse the options provided for an "rbd add" (i.e., rbd image
  * mapping) request.  These arrive via a write to /sys/bus/rbd/add,
@@ -6474,8 +6515,7 @@ static int rbd_add_parse_args(const char *buf,
 	const char *mon_addrs;
 	char *snap_name;
 	size_t mon_addrs_size;
-	struct parse_rbd_opts_ctx pctx = { 0 };
-	struct ceph_options *copts;
+	struct rbd_parse_opts_ctx pctx = { 0 };
 	int ret;
 
 	/* The first four tokens are required */
@@ -6486,7 +6526,7 @@ static int rbd_add_parse_args(const char *buf,
 		return -EINVAL;
 	}
 	mon_addrs = buf;
-	mon_addrs_size = len + 1;
+	mon_addrs_size = len;
 	buf += len;
 
 	ret = -EINVAL;
@@ -6536,6 +6576,10 @@ static int rbd_add_parse_args(const char *buf,
 	*(snap_name + len) = '\0';
 	pctx.spec->snap_name = snap_name;
 
+	pctx.copts = ceph_alloc_options();
+	if (!pctx.copts)
+		goto out_mem;
+
 	/* Initialize all rbd options to the defaults */
 
 	pctx.opts = kzalloc(sizeof(*pctx.opts), GFP_KERNEL);
@@ -6550,27 +6594,27 @@ static int rbd_add_parse_args(const char *buf,
 	pctx.opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
 	pctx.opts->trim = RBD_TRIM_DEFAULT;
 
-	copts = ceph_parse_options(options, mon_addrs,
-				   mon_addrs + mon_addrs_size - 1,
-				   parse_rbd_opts_token, &pctx);
-	if (IS_ERR(copts)) {
-		ret = PTR_ERR(copts);
+	ret = ceph_parse_mon_ips(mon_addrs, mon_addrs_size, pctx.copts, NULL);
+	if (ret)
 		goto out_err;
-	}
-	kfree(options);
 
-	*ceph_opts = copts;
+	ret = rbd_parse_options(options, &pctx);
+	if (ret)
+		goto out_err;
+
+	*ceph_opts = pctx.copts;
 	*opts = pctx.opts;
 	*rbd_spec = pctx.spec;
-
+	kfree(options);
 	return 0;
+
 out_mem:
 	ret = -ENOMEM;
 out_err:
 	kfree(pctx.opts);
+	ceph_destroy_options(pctx.copts);
 	rbd_spec_put(pctx.spec);
 	kfree(options);
-
 	return ret;
 }
 
