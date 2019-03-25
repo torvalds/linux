@@ -2276,7 +2276,7 @@ static const struct export_operations f2fs_export_ops = {
 static loff_t max_file_blocks(void)
 {
 	loff_t result = 0;
-	loff_t leaf_count = ADDRS_PER_BLOCK;
+	loff_t leaf_count = DEF_ADDRS_PER_BLOCK;
 
 	/*
 	 * note: previously, result is equal to (DEF_ADDRS_PER_INODE -
