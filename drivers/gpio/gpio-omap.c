@@ -83,7 +83,6 @@ struct gpio_bank {
 	int stride;
 	u32 width;
 	int context_loss_count;
-	bool workaround_enabled;
 	u32 quirks;
 
 	void (*set_dataout)(struct gpio_bank *bank, unsigned gpio, int enable);
@@ -1469,8 +1468,6 @@ static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
 		omap_gpio_rmw(base, bank->regs->risingdetect, nowake, ~nowake);
 	}
 
-	bank->workaround_enabled = true;
-
 update_gpio_context_count:
 	if (bank->get_context_loss_count)
 		bank->context_loss_count =
@@ -1524,9 +1521,6 @@ static void omap_gpio_unidle(struct gpio_bank *bank)
 			       bank->base + bank->regs->risingdetect);
 	}
 
-	if (!bank->workaround_enabled)
-		return;
-
 	l = readl_relaxed(bank->base + bank->regs->datain);
 
 	/*
@@ -1576,8 +1570,6 @@ static void omap_gpio_unidle(struct gpio_bank *bank)
 		writel_relaxed(old0, bank->base + bank->regs->leveldetect0);
 		writel_relaxed(old1, bank->base + bank->regs->leveldetect1);
 	}
-
-	bank->workaround_enabled = false;
 }
 
 static void omap_gpio_init_context(struct gpio_bank *p)
