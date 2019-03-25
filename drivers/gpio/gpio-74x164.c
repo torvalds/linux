@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  74Hx164 - Generic serial-in/parallel-out 8-bits shift register GPIO driver
  *
  *  Copyright (C) 2010 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2010 Miguel Gaio <miguel.gaio@efixo.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/gpio/consumer.h>
