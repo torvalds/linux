@@ -105,6 +105,7 @@ static void validate_or_set_position_hints(struct vbox_private *vbox)
 /* Query the host for the most recent video mode hints. */
 static void vbox_update_mode_hints(struct vbox_private *vbox)
 {
+	struct drm_connector_list_iter conn_iter;
 	struct drm_device *dev = &vbox->ddev;
 	struct drm_connector *connector;
 	struct vbox_connector *vbox_conn;
@@ -122,8 +123,10 @@ static void vbox_update_mode_hints(struct vbox_private *vbox)
 	}
 
 	validate_or_set_position_hints(vbox);
-	drm_modeset_lock_all(dev);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		vbox_conn = to_vbox_connector(connector);
 
 		hints = &vbox->last_mode_hints[vbox_conn->vbox_crtc->crtc_id];
@@ -152,7 +155,8 @@ static void vbox_update_mode_hints(struct vbox_private *vbox)
 
 		vbox_conn->vbox_crtc->disconnected = disconnected;
 	}
-	drm_modeset_unlock_all(dev);
+	drm_connector_list_iter_end(&conn_iter);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 
 static void vbox_hotplug_worker(struct work_struct *work)

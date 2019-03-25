@@ -974,6 +974,7 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 
 	DRM_ERROR("Device removal is currently not supported outside of fbcon\n");
 	drm_dev_unplug(dev);
+	drm_dev_put(dev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }

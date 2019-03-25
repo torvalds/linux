@@ -48,7 +48,6 @@
 #include "meson_vpp.h"
 #include "meson_viu.h"
 #include "meson_venc.h"
-#include "meson_canvas.h"
 #include "meson_registers.h"
 
 #define DRIVER_NAME "meson"
@@ -231,50 +230,31 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	}
 
 	priv->canvas = meson_canvas_get(dev);
-	if (!IS_ERR(priv->canvas)) {
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
-		if (ret)
-			goto free_drm;
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
-		if (ret) {
-			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
-			goto free_drm;
-		}
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
-		if (ret) {
-			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
-			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
-			goto free_drm;
-		}
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
-		if (ret) {
-			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
-			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
-			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
-			goto free_drm;
-		}
-	} else {
-		priv->canvas = NULL;
+	if (IS_ERR(priv->canvas)) {
+		ret = PTR_ERR(priv->canvas);
+		goto free_drm;
+	}
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
-		if (!res) {
-			ret = -EINVAL;
-			goto free_drm;
-		}
-		/* Simply ioremap since it may be a shared register zone */
-		regs = devm_ioremap(dev, res->start, resource_size(res));
-		if (!regs) {
-			ret = -EADDRNOTAVAIL;
-			goto free_drm;
-		}
-
-		priv->dmc = devm_regmap_init_mmio(dev, regs,
-						  &meson_regmap_config);
-		if (IS_ERR(priv->dmc)) {
-			dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
-			ret = PTR_ERR(priv->dmc);
-			goto free_drm;
-		}
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
+	if (ret)
+		goto free_drm;
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
+	if (ret) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		goto free_drm;
+	}
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
+	if (ret) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		goto free_drm;
+	}
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
+	if (ret) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+		goto free_drm;
 	}
 
 	priv->vsync_irq = platform_get_irq(pdev, 0);

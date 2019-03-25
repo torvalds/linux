@@ -14,7 +14,9 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
@@ -41,16 +43,18 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_plane_state *plane_state)
 {
-	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	int ret;
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	int ret, idx;
 	u8 addr_mode;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	ret = mipi_dbi_poweron_reset(mipi);
 	if (ret)
-		return;
+		goto out_exit;
 
 	msleep(150);
 
@@ -101,6 +105,8 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 	msleep(20);
 
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {
@@ -111,7 +117,7 @@ static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {
 };
 
 static const struct drm_display_mode jd_t18003_t01_mode = {
-	TINYDRM_MODE(128, 160, 28, 35),
+	DRM_SIMPLE_MODE(128, 160, 28, 35),
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(st7735r_fops);
@@ -120,6 +126,7 @@ static struct drm_driver st7735r_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 	.fops			= &st7735r_fops,
+	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7735r",
@@ -144,14 +151,24 @@ MODULE_DEVICE_TABLE(spi, st7735r_id);
 static int st7735r_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct drm_device *drm;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = devm_kzalloc(dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
 		return -ENOMEM;
+
+	drm = &mipi->drm;
+	ret = devm_drm_dev_init(dev, drm, &st7735r_driver);
+	if (ret) {
+		kfree(mipi);
+		return ret;
+	}
+
+	drm_mode_config_init(drm);
 
 	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
@@ -178,21 +195,36 @@ static int st7735r_probe(struct spi_device *spi)
 	/* Cannot read from Adafruit 1.8" display via SPI */
 	mipi->read_commands = NULL;
 
-	ret = mipi_dbi_init(&spi->dev, mipi, &jd_t18003_t01_pipe_funcs,
-			    &st7735r_driver, &jd_t18003_t01_mode, rotation);
+	ret = mipi_dbi_init(mipi, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, mipi);
+	drm_mode_config_reset(drm);
 
-	return devm_tinydrm_register(&mipi->tinydrm);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		return ret;
+
+	spi_set_drvdata(spi, drm);
+
+	drm_fbdev_generic_setup(drm, 32);
+
+	return 0;
+}
+
+static int st7735r_remove(struct spi_device *spi)
+{
+	struct drm_device *drm = spi_get_drvdata(spi);
+
+	drm_dev_unplug(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	return 0;
 }
 
 static void st7735r_shutdown(struct spi_device *spi)
 {
-	struct mipi_dbi *mipi = spi_get_drvdata(spi);
-
-	tinydrm_shutdown(&mipi->tinydrm);
+	drm_atomic_helper_shutdown(spi_get_drvdata(spi));
 }
 
 static struct spi_driver st7735r_spi_driver = {
@@ -203,6 +235,7 @@ static struct spi_driver st7735r_spi_driver = {
 	},
 	.id_table = st7735r_id,
 	.probe = st7735r_probe,
+	.remove = st7735r_remove,
 	.shutdown = st7735r_shutdown,
 };
 module_spi_driver(st7735r_spi_driver);

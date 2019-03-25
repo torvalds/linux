@@ -17,7 +17,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
@@ -54,16 +56,18 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 			    struct drm_crtc_state *crtc_state,
 			    struct drm_plane_state *plane_state)
 {
-	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
 	u8 addr_mode;
-	int ret;
+	int ret, idx;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	ret = mipi_dbi_poweron_conditional_reset(mipi);
 	if (ret < 0)
-		return;
+		goto out_exit;
 	if (ret == 1)
 		goto out_enable;
 
@@ -135,6 +139,8 @@ out_enable:
 	addr_mode |= ILI9341_MADCTL_BGR;
 	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
@@ -145,7 +151,7 @@ static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
 };
 
 static const struct drm_display_mode mi0283qt_mode = {
-	TINYDRM_MODE(320, 240, 58, 43),
+	DRM_SIMPLE_MODE(320, 240, 58, 43),
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
@@ -154,6 +160,7 @@ static struct drm_driver mi0283qt_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
+	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
@@ -178,14 +185,24 @@ MODULE_DEVICE_TABLE(spi, mi0283qt_id);
 static int mi0283qt_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct drm_device *drm;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = devm_kzalloc(dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
 		return -ENOMEM;
+
+	drm = &mipi->drm;
+	ret = devm_drm_dev_init(dev, drm, &mi0283qt_driver);
+	if (ret) {
+		kfree(mipi);
+		return ret;
+	}
+
+	drm_mode_config_init(drm);
 
 	mipi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
@@ -213,35 +230,46 @@ static int mi0283qt_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(&spi->dev, mipi, &mi0283qt_pipe_funcs,
-			    &mi0283qt_driver, &mi0283qt_mode, rotation);
+	ret = mipi_dbi_init(mipi, &mi0283qt_pipe_funcs, &mi0283qt_mode, rotation);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, mipi);
+	drm_mode_config_reset(drm);
 
-	return devm_tinydrm_register(&mipi->tinydrm);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		return ret;
+
+	spi_set_drvdata(spi, drm);
+
+	drm_fbdev_generic_setup(drm, 32);
+
+	return 0;
+}
+
+static int mi0283qt_remove(struct spi_device *spi)
+{
+	struct drm_device *drm = spi_get_drvdata(spi);
+
+	drm_dev_unplug(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	return 0;
 }
 
 static void mi0283qt_shutdown(struct spi_device *spi)
 {
-	struct mipi_dbi *mipi = spi_get_drvdata(spi);
-
-	tinydrm_shutdown(&mipi->tinydrm);
+	drm_atomic_helper_shutdown(spi_get_drvdata(spi));
 }
 
 static int __maybe_unused mi0283qt_pm_suspend(struct device *dev)
 {
-	struct mipi_dbi *mipi = dev_get_drvdata(dev);
-
-	return drm_mode_config_helper_suspend(mipi->tinydrm.drm);
+	return drm_mode_config_helper_suspend(dev_get_drvdata(dev));
 }
 
 static int __maybe_unused mi0283qt_pm_resume(struct device *dev)
 {
-	struct mipi_dbi *mipi = dev_get_drvdata(dev);
-
-	drm_mode_config_helper_resume(mipi->tinydrm.drm);
+	drm_mode_config_helper_resume(dev_get_drvdata(dev));
 
 	return 0;
 }
@@ -259,6 +287,7 @@ static struct spi_driver mi0283qt_spi_driver = {
 	},
 	.id_table = mi0283qt_id,
 	.probe = mi0283qt_probe,
+	.remove = mi0283qt_remove,
 	.shutdown = mi0283qt_shutdown,
 };
 module_spi_driver(mi0283qt_spi_driver);

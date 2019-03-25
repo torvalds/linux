@@ -736,29 +736,12 @@ static int vbox_get_modes(struct drm_connector *connector)
 
 	vbox_connector = to_vbox_connector(connector);
 	vbox = connector->dev->dev_private;
-	/*
-	 * Heuristic: we do not want to tell the host that we support dynamic
-	 * resizing unless we feel confident that the user space client using
-	 * the video driver can handle hot-plug events.  So the first time modes
-	 * are queried after a "master" switch we tell the host that we do not,
-	 * and immediately after we send the client a hot-plug notification as
-	 * a test to see if they will respond and query again.
-	 * That is also the reason why capabilities are reported to the host at
-	 * this place in the code rather than elsewhere.
-	 * We need to report the flags location before reporting the IRQ
-	 * capability.
-	 */
+
 	hgsmi_report_flags_location(vbox->guest_pool, GUEST_HEAP_OFFSET(vbox) +
 				    HOST_FLAGS_OFFSET);
 	if (vbox_connector->vbox_crtc->crtc_id == 0)
 		vbox_report_caps(vbox);
-	if (!vbox->initial_mode_queried) {
-		if (vbox_connector->vbox_crtc->crtc_id == 0) {
-			vbox->initial_mode_queried = true;
-			vbox_report_hotplug(vbox);
-		}
-		return drm_add_modes_noedid(connector, 800, 600);
-	}
+
 	num_modes = drm_add_modes_noedid(connector, 2560, 1600);
 	preferred_width = vbox_connector->mode_hint.width ?
 			  vbox_connector->mode_hint.width : 1024;

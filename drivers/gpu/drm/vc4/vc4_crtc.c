@@ -834,6 +834,14 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
+
+		/* Wait for the page flip to unmask the underrun to ensure that
+		 * the display list was updated by the hardware. Before that
+		 * happens, the HVS will be using the previous display list with
+		 * the CRTC and encoder already reconfigured, leading to
+		 * underruns. This can be seen when reconfiguring the CRTC.
+		 */
+		vc4_hvs_unmask_underrun(dev, vc4_crtc->channel);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }

@@ -256,6 +256,9 @@ DMA
   dmam_pool_create()
   dmam_pool_destroy()
 
+DRM
+  devm_drm_dev_init()
+
 GPIO
   devm_gpiod_get()
   devm_gpiod_get_index()

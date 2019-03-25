@@ -47,10 +47,6 @@ struct etnaviv_gem_object {
 	struct sg_table *sgt;
 	void *vaddr;
 
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
-
 	struct list_head vram_list;
 
 	/* cache maintenance */

@@ -582,6 +582,7 @@ static void xen_drm_drv_fini(struct xen_drm_front_info *front_info)
 
 	drm_kms_helper_poll_fini(dev);
 	drm_dev_unplug(dev);
+	drm_dev_put(dev);
 
 	front_info->drm_info = NULL;
 

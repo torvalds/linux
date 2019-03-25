@@ -14,7 +14,6 @@
 #include <linux/io.h>
 #include <linux/irqreturn.h>
 #include <linux/string.h>
-#include <linux/version.h>
 
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
@@ -83,12 +82,6 @@ struct vbox_private {
 	} ttm;
 
 	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
-	/*
-	 * We decide whether or not user-space supports display hot-plug
-	 * depending on whether they react to a hot-plug event after the initial
-	 * mode query.
-	 */
-	bool initial_mode_queried;
 	struct work_struct hotplug_work;
 	u32 input_mapping_width;
 	u32 input_mapping_height;
