@@ -2574,7 +2574,14 @@ static inline int f2fs_has_inline_xattr(struct inode *inode)
 
 static inline unsigned int addrs_per_inode(struct inode *inode)
 {
-	return CUR_ADDRS_PER_INODE(inode) - get_inline_xattr_addrs(inode);
+	unsigned int addrs = CUR_ADDRS_PER_INODE(inode) -
+				get_inline_xattr_addrs(inode);
+	return ALIGN_DOWN(addrs, 1);
+}
+
+static inline unsigned int addrs_per_block(struct inode *inode)
+{
+	return ALIGN_DOWN(DEF_ADDRS_PER_BLOCK, 1);
 }
 
 static inline void *inline_xattr_addr(struct inode *inode, struct page *page)
