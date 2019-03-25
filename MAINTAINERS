@@ -5833,7 +5833,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-mdio
 F:	Documentation/devicetree/bindings/net/mdio*
-F:	Documentation/networking/phy.txt
+F:	Documentation/networking/phy.rst
 F:	drivers/net/phy/
 F:	drivers/of/of_mdio.c
 F:	drivers/of/of_net.c
