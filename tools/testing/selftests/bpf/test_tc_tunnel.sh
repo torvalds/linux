@@ -160,6 +160,14 @@ server_listen
 # client can connect again
 ip netns exec "${ns2}" ip link add dev testtun0 type "${tuntype}" \
 	remote "${addr1}" local "${addr2}"
+# Because packets are decapped by the tunnel they arrive on testtun0 from
+# the IP stack perspective.  Ensure reverse path filtering is disabled
+# otherwise we drop the TCP SYN as arriving on testtun0 instead of the
+# expected veth2 (veth2 is where 192.168.1.2 is configured).
+ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
+# rp needs to be disabled for both all and testtun0 as the rp value is
+# selected as the max of the "all" and device-specific values.
+ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.testtun0.rp_filter=0
 ip netns exec "${ns2}" ip link set dev testtun0 up
 echo "test bpf encap with tunnel device decap"
 client_connect
