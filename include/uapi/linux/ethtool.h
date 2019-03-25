@@ -252,9 +252,17 @@ struct ethtool_tunable {
 #define DOWNSHIFT_DEV_DEFAULT_COUNT	0xff
 #define DOWNSHIFT_DEV_DISABLE		0
 
+/* Time in msecs after which link is reported as down
+ * 0 = lowest time supported by the PHY
+ * 0xff = off, link down detection according to standard
+ */
+#define ETHTOOL_PHY_FAST_LINK_DOWN_ON	0
+#define ETHTOOL_PHY_FAST_LINK_DOWN_OFF	0xff
+
 enum phy_tunable_id {
 	ETHTOOL_PHY_ID_UNSPEC,
 	ETHTOOL_PHY_DOWNSHIFT,
+	ETHTOOL_PHY_FAST_LINK_DOWN,
 	/*
 	 * Add your fresh new phy tunable attribute above and remember to update
 	 * phy_tunable_strings[] in net/core/ethtool.c
