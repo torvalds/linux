@@ -2688,16 +2688,17 @@ static ssize_t iwl_dbgfs_rfkill_write(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool old = trans_pcie->debug_rfkill;
+	bool new_value;
 	int ret;
 
-	ret = kstrtobool_from_user(user_buf, count, &trans_pcie->debug_rfkill);
+	ret = kstrtobool_from_user(user_buf, count, &new_value);
 	if (ret)
 		return ret;
-	if (old == trans_pcie->debug_rfkill)
+	if (new_value == trans_pcie->debug_rfkill)
 		return count;
 	IWL_WARN(trans, "changing debug rfkill %d->%d\n",
-		 old, trans_pcie->debug_rfkill);
+		 trans_pcie->debug_rfkill, new_value);
+	trans_pcie->debug_rfkill = new_value;
 	iwl_pcie_handle_rfkill_irq(trans);
 
 	return count;
@@ -3421,7 +3422,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		ret = -ENOMEM;
 		goto out_no_pci;
 	}
-
+	trans_pcie->debug_rfkill = -1;
 
 	if (!cfg->base_params->pcie_l1_allowed) {
 		/*
