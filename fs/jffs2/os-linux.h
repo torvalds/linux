@@ -172,8 +172,8 @@ void jffs2_dirty_inode(struct inode *inode, int flags);
 struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode,
 			       struct jffs2_raw_inode *ri);
 int jffs2_statfs (struct dentry *, struct kstatfs *);
-int jffs2_do_remount_fs(struct super_block *, int *, char *);
-int jffs2_do_fill_super(struct super_block *sb, void *data, int silent);
+int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc);
+int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc);
 void jffs2_gc_release_inode(struct jffs2_sb_info *c,
 			    struct jffs2_inode_info *f);
 struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
