@@ -136,7 +136,7 @@ static void _nbu2ss_ep0_complete(struct usb_ep *_ep, struct usb_request *_req)
 	struct usb_ctrlrequest	*p_ctrl;
 	struct nbu2ss_udc *udc;
 
-	if ((!_ep) || (!_req))
+	if (!_ep || !_req)
 		return;
 
 	udc = (struct nbu2ss_udc *)_req->context;
@@ -2422,13 +2422,13 @@ static int nbu2ss_ep_enable(struct usb_ep *_ep,
 	struct nbu2ss_ep	*ep;
 	struct nbu2ss_udc	*udc;
 
-	if ((!_ep) || (!desc)) {
+	if (!_ep || !desc) {
 		pr_err(" *** %s, bad param\n", __func__);
 		return -EINVAL;
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if ((!ep->udc)) {
+	if (!ep->udc) {
 		pr_err(" *** %s, ep == NULL !!\n", __func__);
 		return -EINVAL;
 	}
@@ -2544,7 +2544,7 @@ static int nbu2ss_ep_queue(struct usb_ep *_ep,
 	int			result = -EINVAL;
 
 	/* catch various bogus parameters */
-	if ((!_ep) || (!_req)) {
+	if (!_ep || !_req) {
 		if (!_ep)
 			pr_err("udc: %s --- _ep == NULL\n", __func__);
 
@@ -2646,7 +2646,7 @@ static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	unsigned long flags;
 
 	/* catch various bogus parameters */
-	if ((!_ep) || (!_req)) {
+	if (!_ep || !_req) {
 		/* pr_err("%s, bad param(1)\n", __func__); */
 		return -EINVAL;
 	}
