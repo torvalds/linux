@@ -2802,10 +2802,10 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 				return;
 		}
 		/*
-		 * DSI ports should have their DDI clock ungated when disabled
-		 * and gated when enabled.
+		 * For DSI we keep the ddi clocks gated
+		 * except during enable/disable sequence.
 		 */
-		ddi_clk_needed = !encoder->base.crtc;
+		ddi_clk_needed = false;
 	}
 
 	val = I915_READ(DPCLKA_CFGCR0_ICL);
