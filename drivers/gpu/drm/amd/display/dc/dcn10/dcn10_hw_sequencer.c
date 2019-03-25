@@ -2138,6 +2138,9 @@ void update_dchubp_dpp(
 	if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
 		dc->hwss.set_cursor_position(pipe_ctx);
 		dc->hwss.set_cursor_attribute(pipe_ctx);
+
+		if (dc->hwss.set_cursor_sdr_white_level)
+			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
 	if (plane_state->update_flags.bits.full_update) {
