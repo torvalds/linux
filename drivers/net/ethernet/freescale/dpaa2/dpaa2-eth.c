@@ -435,7 +435,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	percpu_stats->rx_packets++;
 	percpu_stats->rx_bytes += dpaa2_fd_get_len(fd);
 
-	napi_gro_receive(&ch->napi, skb);
+	list_add_tail(&skb->list, ch->rx_list);
 
 	return;
 
@@ -1108,11 +1108,15 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 	struct dpaa2_eth_fq *fq, *txc_fq = NULL;
 	struct netdev_queue *nq;
 	int store_cleaned, work_done;
+	struct list_head rx_list;
 	int err;
 
 	ch = container_of(napi, struct dpaa2_eth_channel, napi);
 	ch->xdp.res = 0;
 	priv = ch->priv;
+
+	INIT_LIST_HEAD(&rx_list);
+	ch->rx_list = &rx_list;
 
 	do {
 		err = pull_channel(ch);
@@ -1157,6 +1161,8 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 	work_done = max(rx_cleaned, 1);
 
 out:
+	netif_receive_skb_list(ch->rx_list);
+
 	if (txc_fq && txc_fq->dq_frames) {
 		nq = netdev_get_tx_queue(priv->net_dev, txc_fq->flowid);
 		netdev_tx_completed_queue(nq, txc_fq->dq_frames,

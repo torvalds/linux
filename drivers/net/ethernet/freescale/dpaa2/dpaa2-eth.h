@@ -334,6 +334,7 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_stats stats;
 	struct dpaa2_eth_ch_xdp xdp;
 	struct xdp_rxq_info xdp_rxq;
+	struct list_head *rx_list;
 };
 
 struct dpaa2_eth_dist_fields {
