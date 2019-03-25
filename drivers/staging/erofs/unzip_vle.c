@@ -844,8 +844,8 @@ static void z_erofs_vle_unzip_kickoff(void *ptr, int bios)
 
 static inline void z_erofs_vle_read_endio(struct bio *bio)
 {
-	const blk_status_t err = bio->bi_status;
 	struct erofs_sb_info *sbi = NULL;
+	blk_status_t err = bio->bi_status;
 	unsigned int i;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
@@ -857,8 +857,14 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 		DBG_BUGON(PageUptodate(page));
 		DBG_BUGON(!page->mapping);
 
-		if (unlikely(!sbi && !z_erofs_is_stagingpage(page)))
+		if (unlikely(!sbi && !z_erofs_is_stagingpage(page))) {
 			sbi = EROFS_SB(page->mapping->host->i_sb);
+
+			if (time_to_inject(sbi, FAULT_READ_IO)) {
+				erofs_show_injection_info(FAULT_READ_IO);
+				err = BLK_STS_IOERR;
+			}
+		}
 
 		/* sbi should already be gotten if the page is managed */
 		if (sbi)
@@ -1430,10 +1436,8 @@ submit_bio_retry:
 
 		if (!bio) {
 			bio = erofs_grab_bio(sb, first_index + i,
-					     BIO_MAX_PAGES,
+					     BIO_MAX_PAGES, bi_private,
 					     z_erofs_vle_read_endio, true);
-			bio->bi_private = bi_private;
-
 			++nr_bios;
 		}
 

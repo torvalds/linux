@@ -44,11 +44,12 @@
 
 enum {
 	FAULT_KMALLOC,
+	FAULT_READ_IO,
 	FAULT_MAX,
 };
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
-extern char *erofs_fault_name[FAULT_MAX];
+extern const char *erofs_fault_name[FAULT_MAX];
 #define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 
 struct erofs_fault_info {
@@ -467,7 +468,7 @@ static inline int z_erofs_map_blocks_iter(struct inode *inode,
 /* data.c */
 static inline struct bio *
 erofs_grab_bio(struct super_block *sb,
-	       erofs_blk_t blkaddr, unsigned int nr_pages,
+	       erofs_blk_t blkaddr, unsigned int nr_pages, void *bi_private,
 	       bio_end_io_t endio, bool nofail)
 {
 	const gfp_t gfp = GFP_NOIO;
@@ -489,6 +490,7 @@ erofs_grab_bio(struct super_block *sb,
 	bio->bi_end_io = endio;
 	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
+	bio->bi_private = bi_private;
 	return bio;
 }
 

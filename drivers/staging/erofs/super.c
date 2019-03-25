@@ -142,8 +142,9 @@ out:
 }
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
-char *erofs_fault_name[FAULT_MAX] = {
+const char *erofs_fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
+	[FAULT_READ_IO]		= "read IO error",
 };
 
 static void __erofs_build_fault_attr(struct erofs_sb_info *sbi,

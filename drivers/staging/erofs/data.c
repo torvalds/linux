@@ -17,10 +17,16 @@
 
 static inline void read_endio(struct bio *bio)
 {
+	struct super_block *const sb = bio->bi_private;
 	int i;
 	struct bio_vec *bvec;
-	const blk_status_t err = bio->bi_status;
+	blk_status_t err = bio->bi_status;
 	struct bvec_iter_all iter_all;
+
+	if (time_to_inject(EROFS_SB(sb), FAULT_READ_IO)) {
+		erofs_show_injection_info(FAULT_READ_IO);
+		err = BLK_STS_IOERR;
+	}
 
 	bio_for_each_segment_all(bvec, bio, i, iter_all) {
 		struct page *page = bvec->bv_page;
@@ -63,7 +69,7 @@ repeat:
 	if (!PageUptodate(page)) {
 		struct bio *bio;
 
-		bio = erofs_grab_bio(sb, blkaddr, 1, read_endio, nofail);
+		bio = erofs_grab_bio(sb, blkaddr, 1, sb, read_endio, nofail);
 		if (IS_ERR(bio)) {
 			DBG_BUGON(nofail);
 			err = PTR_ERR(bio);
@@ -188,7 +194,8 @@ static inline struct bio *erofs_read_raw_page(struct bio *bio,
 					      unsigned int nblocks,
 					      bool ra)
 {
-	struct inode *inode = mapping->host;
+	struct inode *const inode = mapping->host;
+	struct super_block *const sb = inode->i_sb;
 	erofs_off_t current_block = (erofs_off_t)page->index;
 	int err;
 
@@ -280,9 +287,8 @@ submit_bio_retry:
 		if (nblocks > BIO_MAX_PAGES)
 			nblocks = BIO_MAX_PAGES;
 
-		bio = erofs_grab_bio(inode->i_sb,
-				     blknr, nblocks, read_endio, false);
-
+		bio = erofs_grab_bio(sb, blknr, nblocks, sb,
+				     read_endio, false);
 		if (IS_ERR(bio)) {
 			err = PTR_ERR(bio);
 			bio = NULL;
