@@ -497,6 +497,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
