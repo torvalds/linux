@@ -247,31 +247,80 @@ static int orangefs_writepages(struct address_space *mapping,
 	return ret;
 }
 
+static int orangefs_launder_page(struct page *);
+
 static int orangefs_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct iov_iter iter;
 	struct bio_vec bv;
 	ssize_t ret;
-	loff_t off;
+	loff_t off; /* offset into this page */
+	pgoff_t index; /* which page */
+	struct page *next_page;
+	char *kaddr;
+	struct orangefs_read_options *ro = file->private_data;
+	loff_t read_size;
+	loff_t roundedup;
+	int buffer_index = -1; /* orangefs shared memory slot */
+	int slot_index;   /* index into slot */
+	int remaining;
+
+	/*
+	 * If they set some miniscule size for "count" in read(2)
+	 * (for example) then let's try to read a page, or the whole file
+	 * if it is smaller than a page. Once "count" goes over a page
+	 * then lets round up to the highest page size multiple that is
+	 * less than or equal to "count" and do that much orangefs IO and
+	 * try to fill as many pages as we can from it.
+	 *
+	 * "count" should be represented in ro->blksiz.
+	 *
+	 * inode->i_size = file size.
+	 */
+	if (ro) {
+		if (ro->blksiz < PAGE_SIZE) {
+			if (inode->i_size < PAGE_SIZE)
+				read_size = inode->i_size;
+			else
+				read_size = PAGE_SIZE;
+		} else {
+			roundedup = ((PAGE_SIZE - 1) & ro->blksiz) ?
+				((ro->blksiz + PAGE_SIZE) & ~(PAGE_SIZE -1)) :
+				ro->blksiz;
+			if (roundedup > inode->i_size)
+				read_size = inode->i_size;
+			else
+				read_size = roundedup;
+
+		}
+	} else {
+		read_size = PAGE_SIZE;
+	}
+	if (!read_size)
+		read_size = PAGE_SIZE;
+
+	if (PageDirty(page))
+		orangefs_launder_page(page);
 
 	off = page_offset(page);
+	index = off >> PAGE_SHIFT;
 	bv.bv_page = page;
 	bv.bv_len = PAGE_SIZE;
 	bv.bv_offset = 0;
 	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
 
-	if (PageDirty(page))
-		orangefs_launder_page(page);
-
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    PAGE_SIZE, inode->i_size, NULL, NULL);
+	    read_size, inode->i_size, NULL, &buffer_index);
+	remaining = ret;
 	/* this will only zero remaining unread portions of the page data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
 	flush_dcache_page(page);
 	if (ret < 0) {
 		SetPageError(page);
+		unlock_page(page);
+		goto out;
 	} else {
 		SetPageUptodate(page);
 		if (PageError(page))
@@ -280,10 +329,61 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	}
 	/* unlock the page after the ->readpage() routine completes */
 	unlock_page(page);
+
+	if (remaining > PAGE_SIZE) {
+		slot_index = 0;
+		while ((remaining - PAGE_SIZE) >= PAGE_SIZE) {
+			remaining -= PAGE_SIZE;
+			/*
+			 * It is an optimization to try and fill more than one
+			 * page... by now we've already gotten the single
+			 * page we were after, if stuff doesn't seem to
+			 * be going our way at this point just return
+			 * and hope for the best.
+			 *
+			 * If we look for pages and they're already there is
+			 * one reason to give up, and if they're not there
+			 * and we can't create them is another reason.
+			 */
+
+			index++;
+			slot_index++;
+			next_page = find_get_page(inode->i_mapping, index);
+			if (next_page) {
+				gossip_debug(GOSSIP_FILE_DEBUG,
+					"%s: found next page, quitting\n",
+					__func__);
+				put_page(next_page);
+				goto out;
+			}
+			next_page = find_or_create_page(inode->i_mapping,
+							index,
+							GFP_KERNEL);
+			/*
+			 * I've never hit this, leave it as a printk for
+			 * now so it will be obvious.
+			 */
+			if (!next_page) {
+				printk("%s: can't create next page, quitting\n",
+					__func__);
+				goto out;
+			}
+			kaddr = kmap_atomic(next_page);
+			orangefs_bufmap_page_fill(kaddr,
+						buffer_index,
+						slot_index);
+			kunmap_atomic(kaddr);
+			SetPageUptodate(next_page);
+			unlock_page(next_page);
+			put_page(next_page);
+		}
+	}
+
+out:
+	if (buffer_index != -1)
+		orangefs_bufmap_put(buffer_index);
 	return ret;
 }
-
-static int orangefs_launder_page(struct page *);
 
 static int orangefs_write_begin(struct file *file,
     struct address_space *mapping,
@@ -326,7 +426,6 @@ static int orangefs_write_begin(struct file *file,
 			if (ret)
 				return ret;
 		}
-
 	}
 
 	wr = kmalloc(sizeof *wr, GFP_KERNEL);

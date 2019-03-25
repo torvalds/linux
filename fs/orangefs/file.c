@@ -54,6 +54,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
+	size_t copy_amount;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -212,8 +213,25 @@ populate_shared_memory:
 		 *       can futher be kernel-space or user-space addresses.
 		 *       or it can pointers to struct page's
 		 */
+
+		/*
+		 * When reading, readahead_size will only be zero when
+		 * we're doing O_DIRECT, otherwise we got here from
+		 * orangefs_readpage.
+		 *
+		 * If we got here from orangefs_readpage we want to
+		 * copy either a page or the whole file into the io
+		 * vector, whichever is smaller.
+		 */
+		if (readahead_size)
+			copy_amount =
+				min(new_op->downcall.resp.io.amt_complete,
+					(__s64)PAGE_SIZE);
+		else
+			copy_amount = new_op->downcall.resp.io.amt_complete;
+
 		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
-		    new_op->downcall.resp.io.amt_complete);
+			copy_amount);
 		if (ret < 0) {
 			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
 			    __func__, (long)ret);
@@ -231,10 +249,19 @@ populate_shared_memory:
 
 out:
 	if (buffer_index >= 0) {
-		orangefs_bufmap_put(buffer_index);
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%pU): PUT buffer_index %d\n",
-			     __func__, handle, buffer_index);
+		if ((readahead_size) && (type == ORANGEFS_IO_READ)) {
+			/* readpage */
+			*index_return = buffer_index;
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s: hold on to buffer_index :%d:\n",
+				__func__, buffer_index);
+		} else {
+			/* O_DIRECT */
+			orangefs_bufmap_put(buffer_index);
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s(%pU): PUT buffer_index %d\n",
+				__func__, handle, buffer_index);
+		}
 		buffer_index = -1;
 	}
 	op_release(new_op);
