@@ -562,7 +562,7 @@
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_SATA>, <&ccu CLK_SATA>;
 			resets = <&ccu RST_BUS_SATA>;
-			resets-name = "ahci";
+			reset-names = "ahci";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
