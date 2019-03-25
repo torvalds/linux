@@ -282,6 +282,8 @@
 					#size-cells = <0>;
 
 					mixer1_out: port@1 {
+						#address-cells = <1>;
+						#size-cells = <0>;
 						reg = <1>;
 
 						mixer1_out_tcon0: endpoint@0 {
@@ -372,7 +374,7 @@
 
 					tcon0_in_mixer1: endpoint@1 {
 						reg = <1>;
-						remote-endpoint = <&mixer1_out_tcon1>;
+						remote-endpoint = <&mixer1_out_tcon0>;
 					};
 				};
 
