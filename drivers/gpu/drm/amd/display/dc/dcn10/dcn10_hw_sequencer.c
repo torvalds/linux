@@ -979,16 +979,14 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
 		 * we will use the pipe, so don't disable
 		 */
-		if (pipe_ctx->stream != NULL)
+		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
 			continue;
-
-		if (tg->funcs->is_tg_enabled(tg))
-			tg->funcs->lock(tg);
 
 		/* Blank controller using driver code instead of
 		 * command table.
 		 */
 		if (tg->funcs->is_tg_enabled(tg)) {
+			tg->funcs->lock(tg);
 			tg->funcs->set_blank(tg, true);
 			hwss_wait_for_blank_complete(tg);
 		}
