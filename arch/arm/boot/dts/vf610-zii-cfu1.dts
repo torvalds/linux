@@ -87,7 +87,12 @@
 	bus-num = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dspi1>;
-	status = "okay";
+	/*
+	 * Some CFU1s come with SPI-NOR chip DNPed, so we leave this
+	 * node disabled by default and rely on bootloader to enable
+	 * it when appropriate.
+	 */
+	status = "disabled";
 
 	m25p128@0 {
 		#address-cells = <1>;
