@@ -132,7 +132,7 @@ static int brcmstb_waketmr_gettime(struct device *dev,
 
 	wktmr_read(timer, &now);
 
-	rtc_time_to_tm(now.sec, tm);
+	rtc_time64_to_tm(now.sec, tm);
 
 	return 0;
 }
