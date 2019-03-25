@@ -9959,6 +9959,7 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 			   const i915_reg_t reg)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u64 time_hw, prev_hw, overflow_hw;
 	unsigned int fw_domains;
 	unsigned long flags;
@@ -9980,10 +9981,10 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 	if (WARN_ON_ONCE(i >= ARRAY_SIZE(dev_priv->gt_pm.rc6.cur_residency)))
 		return 0;
 
-	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg, FW_REG_READ);
+	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg, FW_REG_READ);
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw_domains);
+	spin_lock_irqsave(&uncore->lock, flags);
+	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -10002,7 +10003,7 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 		}
 
 		overflow_hw = BIT_ULL(32);
-		time_hw = I915_READ_FW(reg);
+		time_hw = intel_uncore_read_fw(uncore, reg);
 	}
 
 	/*
@@ -10024,8 +10025,8 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 	time_hw += dev_priv->gt_pm.rc6.cur_residency[i];
 	dev_priv->gt_pm.rc6.cur_residency[i] = time_hw;
 
-	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw_domains);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+	intel_uncore_forcewake_put__locked(uncore, fw_domains);
+	spin_unlock_irqrestore(&uncore->lock, flags);
 
 	return mul_u64_u32_div(time_hw, mul, div);
 }

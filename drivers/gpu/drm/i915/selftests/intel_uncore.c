@@ -184,7 +184,7 @@ static int live_forcewake_ops(void *arg)
 		if (!engine->default_state)
 			continue;
 
-		fw_domains = intel_uncore_forcewake_for_reg(i915, mmio,
+		fw_domains = intel_uncore_forcewake_for_reg(uncore, mmio,
 							    FW_REG_READ);
 		if (!fw_domains)
 			continue;

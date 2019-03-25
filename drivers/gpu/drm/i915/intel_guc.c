@@ -54,7 +54,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 	BUILD_BUG_ON(GUC_MAX_MMIO_MSG_LEN > SOFT_SCRATCH_COUNT);
 
 	for (i = 0; i < guc->send_regs.count; i++) {
-		fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+		fw_domains |= intel_uncore_forcewake_for_reg(&dev_priv->uncore,
 					guc_send_reg(guc, i),
 					FW_REG_READ | FW_REG_WRITE);
 	}

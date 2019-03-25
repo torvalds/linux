@@ -193,7 +193,7 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
 
 enum forcewake_domains
-intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
+intel_uncore_forcewake_for_reg(struct intel_uncore *uncore,
 			       i915_reg_t reg, unsigned int op);
 #define FW_REG_READ  (1)
 #define FW_REG_WRITE (2)

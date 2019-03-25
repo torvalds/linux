@@ -905,7 +905,7 @@ wal_get_fw_for_rmw(struct drm_i915_private *dev_priv,
 	unsigned int i;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		fw |= intel_uncore_forcewake_for_reg(dev_priv,
+		fw |= intel_uncore_forcewake_for_reg(&dev_priv->uncore,
 						     wa->reg,
 						     FW_REG_READ |
 						     FW_REG_WRITE);

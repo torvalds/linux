@@ -888,6 +888,7 @@ static inline u32
 read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 		  int subslice, i915_reg_t reg)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mcr_slice_subslice_mask;
 	u32 mcr_slice_subslice_select;
 	u32 default_mcr_s_ss_select;
@@ -909,33 +910,33 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 
 	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(dev_priv);
 
-	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg,
+	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
 						    FW_REG_READ);
-	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+	fw_domains |= intel_uncore_forcewake_for_reg(uncore,
 						     GEN8_MCR_SELECTOR,
 						     FW_REG_READ | FW_REG_WRITE);
 
-	spin_lock_irq(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw_domains);
+	spin_lock_irq(&uncore->lock);
+	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
-	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
+	mcr = intel_uncore_read_fw(uncore, GEN8_MCR_SELECTOR);
 
 	WARN_ON_ONCE((mcr & mcr_slice_subslice_mask) !=
 		     default_mcr_s_ss_select);
 
 	mcr &= ~mcr_slice_subslice_mask;
 	mcr |= mcr_slice_subslice_select;
-	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
-	ret = I915_READ_FW(reg);
+	ret = intel_uncore_read_fw(uncore, reg);
 
 	mcr &= ~mcr_slice_subslice_mask;
 	mcr |= default_mcr_s_ss_select;
 
-	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
-	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw_domains);
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_put__locked(uncore, fw_domains);
+	spin_unlock_irq(&uncore->lock);
 
 	return ret;
 }
