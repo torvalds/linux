@@ -304,6 +304,9 @@ to_intel_bo(struct drm_gem_object *gem)
 	return container_of(gem, struct drm_i915_gem_object, base);
 }
 
+struct drm_i915_gem_object *i915_gem_object_alloc(void);
+void i915_gem_object_free(struct drm_i915_gem_object *obj);
+
 /**
  * i915_gem_object_lookup_rcu - look up a temporary GEM object from its handle
  * @filp: DRM file private date
@@ -500,4 +503,3 @@ void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
 #endif
-

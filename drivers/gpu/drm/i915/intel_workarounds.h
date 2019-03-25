@@ -9,18 +9,7 @@
 
 #include <linux/slab.h>
 
-struct i915_wa {
-	i915_reg_t	  reg;
-	u32		  mask;
-	u32		  val;
-};
-
-struct i915_wa_list {
-	const char	*name;
-	struct i915_wa	*list;
-	unsigned int	count;
-	unsigned int	wa_count;
-};
+#include "intel_workarounds_types.h"
 
 static inline void intel_wa_list_free(struct i915_wa_list *wal)
 {

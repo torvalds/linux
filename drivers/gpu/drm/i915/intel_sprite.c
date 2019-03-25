@@ -622,6 +622,9 @@ skl_disable_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
+	if (icl_is_hdr_plane(dev_priv, plane_id))
+		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), 0);
+
 	skl_write_plane_wm(plane, crtc_state);
 
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
@@ -754,7 +757,12 @@ vlv_update_clrc(const struct intel_plane_state *plane_state)
 
 static u32 vlv_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
-	return SP_GAMMA_ENABLE;
+	u32 sprctl = 0;
+
+	if (crtc_state->gamma_enable)
+		sprctl |= SP_GAMMA_ENABLE;
+
+	return sprctl;
 }
 
 static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
@@ -929,12 +937,12 @@ vlv_plane_get_hw_state(struct intel_plane *plane,
 
 static u32 ivb_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	u32 sprctl = 0;
 
-	sprctl |= SPRITE_GAMMA_ENABLE;
+	if (crtc_state->gamma_enable)
+		sprctl |= SPRITE_GAMMA_ENABLE;
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (crtc_state->csc_enable)
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
 	return sprctl;
@@ -1120,7 +1128,15 @@ g4x_sprite_max_stride(struct intel_plane *plane,
 
 static u32 g4x_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
-	return DVS_GAMMA_ENABLE;
+	u32 dvscntr = 0;
+
+	if (crtc_state->gamma_enable)
+		dvscntr |= DVS_GAMMA_ENABLE;
+
+	if (crtc_state->csc_enable)
+		dvscntr |= DVS_PIPE_CSC_ENABLE;
+
+	return dvscntr;
 }
 
 static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
@@ -1805,7 +1821,7 @@ static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const uint32_t icl_plane_formats[] = {
+static const u32 icl_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1826,7 +1842,7 @@ static const uint32_t icl_plane_formats[] = {
 	DRM_FORMAT_XVYU16161616,
 };
 
-static const uint32_t icl_hdr_plane_formats[] = {
+static const u32 icl_hdr_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1867,7 +1883,7 @@ static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_NV12,
 };
 
-static const uint32_t glk_planar_formats[] = {
+static const u32 glk_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1886,7 +1902,7 @@ static const uint32_t glk_planar_formats[] = {
 	DRM_FORMAT_P016,
 };
 
-static const uint32_t icl_planar_formats[] = {
+static const u32 icl_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1911,7 +1927,7 @@ static const uint32_t icl_planar_formats[] = {
 	DRM_FORMAT_XVYU16161616,
 };
 
-static const uint32_t icl_hdr_planar_formats[] = {
+static const u32 icl_hdr_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,

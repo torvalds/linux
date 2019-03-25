@@ -171,7 +171,7 @@ huge_pages_object(struct drm_i915_private *i915,
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = i915_gem_object_alloc(i915);
+	obj = i915_gem_object_alloc();
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
@@ -320,7 +320,7 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = i915_gem_object_alloc(i915);
+	obj = i915_gem_object_alloc();
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
@@ -1449,7 +1449,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * huge-gtt-pages.
 	 */
 
-	if (!ppgtt || !i915_vm_is_48bit(&ppgtt->vm)) {
+	if (!ppgtt || !i915_vm_is_4lvl(&ppgtt->vm)) {
 		pr_info("48b PPGTT not supported, skipping\n");
 		return 0;
 	}
@@ -1535,7 +1535,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * land in the now stale 2M page.
 	 */
 
-	err = gpu_write(vma, ctx, dev_priv->engine[RCS], 0, 0xdeadbeaf);
+	err = gpu_write(vma, ctx, dev_priv->engine[RCS0], 0, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 
@@ -1653,7 +1653,7 @@ static int igt_shrink_thp(void *arg)
 	if (err)
 		goto out_unpin;
 
-	err = gpu_write(vma, ctx, i915->engine[RCS], 0, 0xdeadbeaf);
+	err = gpu_write(vma, ctx, i915->engine[RCS0], 0, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 
@@ -1709,7 +1709,8 @@ int i915_gem_huge_page_mock_selftests(void)
 		return -ENOMEM;
 
 	/* Pretend to be a device which supports the 48b PPGTT */
-	mkwrite_device_info(dev_priv)->ppgtt = INTEL_PPGTT_FULL_4LVL;
+	mkwrite_device_info(dev_priv)->ppgtt_type = INTEL_PPGTT_FULL;
+	mkwrite_device_info(dev_priv)->ppgtt_size = 48;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	ppgtt = i915_ppgtt_create(dev_priv, ERR_PTR(-ENODEV));
@@ -1718,7 +1719,7 @@ int i915_gem_huge_page_mock_selftests(void)
 		goto out_unlock;
 	}
 
-	if (!i915_vm_is_48bit(&ppgtt->vm)) {
+	if (!i915_vm_is_4lvl(&ppgtt->vm)) {
 		pr_err("failed to create 48b PPGTT\n");
 		err = -EINVAL;
 		goto out_close;
@@ -1764,7 +1765,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
+	if (i915_terminally_wedged(dev_priv))
 		return 0;
 
 	file = mock_file(dev_priv);

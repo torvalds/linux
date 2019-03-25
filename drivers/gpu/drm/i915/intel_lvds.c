@@ -152,24 +152,17 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	pps->powerdown_on_reset = I915_READ(PP_CONTROL(0)) & PANEL_POWER_RESET;
 
 	val = I915_READ(PP_ON_DELAYS(0));
-	pps->port = (val & PANEL_PORT_SELECT_MASK) >>
-		    PANEL_PORT_SELECT_SHIFT;
-	pps->t1_t2 = (val & PANEL_POWER_UP_DELAY_MASK) >>
-		     PANEL_POWER_UP_DELAY_SHIFT;
-	pps->t5 = (val & PANEL_LIGHT_ON_DELAY_MASK) >>
-		  PANEL_LIGHT_ON_DELAY_SHIFT;
+	pps->port = REG_FIELD_GET(PANEL_PORT_SELECT_MASK, val);
+	pps->t1_t2 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, val);
+	pps->t5 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, val);
 
 	val = I915_READ(PP_OFF_DELAYS(0));
-	pps->t3 = (val & PANEL_POWER_DOWN_DELAY_MASK) >>
-		  PANEL_POWER_DOWN_DELAY_SHIFT;
-	pps->tx = (val & PANEL_LIGHT_OFF_DELAY_MASK) >>
-		  PANEL_LIGHT_OFF_DELAY_SHIFT;
+	pps->t3 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, val);
+	pps->tx = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, val);
 
 	val = I915_READ(PP_DIVISOR(0));
-	pps->divider = (val & PP_REFERENCE_DIVIDER_MASK) >>
-		       PP_REFERENCE_DIVIDER_SHIFT;
-	val = (val & PANEL_POWER_CYCLE_DELAY_MASK) >>
-	      PANEL_POWER_CYCLE_DELAY_SHIFT;
+	pps->divider = REG_FIELD_GET(PP_REFERENCE_DIVIDER_MASK, val);
+	val = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, val);
 	/*
 	 * Remove the BSpec specified +1 (100ms) offset that accounts for a
 	 * too short power-cycle delay due to the asynchronous programming of
@@ -209,16 +202,19 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 		val |= PANEL_POWER_RESET;
 	I915_WRITE(PP_CONTROL(0), val);
 
-	I915_WRITE(PP_ON_DELAYS(0), (pps->port << PANEL_PORT_SELECT_SHIFT) |
-				    (pps->t1_t2 << PANEL_POWER_UP_DELAY_SHIFT) |
-				    (pps->t5 << PANEL_LIGHT_ON_DELAY_SHIFT));
-	I915_WRITE(PP_OFF_DELAYS(0), (pps->t3 << PANEL_POWER_DOWN_DELAY_SHIFT) |
-				     (pps->tx << PANEL_LIGHT_OFF_DELAY_SHIFT));
+	I915_WRITE(PP_ON_DELAYS(0),
+		   REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, pps->port) |
+		   REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->t1_t2) |
+		   REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->t5));
 
-	val = pps->divider << PP_REFERENCE_DIVIDER_SHIFT;
-	val |= (DIV_ROUND_UP(pps->t4, 1000) + 1) <<
-	       PANEL_POWER_CYCLE_DELAY_SHIFT;
-	I915_WRITE(PP_DIVISOR(0), val);
+	I915_WRITE(PP_OFF_DELAYS(0),
+		   REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->t3) |
+		   REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->tx));
+
+	I915_WRITE(PP_DIVISOR(0),
+		   REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) |
+		   REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK,
+				  DIV_ROUND_UP(pps->t4, 1000) + 1));
 }
 
 static void intel_pre_enable_lvds(struct intel_encoder *encoder,
@@ -746,20 +742,21 @@ static const struct dmi_system_id intel_dual_link_lvds[] = {
 	{ }	/* terminating entry */
 };
 
-struct intel_encoder *intel_get_lvds_encoder(struct drm_device *dev)
+struct intel_encoder *intel_get_lvds_encoder(struct drm_i915_private *dev_priv)
 {
-	struct intel_encoder *intel_encoder;
+	struct intel_encoder *encoder;
 
-	for_each_intel_encoder(dev, intel_encoder)
-		if (intel_encoder->type == INTEL_OUTPUT_LVDS)
-			return intel_encoder;
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		if (encoder->type == INTEL_OUTPUT_LVDS)
+			return encoder;
+	}
 
 	return NULL;
 }
 
-bool intel_is_dual_link_lvds(struct drm_device *dev)
+bool intel_is_dual_link_lvds(struct drm_i915_private *dev_priv)
 {
-	struct intel_encoder *encoder = intel_get_lvds_encoder(dev);
+	struct intel_encoder *encoder = intel_get_lvds_encoder(dev_priv);
 
 	return encoder && to_lvds_encoder(&encoder->base)->is_dual_link;
 }

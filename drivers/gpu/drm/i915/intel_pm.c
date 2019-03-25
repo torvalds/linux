@@ -338,12 +338,12 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 
 	mutex_lock(&dev_priv->pcu_lock);
 
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	if (enable)
 		val |= DSP_MAXFIFO_PM5_ENABLE;
 	else
 		val &= ~DSP_MAXFIFO_PM5_ENABLE;
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
 
 	mutex_unlock(&dev_priv->pcu_lock);
 }
@@ -3624,7 +3624,12 @@ static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 11)
 		return enabled_slices;
 
-	if (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
+	/*
+	 * FIXME: for now we'll only ever use 1 slice; pretend that we have
+	 * only that 1 slice enabled until we have a proper way for on-demand
+	 * toggling of the second slice.
+	 */
+	if (0 && I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
 		enabled_slices++;
 
 	return enabled_slices;
@@ -4466,6 +4471,17 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
 			wm = &cstate->wm.skl.optimal.planes[plane_id];
 			memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
+
+			/*
+			 * Wa_1408961008:icl
+			 * Underruns with WM1+ disabled
+			 */
+			if (IS_ICELAKE(dev_priv) &&
+			    level == 1 && wm->wm[0].plane_en) {
+				wm->wm[level].plane_res_b = wm->wm[0].plane_res_b;
+				wm->wm[level].plane_res_l = wm->wm[0].plane_res_l;
+				wm->wm[level].ignore_lines = wm->wm[0].ignore_lines;
+			}
 		}
 	}
 
@@ -5056,11 +5072,12 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 {
 	u32 val = 0;
 
-	if (level->plane_en) {
+	if (level->plane_en)
 		val |= PLANE_WM_EN;
-		val |= level->plane_res_b;
-		val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
-	}
+	if (level->ignore_lines)
+		val |= PLANE_WM_IGNORE_LINES;
+	val |= level->plane_res_b;
+	val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
 
 	I915_WRITE_FW(reg, val);
 }
@@ -5126,6 +5143,7 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2)
 {
 	return l1->plane_en == l2->plane_en &&
+		l1->ignore_lines == l2->ignore_lines &&
 		l1->plane_res_l == l2->plane_res_l &&
 		l1->plane_res_b == l2->plane_res_b;
 }
@@ -5269,6 +5287,11 @@ skl_compute_ddb(struct intel_atomic_state *state)
 	return 0;
 }
 
+static char enast(bool enable)
+{
+	return enable ? '*' : ' ';
+}
+
 static void
 skl_print_wm_changes(struct intel_atomic_state *state)
 {
@@ -5279,8 +5302,16 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int i;
 
+	if ((drm_debug & DRM_UT_KMS) == 0)
+		return;
+
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
+		const struct skl_pipe_wm *old_pipe_wm, *new_pipe_wm;
+
+		old_pipe_wm = &old_crtc_state->wm.skl.optimal;
+		new_pipe_wm = &new_crtc_state->wm.skl.optimal;
+
 		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 			enum plane_id plane_id = plane->id;
 			const struct skl_ddb_entry *old, *new;
@@ -5291,10 +5322,86 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			if (skl_ddb_entry_equal(old, new))
 				continue;
 
-			DRM_DEBUG_KMS("[PLANE:%d:%s] ddb (%d - %d) -> (%d - %d)\n",
+			DRM_DEBUG_KMS("[PLANE:%d:%s] ddb (%4d - %4d) -> (%4d - %4d), size %4d -> %4d\n",
 				      plane->base.base.id, plane->base.name,
-				      old->start, old->end,
-				      new->start, new->end);
+				      old->start, old->end, new->start, new->end,
+				      skl_ddb_entry_size(old), skl_ddb_entry_size(new));
+		}
+
+		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+			enum plane_id plane_id = plane->id;
+			const struct skl_plane_wm *old_wm, *new_wm;
+
+			old_wm = &old_pipe_wm->planes[plane_id];
+			new_wm = &new_pipe_wm->planes[plane_id];
+
+			if (skl_plane_wm_equals(dev_priv, old_wm, new_wm))
+				continue;
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm"
+				      " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm\n",
+				      plane->base.base.id, plane->base.name,
+				      enast(old_wm->wm[0].plane_en), enast(old_wm->wm[1].plane_en),
+				      enast(old_wm->wm[2].plane_en), enast(old_wm->wm[3].plane_en),
+				      enast(old_wm->wm[4].plane_en), enast(old_wm->wm[5].plane_en),
+				      enast(old_wm->wm[6].plane_en), enast(old_wm->wm[7].plane_en),
+				      enast(old_wm->trans_wm.plane_en),
+				      enast(new_wm->wm[0].plane_en), enast(new_wm->wm[1].plane_en),
+				      enast(new_wm->wm[2].plane_en), enast(new_wm->wm[3].plane_en),
+				      enast(new_wm->wm[4].plane_en), enast(new_wm->wm[5].plane_en),
+				      enast(new_wm->wm[6].plane_en), enast(new_wm->wm[7].plane_en),
+				      enast(new_wm->trans_wm.plane_en));
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d"
+				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d\n",
+				      plane->base.base.id, plane->base.name,
+				      enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].plane_res_l,
+				      enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].plane_res_l,
+				      enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].plane_res_l,
+				      enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].plane_res_l,
+				      enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].plane_res_l,
+				      enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].plane_res_l,
+				      enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].plane_res_l,
+				      enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].plane_res_l,
+				      enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.plane_res_l,
+
+				      enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].plane_res_l,
+				      enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].plane_res_l,
+				      enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].plane_res_l,
+				      enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].plane_res_l,
+				      enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].plane_res_l,
+				      enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].plane_res_l,
+				      enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].plane_res_l,
+				      enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].plane_res_l,
+				      enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.plane_res_l);
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
+				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				      plane->base.base.id, plane->base.name,
+				      old_wm->wm[0].plane_res_b, old_wm->wm[1].plane_res_b,
+				      old_wm->wm[2].plane_res_b, old_wm->wm[3].plane_res_b,
+				      old_wm->wm[4].plane_res_b, old_wm->wm[5].plane_res_b,
+				      old_wm->wm[6].plane_res_b, old_wm->wm[7].plane_res_b,
+				      old_wm->trans_wm.plane_res_b,
+				      new_wm->wm[0].plane_res_b, new_wm->wm[1].plane_res_b,
+				      new_wm->wm[2].plane_res_b, new_wm->wm[3].plane_res_b,
+				      new_wm->wm[4].plane_res_b, new_wm->wm[5].plane_res_b,
+				      new_wm->wm[6].plane_res_b, new_wm->wm[7].plane_res_b,
+				      new_wm->trans_wm.plane_res_b);
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
+				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				      plane->base.base.id, plane->base.name,
+				      old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
+				      old_wm->wm[2].min_ddb_alloc, old_wm->wm[3].min_ddb_alloc,
+				      old_wm->wm[4].min_ddb_alloc, old_wm->wm[5].min_ddb_alloc,
+				      old_wm->wm[6].min_ddb_alloc, old_wm->wm[7].min_ddb_alloc,
+				      old_wm->trans_wm.min_ddb_alloc,
+				      new_wm->wm[0].min_ddb_alloc, new_wm->wm[1].min_ddb_alloc,
+				      new_wm->wm[2].min_ddb_alloc, new_wm->wm[3].min_ddb_alloc,
+				      new_wm->wm[4].min_ddb_alloc, new_wm->wm[5].min_ddb_alloc,
+				      new_wm->wm[6].min_ddb_alloc, new_wm->wm[7].min_ddb_alloc,
+				      new_wm->trans_wm.min_ddb_alloc);
 		}
 	}
 }
@@ -5609,6 +5716,7 @@ static inline void skl_wm_level_from_reg_val(u32 val,
 					     struct skl_wm_level *level)
 {
 	level->plane_en = val & PLANE_WM_EN;
+	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
 	level->plane_res_b = val & PLANE_WM_BLOCKS_MASK;
 	level->plane_res_l = (val >> PLANE_WM_LINES_SHIFT) &
 		PLANE_WM_LINES_MASK;
@@ -5986,7 +6094,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 	if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
 
-		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
 			wm->level = VLV_WM_LEVEL_PM5;
 
@@ -6691,8 +6799,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
-void gen6_rps_boost(struct i915_request *rq,
-		    struct intel_rps_client *rps_client)
+void gen6_rps_boost(struct i915_request *rq)
 {
 	struct intel_rps *rps = &rq->i915->gt_pm.rps;
 	unsigned long flags;
@@ -6721,7 +6828,7 @@ void gen6_rps_boost(struct i915_request *rq,
 	if (READ_ONCE(rps->cur_freq) < rps->boost_freq)
 		schedule_work(&rps->work);
 
-	atomic_inc(rps_client ? &rps_client->boosts : &rps->boosts);
+	atomic_inc(&rps->boosts);
 }
 
 int intel_set_rps(struct drm_i915_private *dev_priv, u8 val)

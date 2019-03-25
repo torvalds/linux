@@ -949,8 +949,11 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	regs->pp_stat = PP_STATUS(pps_idx);
 	regs->pp_on = PP_ON_DELAYS(pps_idx);
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
-	if (!IS_GEN9_LP(dev_priv) && !HAS_PCH_CNP(dev_priv) &&
-	    !HAS_PCH_ICP(dev_priv))
+
+	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
+	if (IS_GEN9_LP(dev_priv) || INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+		regs->pp_div = INVALID_MMIO_REG;
+	else
 		regs->pp_div = PP_DIVISOR(pps_idx);
 }
 
@@ -4780,7 +4783,7 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
 		intel_dp_handle_test_request(intel_dp);
 
 	if (val & DP_CP_IRQ)
-		intel_hdcp_check_link(intel_dp->attached_connector);
+		intel_hdcp_handle_cp_irq(intel_dp->attached_connector);
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
 		DRM_DEBUG_DRIVER("Sink specific irq unhandled\n");
@@ -5623,6 +5626,18 @@ void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 		edp_panel_vdd_off_sync(intel_dp);
 }
 
+static void intel_dp_hdcp_wait_for_cp_irq(struct intel_hdcp *hdcp, int timeout)
+{
+	long ret;
+
+#define C (hdcp->cp_irq_count_cached != atomic_read(&hdcp->cp_irq_count))
+	ret = wait_event_interruptible_timeout(hdcp->cp_irq_queue, C,
+					       msecs_to_jiffies(timeout));
+
+	if (!ret)
+		DRM_DEBUG_KMS("Timedout at waiting for CP_IRQ\n");
+}
+
 static
 int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				u8 *an)
@@ -5847,6 +5862,336 @@ int intel_dp_hdcp_capable(struct intel_digital_port *intel_dig_port,
 	return 0;
 }
 
+struct hdcp2_dp_errata_stream_type {
+	u8	msg_id;
+	u8	stream_type;
+} __packed;
+
+static struct hdcp2_dp_msg_data {
+	u8 msg_id;
+	u32 offset;
+	bool msg_detectable;
+	u32 timeout;
+	u32 timeout2; /* Added for non_paired situation */
+	} hdcp2_msg_data[] = {
+		{HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0},
+		{HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
+				false, HDCP_2_2_CERT_TIMEOUT_MS, 0},
+		{HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
+				false, 0, 0},
+		{HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
+				false, 0, 0},
+		{HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
+				true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
+				HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS},
+		{HDCP_2_2_AKE_SEND_PAIRING_INFO,
+				DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
+				HDCP_2_2_PAIRING_TIMEOUT_MS, 0},
+		{HDCP_2_2_LC_INIT, DP_HDCP_2_2_LC_INIT_OFFSET, false, 0, 0},
+		{HDCP_2_2_LC_SEND_LPRIME, DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET,
+				false, HDCP_2_2_DP_LPRIME_TIMEOUT_MS, 0},
+		{HDCP_2_2_SKE_SEND_EKS, DP_HDCP_2_2_SKE_SEND_EKS_OFFSET, false,
+				0, 0},
+		{HDCP_2_2_REP_SEND_RECVID_LIST,
+				DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET, true,
+				HDCP_2_2_RECVID_LIST_TIMEOUT_MS, 0},
+		{HDCP_2_2_REP_SEND_ACK, DP_HDCP_2_2_REP_SEND_ACK_OFFSET, false,
+				0, 0},
+		{HDCP_2_2_REP_STREAM_MANAGE,
+				DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET, false,
+				0, 0},
+		{HDCP_2_2_REP_STREAM_READY, DP_HDCP_2_2_REP_STREAM_READY_OFFSET,
+				false, HDCP_2_2_STREAM_READY_TIMEOUT_MS, 0},
+/* local define to shovel this through the write_2_2 interface */
+#define HDCP_2_2_ERRATA_DP_STREAM_TYPE	50
+		{HDCP_2_2_ERRATA_DP_STREAM_TYPE,
+				DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET, false,
+				0, 0},
+		};
+
+static inline
+int intel_dp_hdcp2_read_rx_status(struct intel_digital_port *intel_dig_port,
+				  u8 *rx_status)
+{
+	ssize_t ret;
+
+	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux,
+			       DP_HDCP_2_2_REG_RXSTATUS_OFFSET, rx_status,
+			       HDCP_2_2_DP_RXSTATUS_LEN);
+	if (ret != HDCP_2_2_DP_RXSTATUS_LEN) {
+		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		return ret >= 0 ? -EIO : ret;
+	}
+
+	return 0;
+}
+
+static
+int hdcp2_detect_msg_availability(struct intel_digital_port *intel_dig_port,
+				  u8 msg_id, bool *msg_ready)
+{
+	u8 rx_status;
+	int ret;
+
+	*msg_ready = false;
+	ret = intel_dp_hdcp2_read_rx_status(intel_dig_port, &rx_status);
+	if (ret < 0)
+		return ret;
+
+	switch (msg_id) {
+	case HDCP_2_2_AKE_SEND_HPRIME:
+		if (HDCP_2_2_DP_RXSTATUS_H_PRIME(rx_status))
+			*msg_ready = true;
+		break;
+	case HDCP_2_2_AKE_SEND_PAIRING_INFO:
+		if (HDCP_2_2_DP_RXSTATUS_PAIRING(rx_status))
+			*msg_ready = true;
+		break;
+	case HDCP_2_2_REP_SEND_RECVID_LIST:
+		if (HDCP_2_2_DP_RXSTATUS_READY(rx_status))
+			*msg_ready = true;
+		break;
+	default:
+		DRM_ERROR("Unidentified msg_id: %d\n", msg_id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static ssize_t
+intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
+			    struct hdcp2_dp_msg_data *hdcp2_msg_data)
+{
+	struct intel_dp *dp = &intel_dig_port->dp;
+	struct intel_hdcp *hdcp = &dp->attached_connector->hdcp;
+	u8 msg_id = hdcp2_msg_data->msg_id;
+	int ret, timeout;
+	bool msg_ready = false;
+
+	if (msg_id == HDCP_2_2_AKE_SEND_HPRIME && !hdcp->is_paired)
+		timeout = hdcp2_msg_data->timeout2;
+	else
+		timeout = hdcp2_msg_data->timeout;
+
+	/*
+	 * There is no way to detect the CERT, LPRIME and STREAM_READY
+	 * availability. So Wait for timeout and read the msg.
+	 */
+	if (!hdcp2_msg_data->msg_detectable) {
+		mdelay(timeout);
+		ret = 0;
+	} else {
+		/*
+		 * As we want to check the msg availability at timeout, Ignoring
+		 * the timeout at wait for CP_IRQ.
+		 */
+		intel_dp_hdcp_wait_for_cp_irq(hdcp, timeout);
+		ret = hdcp2_detect_msg_availability(intel_dig_port,
+						    msg_id, &msg_ready);
+		if (!msg_ready)
+			ret = -ETIMEDOUT;
+	}
+
+	if (ret)
+		DRM_DEBUG_KMS("msg_id %d, ret %d, timeout(mSec): %d\n",
+			      hdcp2_msg_data->msg_id, ret, timeout);
+
+	return ret;
+}
+
+static struct hdcp2_dp_msg_data *get_hdcp2_dp_msg_data(u8 msg_id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hdcp2_msg_data); i++)
+		if (hdcp2_msg_data[i].msg_id == msg_id)
+			return &hdcp2_msg_data[i];
+
+	return NULL;
+}
+
+static
+int intel_dp_hdcp2_write_msg(struct intel_digital_port *intel_dig_port,
+			     void *buf, size_t size)
+{
+	struct intel_dp *dp = &intel_dig_port->dp;
+	struct intel_hdcp *hdcp = &dp->attached_connector->hdcp;
+	unsigned int offset;
+	u8 *byte = buf;
+	ssize_t ret, bytes_to_write, len;
+	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+
+	hdcp2_msg_data = get_hdcp2_dp_msg_data(*byte);
+	if (!hdcp2_msg_data)
+		return -EINVAL;
+
+	offset = hdcp2_msg_data->offset;
+
+	/* No msg_id in DP HDCP2.2 msgs */
+	bytes_to_write = size - 1;
+	byte++;
+
+	hdcp->cp_irq_count_cached = atomic_read(&hdcp->cp_irq_count);
+
+	while (bytes_to_write) {
+		len = bytes_to_write > DP_AUX_MAX_PAYLOAD_BYTES ?
+				DP_AUX_MAX_PAYLOAD_BYTES : bytes_to_write;
+
+		ret = drm_dp_dpcd_write(&intel_dig_port->dp.aux,
+					offset, (void *)byte, len);
+		if (ret < 0)
+			return ret;
+
+		bytes_to_write -= ret;
+		byte += ret;
+		offset += ret;
+	}
+
+	return size;
+}
+
+static
+ssize_t get_receiver_id_list_size(struct intel_digital_port *intel_dig_port)
+{
+	u8 rx_info[HDCP_2_2_RXINFO_LEN];
+	u32 dev_cnt;
+	ssize_t ret;
+
+	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux,
+			       DP_HDCP_2_2_REG_RXINFO_OFFSET,
+			       (void *)rx_info, HDCP_2_2_RXINFO_LEN);
+	if (ret != HDCP_2_2_RXINFO_LEN)
+		return ret >= 0 ? -EIO : ret;
+
+	dev_cnt = (HDCP_2_2_DEV_COUNT_HI(rx_info[0]) << 4 |
+		   HDCP_2_2_DEV_COUNT_LO(rx_info[1]));
+
+	if (dev_cnt > HDCP_2_2_MAX_DEVICE_COUNT)
+		dev_cnt = HDCP_2_2_MAX_DEVICE_COUNT;
+
+	ret = sizeof(struct hdcp2_rep_send_receiverid_list) -
+		HDCP_2_2_RECEIVER_IDS_MAX_LEN +
+		(dev_cnt * HDCP_2_2_RECEIVER_ID_LEN);
+
+	return ret;
+}
+
+static
+int intel_dp_hdcp2_read_msg(struct intel_digital_port *intel_dig_port,
+			    u8 msg_id, void *buf, size_t size)
+{
+	unsigned int offset;
+	u8 *byte = buf;
+	ssize_t ret, bytes_to_recv, len;
+	struct hdcp2_dp_msg_data *hdcp2_msg_data;
+
+	hdcp2_msg_data = get_hdcp2_dp_msg_data(msg_id);
+	if (!hdcp2_msg_data)
+		return -EINVAL;
+	offset = hdcp2_msg_data->offset;
+
+	ret = intel_dp_hdcp2_wait_for_msg(intel_dig_port, hdcp2_msg_data);
+	if (ret < 0)
+		return ret;
+
+	if (msg_id == HDCP_2_2_REP_SEND_RECVID_LIST) {
+		ret = get_receiver_id_list_size(intel_dig_port);
+		if (ret < 0)
+			return ret;
+
+		size = ret;
+	}
+	bytes_to_recv = size - 1;
+
+	/* DP adaptation msgs has no msg_id */
+	byte++;
+
+	while (bytes_to_recv) {
+		len = bytes_to_recv > DP_AUX_MAX_PAYLOAD_BYTES ?
+		      DP_AUX_MAX_PAYLOAD_BYTES : bytes_to_recv;
+
+		ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, offset,
+				       (void *)byte, len);
+		if (ret < 0) {
+			DRM_DEBUG_KMS("msg_id %d, ret %zd\n", msg_id, ret);
+			return ret;
+		}
+
+		bytes_to_recv -= ret;
+		byte += ret;
+		offset += ret;
+	}
+	byte = buf;
+	*byte = msg_id;
+
+	return size;
+}
+
+static
+int intel_dp_hdcp2_config_stream_type(struct intel_digital_port *intel_dig_port,
+				      bool is_repeater, u8 content_type)
+{
+	struct hdcp2_dp_errata_stream_type stream_type_msg;
+
+	if (is_repeater)
+		return 0;
+
+	/*
+	 * Errata for DP: As Stream type is used for encryption, Receiver
+	 * should be communicated with stream type for the decryption of the
+	 * content.
+	 * Repeater will be communicated with stream type as a part of it's
+	 * auth later in time.
+	 */
+	stream_type_msg.msg_id = HDCP_2_2_ERRATA_DP_STREAM_TYPE;
+	stream_type_msg.stream_type = content_type;
+
+	return intel_dp_hdcp2_write_msg(intel_dig_port, &stream_type_msg,
+					sizeof(stream_type_msg));
+}
+
+static
+int intel_dp_hdcp2_check_link(struct intel_digital_port *intel_dig_port)
+{
+	u8 rx_status;
+	int ret;
+
+	ret = intel_dp_hdcp2_read_rx_status(intel_dig_port, &rx_status);
+	if (ret)
+		return ret;
+
+	if (HDCP_2_2_DP_RXSTATUS_REAUTH_REQ(rx_status))
+		ret = HDCP_REAUTH_REQUEST;
+	else if (HDCP_2_2_DP_RXSTATUS_LINK_FAILED(rx_status))
+		ret = HDCP_LINK_INTEGRITY_FAILURE;
+	else if (HDCP_2_2_DP_RXSTATUS_READY(rx_status))
+		ret = HDCP_TOPOLOGY_CHANGE;
+
+	return ret;
+}
+
+static
+int intel_dp_hdcp2_capable(struct intel_digital_port *intel_dig_port,
+			   bool *capable)
+{
+	u8 rx_caps[3];
+	int ret;
+
+	*capable = false;
+	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux,
+			       DP_HDCP_2_2_REG_RX_CAPS_OFFSET,
+			       rx_caps, HDCP_2_2_RXCAPS_LEN);
+	if (ret != HDCP_2_2_RXCAPS_LEN)
+		return ret >= 0 ? -EIO : ret;
+
+	if (rx_caps[0] == HDCP_2_2_RX_CAPS_VERSION_VAL &&
+	    HDCP_2_2_DP_HDCP_CAPABLE(rx_caps[2]))
+		*capable = true;
+
+	return 0;
+}
+
 static const struct intel_hdcp_shim intel_dp_hdcp_shim = {
 	.write_an_aksv = intel_dp_hdcp_write_an_aksv,
 	.read_bksv = intel_dp_hdcp_read_bksv,
@@ -5859,6 +6204,12 @@ static const struct intel_hdcp_shim intel_dp_hdcp_shim = {
 	.toggle_signalling = intel_dp_hdcp_toggle_signalling,
 	.check_link = intel_dp_hdcp_check_link,
 	.hdcp_capable = intel_dp_hdcp_capable,
+	.write_2_2_msg = intel_dp_hdcp2_write_msg,
+	.read_2_2_msg = intel_dp_hdcp2_read_msg,
+	.config_stream_type = intel_dp_hdcp2_config_stream_type,
+	.check_2_2_link = intel_dp_hdcp2_check_link,
+	.hdcp_2_2_capable = intel_dp_hdcp2_capable,
+	.protocol = HDCP_PROTOCOL_DP,
 };
 
 static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
@@ -6072,43 +6423,34 @@ static void
 intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 pp_on, pp_off, pp_div = 0, pp_ctl = 0;
+	u32 pp_on, pp_off, pp_ctl;
 	struct pps_registers regs;
 
 	intel_pps_get_registers(intel_dp, &regs);
 
-	/* Workaround: Need to write PP_CONTROL with the unlock key as
-	 * the very first thing. */
 	pp_ctl = ironlake_get_pp_control(intel_dp);
+
+	/* Ensure PPS is unlocked */
+	if (!HAS_DDI(dev_priv))
+		I915_WRITE(regs.pp_ctrl, pp_ctl);
 
 	pp_on = I915_READ(regs.pp_on);
 	pp_off = I915_READ(regs.pp_off);
-	if (!IS_GEN9_LP(dev_priv) && !HAS_PCH_CNP(dev_priv) &&
-	    !HAS_PCH_ICP(dev_priv)) {
-		I915_WRITE(regs.pp_ctrl, pp_ctl);
-		pp_div = I915_READ(regs.pp_div);
-	}
 
 	/* Pull timing values out of registers */
-	seq->t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
-		     PANEL_POWER_UP_DELAY_SHIFT;
+	seq->t1_t3 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, pp_on);
+	seq->t8 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, pp_on);
+	seq->t9 = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, pp_off);
+	seq->t10 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, pp_off);
 
-	seq->t8 = (pp_on & PANEL_LIGHT_ON_DELAY_MASK) >>
-		  PANEL_LIGHT_ON_DELAY_SHIFT;
+	if (i915_mmio_reg_valid(regs.pp_div)) {
+		u32 pp_div;
 
-	seq->t9 = (pp_off & PANEL_LIGHT_OFF_DELAY_MASK) >>
-		  PANEL_LIGHT_OFF_DELAY_SHIFT;
+		pp_div = I915_READ(regs.pp_div);
 
-	seq->t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
-		   PANEL_POWER_DOWN_DELAY_SHIFT;
-
-	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv) ||
-	    HAS_PCH_ICP(dev_priv)) {
-		seq->t11_t12 = ((pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
-				BXT_POWER_CYCLE_DELAY_SHIFT) * 1000;
+		seq->t11_t12 = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, pp_div) * 1000;
 	} else {
-		seq->t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
-		       PANEL_POWER_CYCLE_DELAY_SHIFT) * 1000;
+		seq->t11_t12 = REG_FIELD_GET(BXT_POWER_CYCLE_DELAY_MASK, pp_ctl) * 1000;
 	}
 }
 
@@ -6233,7 +6575,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 					      bool force_disable_vdd)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 pp_on, pp_off, pp_div, port_sel = 0;
+	u32 pp_on, pp_off, port_sel = 0;
 	int div = dev_priv->rawclk_freq / 1000;
 	struct pps_registers regs;
 	enum port port = dp_to_dig_port(intel_dp)->base.port;
@@ -6268,23 +6610,10 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 		I915_WRITE(regs.pp_ctrl, pp);
 	}
 
-	pp_on = (seq->t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
-		(seq->t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
-	pp_off = (seq->t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
-		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
-	/* Compute the divisor for the pp clock, simply match the Bspec
-	 * formula. */
-	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv) ||
-	    HAS_PCH_ICP(dev_priv)) {
-		pp_div = I915_READ(regs.pp_ctrl);
-		pp_div &= ~BXT_POWER_CYCLE_DELAY_MASK;
-		pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
-				<< BXT_POWER_CYCLE_DELAY_SHIFT);
-	} else {
-		pp_div = ((100 * div)/2 - 1) << PP_REFERENCE_DIVIDER_SHIFT;
-		pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
-				<< PANEL_POWER_CYCLE_DELAY_SHIFT);
-	}
+	pp_on = REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, seq->t1_t3) |
+		REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, seq->t8);
+	pp_off = REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, seq->t9) |
+		REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, seq->t10);
 
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
@@ -6311,19 +6640,29 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 
 	I915_WRITE(regs.pp_on, pp_on);
 	I915_WRITE(regs.pp_off, pp_off);
-	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv) ||
-	    HAS_PCH_ICP(dev_priv))
-		I915_WRITE(regs.pp_ctrl, pp_div);
-	else
-		I915_WRITE(regs.pp_div, pp_div);
+
+	/*
+	 * Compute the divisor for the pp clock, simply match the Bspec formula.
+	 */
+	if (i915_mmio_reg_valid(regs.pp_div)) {
+		I915_WRITE(regs.pp_div,
+			   REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, (100 * div) / 2 - 1) |
+			   REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000)));
+	} else {
+		u32 pp_ctl;
+
+		pp_ctl = I915_READ(regs.pp_ctrl);
+		pp_ctl &= ~BXT_POWER_CYCLE_DELAY_MASK;
+		pp_ctl |= REG_FIELD_PREP(BXT_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000));
+		I915_WRITE(regs.pp_ctrl, pp_ctl);
+	}
 
 	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
 		      I915_READ(regs.pp_on),
 		      I915_READ(regs.pp_off),
-		      (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)  ||
-		       HAS_PCH_ICP(dev_priv)) ?
-		      (I915_READ(regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK) :
-		      I915_READ(regs.pp_div));
+		      i915_mmio_reg_valid(regs.pp_div) ?
+		      I915_READ(regs.pp_div) :
+		      (I915_READ(regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK));
 }
 
 static void intel_dp_pps_init(struct intel_dp *intel_dp)
@@ -6734,7 +7073,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 * eDP and LVDS bail out early in this case to prevent interfering
 	 * with an already powered-on LVDS power sequencer.
 	 */
-	if (intel_get_lvds_encoder(&dev_priv->drm)) {
+	if (intel_get_lvds_encoder(dev_priv)) {
 		WARN_ON(!(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
 		DRM_INFO("LVDS was detected, not registering eDP\n");
 

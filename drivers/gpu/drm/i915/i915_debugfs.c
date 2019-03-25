@@ -388,12 +388,9 @@ static void print_context_stats(struct seq_file *m,
 	struct i915_gem_context *ctx;
 
 	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		struct intel_engine_cs *engine;
-		enum intel_engine_id id;
+		struct intel_context *ce;
 
-		for_each_engine(engine, i915, id) {
-			struct intel_context *ce = to_intel_context(ctx, engine);
-
+		list_for_each_entry(ce, &ctx->active_engines, active_link) {
 			if (ce->state)
 				per_file_stats(0, ce->state->obj, &kstats);
 			if (ce->ring)
@@ -1281,14 +1278,11 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	intel_wakeref_t wakeref;
 	enum intel_engine_id id;
 
+	seq_printf(m, "Reset flags: %lx\n", dev_priv->gpu_error.flags);
 	if (test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
-		seq_puts(m, "Wedged\n");
+		seq_puts(m, "\tWedged\n");
 	if (test_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags))
-		seq_puts(m, "Reset in progress: struct_mutex backoff\n");
-	if (waitqueue_active(&dev_priv->gpu_error.wait_queue))
-		seq_puts(m, "Waiter holding struct mutex\n");
-	if (waitqueue_active(&dev_priv->gpu_error.reset_queue))
-		seq_puts(m, "struct_mutex blocked for reset\n");
+		seq_puts(m, "\tDevice (global) reset in progress\n");
 
 	if (!i915_modparams.enable_hangcheck) {
 		seq_puts(m, "Hangcheck disabled\n");
@@ -1298,10 +1292,10 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	with_intel_runtime_pm(dev_priv, wakeref) {
 		for_each_engine(engine, dev_priv, id) {
 			acthd[id] = intel_engine_get_active_head(engine);
-			seqno[id] = intel_engine_get_seqno(engine);
+			seqno[id] = intel_engine_get_hangcheck_seqno(engine);
 		}
 
-		intel_engine_get_instdone(dev_priv->engine[RCS], &instdone);
+		intel_engine_get_instdone(dev_priv->engine[RCS0], &instdone);
 	}
 
 	if (timer_pending(&dev_priv->gpu_error.hangcheck_work.timer))
@@ -1318,8 +1312,9 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	for_each_engine(engine, dev_priv, id) {
 		seq_printf(m, "%s:\n", engine->name);
 		seq_printf(m, "\tseqno = %x [current %x, last %x], %dms ago\n",
-			   engine->hangcheck.seqno, seqno[id],
-			   intel_engine_last_submit(engine),
+			   engine->hangcheck.last_seqno,
+			   seqno[id],
+			   engine->hangcheck.next_seqno,
 			   jiffies_to_msecs(jiffies -
 					    engine->hangcheck.action_timestamp));
 
@@ -1327,7 +1322,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   (long long)engine->hangcheck.acthd,
 			   (long long)acthd[id]);
 
-		if (engine->id == RCS) {
+		if (engine->id == RCS0) {
 			seq_puts(m, "\tinstdone read =\n");
 
 			i915_instdone_info(dev_priv, m, &instdone);
@@ -1882,9 +1877,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -1892,6 +1885,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
+		struct intel_context *ce;
+
 		seq_puts(m, "HW context ");
 		if (!list_empty(&ctx->hw_id_link))
 			seq_printf(m, "%x [pin %u]", ctx->hw_id,
@@ -1914,11 +1909,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, ctx->remap_slice ? 'R' : 'r');
 		seq_putc(m, '\n');
 
-		for_each_engine(engine, dev_priv, id) {
-			struct intel_context *ce =
-				to_intel_context(ctx, engine);
-
-			seq_printf(m, "%s: ", engine->name);
+		list_for_each_entry(ce, &ctx->active_engines, active_link) {
+			seq_printf(m, "%s: ", ce->engine->name);
 			if (ce->state)
 				describe_obj(m, ce->state->obj);
 			if (ce->ring)
@@ -2023,11 +2015,9 @@ static const char *rps_power_to_str(unsigned int power)
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 act_freq = rps->cur_freq;
 	intel_wakeref_t wakeref;
-	struct drm_file *file;
 
 	with_intel_runtime_pm_if_in_use(dev_priv, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -2061,22 +2051,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(dev_priv, rps->efficient_freq),
 		   intel_gpu_freq(dev_priv, rps->boost_freq));
 
-	mutex_lock(&dev->filelist_mutex);
-	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
-		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct task_struct *task;
-
-		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_PID);
-		seq_printf(m, "%s [%d]: %d boosts\n",
-			   task ? task->comm : "<unknown>",
-			   task ? task->pid : -1,
-			   atomic_read(&file_priv->rps_client.boosts));
-		rcu_read_unlock();
-	}
-	seq_printf(m, "Kernel (anonymous) boosts: %d\n",
-		   atomic_read(&rps->boosts));
-	mutex_unlock(&dev->filelist_mutex);
+	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
 	if (INTEL_GEN(dev_priv) >= 6 &&
 	    rps->enabled &&
@@ -2607,7 +2582,6 @@ static int
 i915_edp_psr_debug_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
-	struct drm_modeset_acquire_ctx ctx;
 	intel_wakeref_t wakeref;
 	int ret;
 
@@ -2618,18 +2592,7 @@ i915_edp_psr_debug_set(void *data, u64 val)
 
 	wakeref = intel_runtime_pm_get(dev_priv);
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-
-retry:
-	ret = intel_psr_set_debugfs_mode(dev_priv, &ctx, val);
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	ret = intel_psr_debug_set(dev_priv, val);
 
 	intel_runtime_pm_put(dev_priv, wakeref);
 
@@ -2686,8 +2649,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Runtime power status: %s\n",
 		   enableddisabled(!dev_priv->power_domains.wakeref));
 
-	seq_printf(m, "GPU idle: %s (epoch %u)\n",
-		   yesno(!dev_priv->gt.awake), dev_priv->gt.epoch);
+	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->gt.awake));
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(!intel_irqs_enabled(dev_priv)));
 #ifdef CONFIG_PM
@@ -3123,8 +3085,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 	wakeref = intel_runtime_pm_get(dev_priv);
 
-	seq_printf(m, "GT awake? %s (epoch %u)\n",
-		   yesno(dev_priv->gt.awake), dev_priv->gt.epoch);
+	seq_printf(m, "GT awake? %s\n", yesno(dev_priv->gt.awake));
 	seq_printf(m, "Global active requests: %d\n",
 		   dev_priv->gt.active_requests);
 	seq_printf(m, "CS timestamp frequency: %u kHz\n",
@@ -3211,7 +3172,7 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 static int i915_wa_registers(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
-	const struct i915_wa_list *wal = &i915->engine[RCS]->ctx_wa_list;
+	const struct i915_wa_list *wal = &i915->engine[RCS0]->ctx_wa_list;
 	struct i915_wa *wa;
 	unsigned int i;
 
@@ -3865,11 +3826,18 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 static int
 i915_wedged_get(void *data, u64 *val)
 {
-	struct drm_i915_private *dev_priv = data;
+	int ret = i915_terminally_wedged(data);
 
-	*val = i915_terminally_wedged(&dev_priv->gpu_error);
-
-	return 0;
+	switch (ret) {
+	case -EIO:
+		*val = 1;
+		return 0;
+	case 0:
+		*val = 0;
+		return 0;
+	default:
+		return ret;
+	}
 }
 
 static int
@@ -3877,16 +3845,9 @@ i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
-	/*
-	 * There is no safeguard against this debugfs entry colliding
-	 * with the hangcheck calling same i915_handle_error() in
-	 * parallel, causing an explosion. For now we assume that the
-	 * test harness is responsible enough not to inject gpu hangs
-	 * while it is writing to 'i915_wedged'
-	 */
-
-	if (i915_reset_backoff(&i915->gpu_error))
-		return -EAGAIN;
+	/* Flush any previous reset before applying for a new one */
+	wait_event(i915->gpu_error.reset_queue,
+		   !test_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags));
 
 	i915_handle_error(i915, val, I915_ERROR_CAPTURE,
 			  "Manually set wedged engine mask = %llx", val);
@@ -3927,12 +3888,9 @@ static int
 i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	intel_wakeref_t wakeref;
-	int ret = 0;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
-	wakeref = intel_runtime_pm_get(i915);
 
 	if (val & DROP_RESET_ACTIVE &&
 	    wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT))
@@ -3941,9 +3899,11 @@ i915_drop_caches_set(void *data, u64 val)
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
 	if (val & (DROP_ACTIVE | DROP_RETIRE | DROP_RESET_SEQNO)) {
+		int ret;
+
 		ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 		if (ret)
-			goto out;
+			return ret;
 
 		if (val & DROP_ACTIVE)
 			ret = i915_gem_wait_for_idle(i915,
@@ -3957,7 +3917,7 @@ i915_drop_caches_set(void *data, u64 val)
 		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
-	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(&i915->gpu_error))
+	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(i915))
 		i915_handle_error(i915, ALL_ENGINES, 0, NULL);
 
 	fs_reclaim_acquire(GFP_KERNEL);
@@ -3982,10 +3942,7 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
 
-out:
-	intel_runtime_pm_put(i915, wakeref);
-
-	return ret;
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,

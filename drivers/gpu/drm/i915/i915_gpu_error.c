@@ -380,19 +380,16 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x_%08x %8u %02x %02x %02x",
+		err_printf(m, "    %08x_%08x %8u %02x %02x",
 			   upper_32_bits(err->gtt_offset),
 			   lower_32_bits(err->gtt_offset),
 			   err->size,
 			   err->read_domains,
-			   err->write_domain,
-			   err->wseqno);
+			   err->write_domain);
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
 		err_puts(m, purgeable_flag(err->purgeable));
 		err_puts(m, err->userptr ? " userptr" : "");
-		err_puts(m, err->engine != -1 ? " " : "");
-		err_puts(m, engine_name(m->i915, err->engine));
 		err_puts(m, i915_cache_level_str(m->i915, err->cache_level));
 
 		if (err->name)
@@ -414,7 +411,7 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  INSTDONE: 0x%08x\n",
 		   ee->instdone.instdone);
 
-	if (ee->engine_id != RCS || INTEL_GEN(m->i915) <= 3)
+	if (ee->engine_id != RCS0 || INTEL_GEN(m->i915) <= 3)
 		return;
 
 	err_printf(m, "  SC_INSTDONE: 0x%08x\n",
@@ -434,11 +431,6 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 			   ee->instdone.row[slice][subslice]);
 }
 
-static const char *bannable(const struct drm_i915_error_context *ctx)
-{
-	return ctx->bannable ? "" : " (unbannable)";
-}
-
 static void error_print_request(struct drm_i915_error_state_buf *m,
 				const char *prefix,
 				const struct drm_i915_error_request *erq,
@@ -447,9 +439,8 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x%s%s, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
-		   prefix, erq->pid, erq->ban_score,
-		   erq->context, erq->seqno,
+	err_printf(m, "%s pid %d, seqno %8x:%08x%s%s, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
+		   prefix, erq->pid, erq->context, erq->seqno,
 		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 			    &erq->flags) ? "!" : "",
 		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
@@ -463,10 +454,9 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 				const char *header,
 				const struct drm_i915_error_context *ctx)
 {
-	err_printf(m, "%s%s[%d] user_handle %d hw_id %d, prio %d, ban score %d%s guilty %d active %d\n",
+	err_printf(m, "%s%s[%d] user_handle %d hw_id %d, prio %d, guilty %d active %d\n",
 		   header, ctx->comm, ctx->pid, ctx->handle, ctx->hw_id,
-		   ctx->sched_attr.priority, ctx->ban_score, bannable(ctx),
-		   ctx->guilty, ctx->active);
+		   ctx->sched_attr.priority, ctx->guilty, ctx->active);
 }
 
 static void error_print_engine(struct drm_i915_error_state_buf *m,
@@ -512,13 +502,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	if (INTEL_GEN(m->i915) >= 6) {
 		err_printf(m, "  RC PSMI: 0x%08x\n", ee->rc_psmi);
 		err_printf(m, "  FAULT_REG: 0x%08x\n", ee->fault_reg);
-		err_printf(m, "  SYNC_0: 0x%08x\n",
-			   ee->semaphore_mboxes[0]);
-		err_printf(m, "  SYNC_1: 0x%08x\n",
-			   ee->semaphore_mboxes[1]);
-		if (HAS_VEBOX(m->i915))
-			err_printf(m, "  SYNC_2: 0x%08x\n",
-				   ee->semaphore_mboxes[2]);
 	}
 	if (HAS_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
@@ -533,8 +516,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 				   ee->vm_info.pp_dir_base);
 		}
 	}
-	err_printf(m, "  seqno: 0x%08x\n", ee->seqno);
-	err_printf(m, "  last_seqno: 0x%08x\n", ee->last_seqno);
 	err_printf(m, "  ring->head: 0x%08x\n", ee->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ee->cpu_ring_tail);
 	err_printf(m, "  hangcheck timestamp: %dms (%lu%s)\n",
@@ -688,12 +669,10 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		if (!error->engine[i].context.pid)
 			continue;
 
-		err_printf(m, "Active process (on ring %s): %s [%d], score %d%s\n",
+		err_printf(m, "Active process (on ring %s): %s [%d]\n",
 			   engine_name(m->i915, i),
 			   error->engine[i].context.comm,
-			   error->engine[i].context.pid,
-			   error->engine[i].context.ban_score,
-			   bannable(&error->engine[i].context));
+			   error->engine[i].context.pid);
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
@@ -779,13 +758,11 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		if (obj) {
 			err_puts(m, m->i915->engine[i]->name);
 			if (ee->context.pid)
-				err_printf(m, " (submitted by %s [%d], ctx %d [%d], score %d%s)",
+				err_printf(m, " (submitted by %s [%d], ctx %d [%d])",
 					   ee->context.comm,
 					   ee->context.pid,
 					   ee->context.handle,
-					   ee->context.hw_id,
-					   ee->context.ban_score,
-					   bannable(&ee->context));
+					   ee->context.hw_id);
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));
@@ -1061,27 +1038,6 @@ i915_error_object_create(struct drm_i915_private *i915,
 	return dst;
 }
 
-/* The error capture is special as tries to run underneath the normal
- * locking rules - so we use the raw version of the i915_active_request lookup.
- */
-static inline u32
-__active_get_seqno(struct i915_active_request *active)
-{
-	struct i915_request *request;
-
-	request = __i915_active_request_peek(active);
-	return request ? request->global_seqno : 0;
-}
-
-static inline int
-__active_get_engine_id(struct i915_active_request *active)
-{
-	struct i915_request *request;
-
-	request = __i915_active_request_peek(active);
-	return request ? request->engine->id : -1;
-}
-
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
@@ -1089,9 +1045,6 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-
-	err->wseqno = __active_get_seqno(&obj->frontbuffer_write);
-	err->engine = __active_get_engine_id(&obj->frontbuffer_write);
 
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->read_domains;
@@ -1178,18 +1131,6 @@ static void gem_record_fences(struct i915_gpu_state *error)
 	error->nfence = i;
 }
 
-static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
-					struct drm_i915_error_engine *ee)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	ee->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(engine->mmio_base));
-	ee->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(engine->mmio_base));
-	if (HAS_VEBOX(dev_priv))
-		ee->semaphore_mboxes[2] =
-			I915_READ(RING_SYNC_2(engine->mmio_base));
-}
-
 static void error_record_engine_registers(struct i915_gpu_state *error,
 					  struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
@@ -1198,12 +1139,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		ee->rc_psmi = I915_READ(RING_PSMI_CTL(engine->mmio_base));
-		if (INTEL_GEN(dev_priv) >= 8) {
+		if (INTEL_GEN(dev_priv) >= 8)
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
-		} else {
-			gen6_record_semaphore_state(engine, ee);
+		else
 			ee->fault_reg = I915_READ(RING_FAULT_REG(engine));
-		}
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
@@ -1227,8 +1166,6 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ee->acthd = intel_engine_get_active_head(engine);
-	ee->seqno = intel_engine_get_seqno(engine);
-	ee->last_seqno = intel_engine_last_submit(engine);
 	ee->start = I915_READ_START(engine);
 	ee->head = I915_READ_HEAD(engine);
 	ee->tail = I915_READ_TAIL(engine);
@@ -1242,16 +1179,17 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 		if (IS_GEN(dev_priv, 7)) {
 			switch (engine->id) {
 			default:
-			case RCS:
+				MISSING_CASE(engine->id);
+			case RCS0:
 				mmio = RENDER_HWS_PGA_GEN7;
 				break;
-			case BCS:
+			case BCS0:
 				mmio = BLT_HWS_PGA_GEN7;
 				break;
-			case VCS:
+			case VCS0:
 				mmio = BSD_HWS_PGA_GEN7;
 				break;
-			case VECS:
+			case VECS0:
 				mmio = VEBOX_HWS_PGA_GEN7;
 				break;
 			}
@@ -1299,10 +1237,9 @@ static void record_request(struct i915_request *request,
 	struct i915_gem_context *ctx = request->gem_context;
 
 	erq->flags = request->fence.flags;
-	erq->context = ctx->hw_id;
+	erq->context = request->fence.context;
+	erq->seqno = request->fence.seqno;
 	erq->sched_attr = request->sched.attr;
-	erq->ban_score = atomic_read(&ctx->ban_score);
-	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->start = i915_ggtt_offset(request->ring->vma);
 	erq->head = request->head;
@@ -1396,8 +1333,6 @@ static void record_context(struct drm_i915_error_context *e,
 	e->handle = ctx->user_handle;
 	e->hw_id = ctx->hw_id;
 	e->sched_attr = ctx->sched;
-	e->ban_score = atomic_read(&ctx->ban_score);
-	e->bannable = i915_gem_context_is_bannable(ctx);
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 }
@@ -1476,7 +1411,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 		error_record_engine_registers(error, engine, ee);
 		error_record_engine_execlists(engine, ee);
 
-		request = i915_gem_find_active_request(engine);
+		request = intel_engine_find_active_request(engine);
 		if (request) {
 			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;

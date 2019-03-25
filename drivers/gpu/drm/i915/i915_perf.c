@@ -1202,7 +1202,7 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 static struct intel_context *oa_pin_context(struct drm_i915_private *i915,
 					    struct i915_gem_context *ctx)
 {
-	struct intel_engine_cs *engine = i915->engine[RCS];
+	struct intel_engine_cs *engine = i915->engine[RCS0];
 	struct intel_context *ce;
 	int ret;
 
@@ -1629,13 +1629,14 @@ static void hsw_disable_metric_set(struct drm_i915_private *dev_priv)
  * It's fine to put out-of-date values into these per-context registers
  * in the case that the OA unit has been disabled.
  */
-static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
-					   u32 *reg_state,
-					   const struct i915_oa_config *oa_config)
+static void
+gen8_update_reg_state_unlocked(struct intel_context *ce,
+			       u32 *reg_state,
+			       const struct i915_oa_config *oa_config)
 {
-	struct drm_i915_private *dev_priv = ctx->i915;
-	u32 ctx_oactxctrl = dev_priv->perf.oa.ctx_oactxctrl_offset;
-	u32 ctx_flexeu0 = dev_priv->perf.oa.ctx_flexeu0_offset;
+	struct drm_i915_private *i915 = ce->gem_context->i915;
+	u32 ctx_oactxctrl = i915->perf.oa.ctx_oactxctrl_offset;
+	u32 ctx_flexeu0 = i915->perf.oa.ctx_flexeu0_offset;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
 	i915_reg_t flex_regs[] = {
 		EU_PERF_CNTL0,
@@ -1649,8 +1650,8 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 	int i;
 
 	CTX_REG(reg_state, ctx_oactxctrl, GEN8_OACTXCONTROL,
-		(dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
-		(dev_priv->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
+		(i915->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
+		(i915->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
 		GEN8_OA_COUNTER_RESUME);
 
 	for (i = 0; i < ARRAY_SIZE(flex_regs); i++) {
@@ -1678,10 +1679,9 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 		CTX_REG(reg_state, state_offset, flex_regs[i], value);
 	}
 
-	CTX_REG(reg_state, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-		gen8_make_rpcs(dev_priv,
-			       &to_intel_context(ctx,
-						 dev_priv->engine[RCS])->sseu));
+	CTX_REG(reg_state,
+		CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
+		gen8_make_rpcs(i915, &ce->sseu));
 }
 
 /*
@@ -1711,7 +1711,7 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
-	struct intel_engine_cs *engine = dev_priv->engine[RCS];
+	struct intel_engine_cs *engine = dev_priv->engine[RCS0];
 	unsigned int map_type = i915_coherent_map_type(dev_priv);
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
@@ -1740,11 +1740,11 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct intel_context *ce = to_intel_context(ctx, engine);
+		struct intel_context *ce = intel_context_lookup(ctx, engine);
 		u32 *regs;
 
 		/* OA settings will be set upon first use */
-		if (!ce->state)
+		if (!ce || !ce->state)
 			continue;
 
 		regs = i915_gem_object_pin_map(ce->state->obj, map_type);
@@ -1754,7 +1754,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		ce->state->obj->mm.dirty = true;
 		regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
 
-		gen8_update_reg_state_unlocked(ctx, regs, oa_config);
+		gen8_update_reg_state_unlocked(ce, regs, oa_config);
 
 		i915_gem_object_unpin_map(ce->state->obj);
 	}
@@ -2138,17 +2138,17 @@ err_config:
 }
 
 void i915_oa_init_reg_state(struct intel_engine_cs *engine,
-			    struct i915_gem_context *ctx,
-			    u32 *reg_state)
+			    struct intel_context *ce,
+			    u32 *regs)
 {
 	struct i915_perf_stream *stream;
 
-	if (engine->id != RCS)
+	if (engine->class != RENDER_CLASS)
 		return;
 
 	stream = engine->i915->perf.oa.exclusive_stream;
 	if (stream)
-		gen8_update_reg_state_unlocked(ctx, reg_state, stream->oa_config);
+		gen8_update_reg_state_unlocked(ce, regs, stream->oa_config);
 }
 
 /**
@@ -2881,12 +2881,24 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 
 	sysfs_attr_init(&dev_priv->perf.oa.test_config.sysfs_metric_id.attr);
 
-	if (IS_HASWELL(dev_priv)) {
-		i915_perf_load_test_config_hsw(dev_priv);
-	} else if (IS_BROADWELL(dev_priv)) {
-		i915_perf_load_test_config_bdw(dev_priv);
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		i915_perf_load_test_config_chv(dev_priv);
+	if (INTEL_GEN(dev_priv) >= 11) {
+		i915_perf_load_test_config_icl(dev_priv);
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		i915_perf_load_test_config_cnl(dev_priv);
+	} else if (IS_COFFEELAKE(dev_priv)) {
+		if (IS_CFL_GT2(dev_priv))
+			i915_perf_load_test_config_cflgt2(dev_priv);
+		if (IS_CFL_GT3(dev_priv))
+			i915_perf_load_test_config_cflgt3(dev_priv);
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		i915_perf_load_test_config_glk(dev_priv);
+	} else if (IS_KABYLAKE(dev_priv)) {
+		if (IS_KBL_GT2(dev_priv))
+			i915_perf_load_test_config_kblgt2(dev_priv);
+		else if (IS_KBL_GT3(dev_priv))
+			i915_perf_load_test_config_kblgt3(dev_priv);
+	} else if (IS_BROXTON(dev_priv)) {
+		i915_perf_load_test_config_bxt(dev_priv);
 	} else if (IS_SKYLAKE(dev_priv)) {
 		if (IS_SKL_GT2(dev_priv))
 			i915_perf_load_test_config_sklgt2(dev_priv);
@@ -2894,25 +2906,13 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 			i915_perf_load_test_config_sklgt3(dev_priv);
 		else if (IS_SKL_GT4(dev_priv))
 			i915_perf_load_test_config_sklgt4(dev_priv);
-	} else if (IS_BROXTON(dev_priv)) {
-		i915_perf_load_test_config_bxt(dev_priv);
-	} else if (IS_KABYLAKE(dev_priv)) {
-		if (IS_KBL_GT2(dev_priv))
-			i915_perf_load_test_config_kblgt2(dev_priv);
-		else if (IS_KBL_GT3(dev_priv))
-			i915_perf_load_test_config_kblgt3(dev_priv);
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		i915_perf_load_test_config_glk(dev_priv);
-	} else if (IS_COFFEELAKE(dev_priv)) {
-		if (IS_CFL_GT2(dev_priv))
-			i915_perf_load_test_config_cflgt2(dev_priv);
-		if (IS_CFL_GT3(dev_priv))
-			i915_perf_load_test_config_cflgt3(dev_priv);
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		i915_perf_load_test_config_cnl(dev_priv);
-	} else if (IS_ICELAKE(dev_priv)) {
-		i915_perf_load_test_config_icl(dev_priv);
-	}
+	} else if (IS_CHERRYVIEW(dev_priv)) {
+		i915_perf_load_test_config_chv(dev_priv);
+	} else if (IS_BROADWELL(dev_priv)) {
+		i915_perf_load_test_config_bdw(dev_priv);
+	} else if (IS_HASWELL(dev_priv)) {
+		i915_perf_load_test_config_hsw(dev_priv);
+}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
 		goto sysfs_error;

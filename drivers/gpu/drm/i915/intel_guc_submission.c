@@ -382,7 +382,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 	desc->db_id = client->doorbell_id;
 
 	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
-		struct intel_context *ce = to_intel_context(ctx, engine);
+		struct intel_context *ce = intel_context_lookup(ctx, engine);
 		u32 guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
 
@@ -393,7 +393,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		if (!ce->state)
+		if (!ce || !ce->state)
 			break;	/* XXX: continue? */
 
 		/*
@@ -535,7 +535,7 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	spin_lock(&client->wq_lock);
 
 	guc_wq_item_append(client, engine->guc_id, ctx_desc,
-			   ring_tail, rq->global_seqno);
+			   ring_tail, rq->fence.seqno);
 	guc_ring_doorbell(client);
 
 	client->submissions[engine->id] += 1;
@@ -567,7 +567,7 @@ static void inject_preempt_context(struct work_struct *work)
 					     preempt_work[engine->id]);
 	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	struct intel_context *ce = to_intel_context(client->owner, engine);
+	struct intel_context *ce = intel_context_lookup(client->owner, engine);
 	u32 data[7];
 
 	if (!ce->ring->emit) { /* recreate upon load/resume */
@@ -575,7 +575,7 @@ static void inject_preempt_context(struct work_struct *work)
 		u32 *cs;
 
 		cs = ce->ring->vaddr;
-		if (engine->id == RCS) {
+		if (engine->class == RENDER_CLASS) {
 			cs = gen8_emit_ggtt_write_rcs(cs,
 						      GUC_PREEMPT_FINISHED,
 						      addr,
@@ -583,7 +583,8 @@ static void inject_preempt_context(struct work_struct *work)
 		} else {
 			cs = gen8_emit_ggtt_write(cs,
 						  GUC_PREEMPT_FINISHED,
-						  addr);
+						  addr,
+						  0);
 			*cs++ = MI_NOOP;
 			*cs++ = MI_NOOP;
 		}
@@ -720,7 +721,7 @@ static inline int rq_prio(const struct i915_request *rq)
 
 static inline int port_prio(const struct execlist_port *port)
 {
-	return rq_prio(port_request(port));
+	return rq_prio(port_request(port)) | __NO_PREEMPTION;
 }
 
 static bool __guc_dequeue(struct intel_engine_cs *engine)
@@ -781,8 +782,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		if (p->priority != I915_PRIORITY_NORMAL)
-			kmem_cache_free(engine->i915->priorities, p);
+		i915_priolist_free(p);
 	}
 done:
 	execlists->queue_priority_hint =
@@ -1031,7 +1031,7 @@ static int guc_clients_create(struct intel_guc *guc)
 	GEM_BUG_ON(guc->preempt_client);
 
 	client = guc_client_alloc(dev_priv,
-				  INTEL_INFO(dev_priv)->ring_mask,
+				  INTEL_INFO(dev_priv)->engine_mask,
 				  GUC_CLIENT_PRIORITY_KMD_NORMAL,
 				  dev_priv->kernel_context);
 	if (IS_ERR(client)) {
@@ -1042,7 +1042,7 @@ static int guc_clients_create(struct intel_guc *guc)
 
 	if (dev_priv->preempt_context) {
 		client = guc_client_alloc(dev_priv,
-					  INTEL_INFO(dev_priv)->ring_mask,
+					  INTEL_INFO(dev_priv)->engine_mask,
 					  GUC_CLIENT_PRIORITY_KMD_HIGH,
 					  dev_priv->preempt_context);
 		if (IS_ERR(client)) {

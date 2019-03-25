@@ -571,21 +571,27 @@ static int test_timer(void *arg)
 	unsigned long target, delay;
 	struct timed_fence tf;
 
+	preempt_disable();
 	timed_fence_init(&tf, target = jiffies);
 	if (!i915_sw_fence_done(&tf.fence)) {
 		pr_err("Fence with immediate expiration not signaled\n");
 		goto err;
 	}
+	preempt_enable();
 	timed_fence_fini(&tf);
 
 	for_each_prime_number(delay, i915_selftest.timeout_jiffies/2) {
+		preempt_disable();
 		timed_fence_init(&tf, target = jiffies + delay);
 		if (i915_sw_fence_done(&tf.fence)) {
 			pr_err("Fence with future expiration (%lu jiffies) already signaled\n", delay);
 			goto err;
 		}
+		preempt_enable();
 
 		i915_sw_fence_wait(&tf.fence);
+
+		preempt_disable();
 		if (!i915_sw_fence_done(&tf.fence)) {
 			pr_err("Fence not signaled after wait\n");
 			goto err;
@@ -595,13 +601,14 @@ static int test_timer(void *arg)
 			       target, jiffies);
 			goto err;
 		}
-
+		preempt_enable();
 		timed_fence_fini(&tf);
 	}
 
 	return 0;
 
 err:
+	preempt_enable();
 	timed_fence_fini(&tf);
 	return -EINVAL;
 }

@@ -1288,6 +1288,18 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	rps->last_adj = adj;
 
+	/*
+	 * Limit deboosting and boosting to keep ourselves at the extremes
+	 * when in the respective power modes (i.e. slowly decrease frequencies
+	 * while in the HIGH_POWER zone and slowly increase frequencies while
+	 * in the LOW_POWER zone). On idle, we will hit the timeout and drop
+	 * to the next level quickly, and conversely if busy we expect to
+	 * hit a waitboost and rapidly switch into max power.
+	 */
+	if ((adj < 0 && rps->power.mode == HIGH_POWER) ||
+	    (adj > 0 && rps->power.mode == LOW_POWER))
+		rps->last_adj = 0;
+
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
@@ -1415,20 +1427,20 @@ static void ilk_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir & GT_RENDER_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 	if (gt_iir & ILK_BSD_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS0]);
 }
 
 static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir & GT_RENDER_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 	if (gt_iir & GT_BSD_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS0]);
 	if (gt_iir & GT_BLT_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[BCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[BCS0]);
 
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
@@ -1463,8 +1475,8 @@ static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 
 #define GEN8_GT_IRQS (GEN8_GT_RCS_IRQ | \
 		      GEN8_GT_BCS_IRQ | \
+		      GEN8_GT_VCS0_IRQ | \
 		      GEN8_GT_VCS1_IRQ | \
-		      GEN8_GT_VCS2_IRQ | \
 		      GEN8_GT_VECS_IRQ | \
 		      GEN8_GT_PM_IRQ | \
 		      GEN8_GT_GUC_IRQ)
@@ -1475,7 +1487,7 @@ static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 			raw_reg_write(regs, GEN8_GT_IIR(0), gt_iir[0]);
 	}
 
-	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
+	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
 		gt_iir[1] = raw_reg_read(regs, GEN8_GT_IIR(1));
 		if (likely(gt_iir[1]))
 			raw_reg_write(regs, GEN8_GT_IIR(1), gt_iir[1]);
@@ -1498,21 +1510,21 @@ static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 				u32 master_ctl, u32 gt_iir[4])
 {
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		gen8_cs_irq_handler(i915->engine[RCS],
+		gen8_cs_irq_handler(i915->engine[RCS0],
 				    gt_iir[0] >> GEN8_RCS_IRQ_SHIFT);
-		gen8_cs_irq_handler(i915->engine[BCS],
+		gen8_cs_irq_handler(i915->engine[BCS0],
 				    gt_iir[0] >> GEN8_BCS_IRQ_SHIFT);
 	}
 
-	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
-		gen8_cs_irq_handler(i915->engine[VCS],
+	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
+		gen8_cs_irq_handler(i915->engine[VCS0],
+				    gt_iir[1] >> GEN8_VCS0_IRQ_SHIFT);
+		gen8_cs_irq_handler(i915->engine[VCS1],
 				    gt_iir[1] >> GEN8_VCS1_IRQ_SHIFT);
-		gen8_cs_irq_handler(i915->engine[VCS2],
-				    gt_iir[1] >> GEN8_VCS2_IRQ_SHIFT);
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		gen8_cs_irq_handler(i915->engine[VECS],
+		gen8_cs_irq_handler(i915->engine[VECS0],
 				    gt_iir[3] >> GEN8_VECS_IRQ_SHIFT);
 	}
 
@@ -1693,7 +1705,9 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 {
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	u32 crcs[5];
+	u32 crcs[5] = { crc0, crc1, crc2, crc3, crc4 };
+
+	trace_intel_pipe_crc(crtc, crcs);
 
 	spin_lock(&pipe_crc->lock);
 	/*
@@ -1712,11 +1726,6 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 	}
 	spin_unlock(&pipe_crc->lock);
 
-	crcs[0] = crc0;
-	crcs[1] = crc1;
-	crcs[2] = crc2;
-	crcs[3] = crc3;
-	crcs[4] = crc4;
 	drm_crtc_add_crc_entry(&crtc->base, true,
 				drm_crtc_accurate_vblank_count(&crtc->base),
 				crcs);
@@ -1792,13 +1801,11 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	if (INTEL_GEN(dev_priv) >= 8)
 		return;
 
-	if (HAS_VEBOX(dev_priv)) {
-		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[VECS]);
+	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VECS0]);
 
-		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
-	}
+	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
+		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
 }
 
 static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
@@ -2667,6 +2674,25 @@ static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 		DRM_ERROR("Unexpected DE HPD interrupt 0x%08x\n", iir);
 }
 
+static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
+{
+	u32 mask = GEN8_AUX_CHANNEL_A;
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		mask |= GEN9_AUX_CHANNEL_B |
+			GEN9_AUX_CHANNEL_C |
+			GEN9_AUX_CHANNEL_D;
+
+	if (IS_CNL_WITH_PORT_F(dev_priv))
+		mask |= CNL_AUX_CHANNEL_F;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		mask |= ICL_AUX_CHANNEL_E |
+			CNL_AUX_CHANNEL_F;
+
+	return mask;
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2722,20 +2748,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			I915_WRITE(GEN8_DE_PORT_IIR, iir);
 			ret = IRQ_HANDLED;
 
-			tmp_mask = GEN8_AUX_CHANNEL_A;
-			if (INTEL_GEN(dev_priv) >= 9)
-				tmp_mask |= GEN9_AUX_CHANNEL_B |
-					    GEN9_AUX_CHANNEL_C |
-					    GEN9_AUX_CHANNEL_D;
-
-			if (INTEL_GEN(dev_priv) >= 11)
-				tmp_mask |= ICL_AUX_CHANNEL_E;
-
-			if (IS_CNL_WITH_PORT_F(dev_priv) ||
-			    INTEL_GEN(dev_priv) >= 11)
-				tmp_mask |= CNL_AUX_CHANNEL_F;
-
-			if (iir & tmp_mask) {
+			if (iir & gen8_de_port_aux_mask(dev_priv)) {
 				dp_aux_irq_handler(dev_priv);
 				found = true;
 			}
@@ -2816,11 +2829,9 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			I915_WRITE(SDEIIR, iir);
 			ret = IRQ_HANDLED;
 
-			if (HAS_PCH_ICP(dev_priv))
+			if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 				icp_irq_handler(dev_priv, iir);
-			else if (HAS_PCH_SPT(dev_priv) ||
-				 HAS_PCH_KBP(dev_priv) ||
-				 HAS_PCH_CNP(dev_priv))
+			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 				spt_irq_handler(dev_priv, iir);
 			else
 				cpt_irq_handler(dev_priv, iir);
@@ -3402,7 +3413,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 	GEN3_IRQ_RESET(GEN11_GU_MISC_);
 	GEN3_IRQ_RESET(GEN8_PCU_);
 
-	if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		GEN3_IRQ_RESET(SDE);
 }
 
@@ -3583,7 +3594,7 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 	gen11_hpd_detection_setup(dev_priv);
 
-	if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		icp_hpd_irq_setup(dev_priv);
 }
 
@@ -3767,7 +3778,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		 * RPS interrupts will get enabled/disabled on demand when RPS
 		 * itself is enabled/disabled.
 		 */
-		if (HAS_VEBOX(dev_priv)) {
+		if (HAS_ENGINE(dev_priv, VECS0)) {
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 			dev_priv->pm_ier |= PM_VEBOX_USER_INTERRUPT;
 		}
@@ -3879,18 +3890,21 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	/* These are interrupts we'll toggle with the ring mask register */
 	u32 gt_interrupts[] = {
-		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT,
-		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
-			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS2_IRQ_SHIFT,
+		(GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+		 GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT),
+
+		(GT_RENDER_USER_INTERRUPT << GEN8_VCS0_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS0_IRQ_SHIFT |
+		 GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT),
+
 		0,
-		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
-		};
+
+		(GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT)
+	};
 
 	dev_priv->pm_ier = 0x0;
 	dev_priv->pm_imr = ~dev_priv->pm_ier;
@@ -4036,7 +4050,7 @@ static int gen11_irq_postinstall(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 gu_misc_masked = GEN11_GU_MISC_GSE;
 
-	if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		icp_irq_postinstall(dev);
 
 	gen11_gt_irq_postinstall(dev_priv);
@@ -4218,7 +4232,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		I915_WRITE16(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i8xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4326,7 +4340,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4471,10 +4485,10 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 
 		if (iir & I915_BSD_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[VCS0]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4605,8 +4619,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->disable_vblank = gen8_disable_vblank;
 		if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
-		else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_KBP(dev_priv) ||
-			 HAS_PCH_CNP(dev_priv))
+		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
 		else
 			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;

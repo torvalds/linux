@@ -555,6 +555,11 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 			   GEN10_CACHE_MODE_SS,
 			   0, /* write-only, so skip validation */
 			   _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE));
+
+	/* WaDisableGPGPUMidThreadPreemption:icl */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
 }
 
 void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
@@ -564,26 +569,26 @@ void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 
 	wa_init_start(wal, "context");
 
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		bdw_ctx_workarounds_init(engine);
-	else if (IS_CHERRYVIEW(i915))
-		chv_ctx_workarounds_init(engine);
-	else if (IS_SKYLAKE(i915))
-		skl_ctx_workarounds_init(engine);
-	else if (IS_BROXTON(i915))
-		bxt_ctx_workarounds_init(engine);
-	else if (IS_KABYLAKE(i915))
-		kbl_ctx_workarounds_init(engine);
-	else if (IS_GEMINILAKE(i915))
-		glk_ctx_workarounds_init(engine);
-	else if (IS_COFFEELAKE(i915))
-		cfl_ctx_workarounds_init(engine);
+	if (IS_ICELAKE(i915))
+		icl_ctx_workarounds_init(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_ctx_workarounds_init(engine);
-	else if (IS_ICELAKE(i915))
-		icl_ctx_workarounds_init(engine);
+	else if (IS_COFFEELAKE(i915))
+		cfl_ctx_workarounds_init(engine);
+	else if (IS_GEMINILAKE(i915))
+		glk_ctx_workarounds_init(engine);
+	else if (IS_KABYLAKE(i915))
+		kbl_ctx_workarounds_init(engine);
+	else if (IS_BROXTON(i915))
+		bxt_ctx_workarounds_init(engine);
+	else if (IS_SKYLAKE(i915))
+		skl_ctx_workarounds_init(engine);
+	else if (IS_CHERRYVIEW(i915))
+		chv_ctx_workarounds_init(engine);
+	else if (IS_BROADWELL(i915))
+		bdw_ctx_workarounds_init(engine);
+	else if (INTEL_GEN(i915) < 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -862,26 +867,22 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		return;
-	else if (IS_CHERRYVIEW(i915))
-		return;
-	else if (IS_SKYLAKE(i915))
-		skl_gt_workarounds_init(i915, wal);
-	else if (IS_BROXTON(i915))
-		bxt_gt_workarounds_init(i915, wal);
-	else if (IS_KABYLAKE(i915))
-		kbl_gt_workarounds_init(i915, wal);
-	else if (IS_GEMINILAKE(i915))
-		glk_gt_workarounds_init(i915, wal);
-	else if (IS_COFFEELAKE(i915))
-		cfl_gt_workarounds_init(i915, wal);
+	if (IS_ICELAKE(i915))
+		icl_gt_workarounds_init(i915, wal);
 	else if (IS_CANNONLAKE(i915))
 		cnl_gt_workarounds_init(i915, wal);
-	else if (IS_ICELAKE(i915))
-		icl_gt_workarounds_init(i915, wal);
+	else if (IS_COFFEELAKE(i915))
+		cfl_gt_workarounds_init(i915, wal);
+	else if (IS_GEMINILAKE(i915))
+		glk_gt_workarounds_init(i915, wal);
+	else if (IS_KABYLAKE(i915))
+		kbl_gt_workarounds_init(i915, wal);
+	else if (IS_BROXTON(i915))
+		bxt_gt_workarounds_init(i915, wal);
+	else if (IS_SKYLAKE(i915))
+		skl_gt_workarounds_init(i915, wal);
+	else if (INTEL_GEN(i915) <= 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 }
@@ -1059,30 +1060,26 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	GEM_BUG_ON(engine->id != RCS);
+	GEM_BUG_ON(engine->id != RCS0);
 
 	wa_init_start(w, "whitelist");
 
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		return;
-	else if (IS_CHERRYVIEW(i915))
-		return;
-	else if (IS_SKYLAKE(i915))
-		skl_whitelist_build(w);
-	else if (IS_BROXTON(i915))
-		bxt_whitelist_build(w);
-	else if (IS_KABYLAKE(i915))
-		kbl_whitelist_build(w);
-	else if (IS_GEMINILAKE(i915))
-		glk_whitelist_build(w);
-	else if (IS_COFFEELAKE(i915))
-		cfl_whitelist_build(w);
+	if (IS_ICELAKE(i915))
+		icl_whitelist_build(w);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(w);
-	else if (IS_ICELAKE(i915))
-		icl_whitelist_build(w);
+	else if (IS_COFFEELAKE(i915))
+		cfl_whitelist_build(w);
+	else if (IS_GEMINILAKE(i915))
+		glk_whitelist_build(w);
+	else if (IS_KABYLAKE(i915))
+		kbl_whitelist_build(w);
+	else if (IS_BROXTON(i915))
+		bxt_whitelist_build(w);
+	else if (IS_SKYLAKE(i915))
+		skl_whitelist_build(w);
+	else if (INTEL_GEN(i915) <= 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -1170,8 +1167,8 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 				    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
-	if (IS_GEN(i915, 9) || IS_CANNONLAKE(i915)) {
-		/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,cnl */
+	if (IS_GEN_RANGE(i915, 9, 11)) {
+		/* FtrPerCtxtPreemptionGranularityControl:skl,bxt,kbl,cfl,cnl,icl */
 		wa_masked_en(wal,
 			     GEN7_FF_SLICE_CS_CHICKEN1,
 			     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
@@ -1236,7 +1233,7 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 8))
 		return;
 
-	if (engine->id == RCS)
+	if (engine->id == RCS0)
 		rcs_engine_wa_init(engine, wal);
 	else
 		xcs_engine_wa_init(engine, wal);

@@ -9,6 +9,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/srcu.h>
 
 struct drm_i915_private;
 struct intel_engine_cs;
@@ -31,6 +32,11 @@ int i915_reset_engine(struct intel_engine_cs *engine,
 
 void i915_reset_request(struct i915_request *rq, bool guilty);
 bool i915_reset_flush(struct drm_i915_private *i915);
+
+int __must_check i915_reset_trylock(struct drm_i915_private *i915);
+void i915_reset_unlock(struct drm_i915_private *i915, int tag);
+
+int i915_terminally_wedged(struct drm_i915_private *i915);
 
 bool intel_has_gpu_reset(struct drm_i915_private *i915);
 bool intel_has_reset_engine(struct drm_i915_private *i915);

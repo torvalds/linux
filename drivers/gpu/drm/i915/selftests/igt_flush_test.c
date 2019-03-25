@@ -14,7 +14,7 @@ int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)
 	cond_resched();
 
 	if (flags & I915_WAIT_LOCKED &&
-	    i915_gem_switch_to_kernel_context(i915)) {
+	    i915_gem_switch_to_kernel_context(i915, i915->gt.active_engines)) {
 		pr_err("Failed to switch back to kernel context; declaring wedged\n");
 		i915_gem_set_wedged(i915);
 	}
@@ -29,5 +29,5 @@ int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)
 		i915_gem_set_wedged(i915);
 	}
 
-	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
+	return i915_terminally_wedged(i915);
 }

@@ -120,7 +120,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = i915_gem_object_alloc(i915);
+	obj = i915_gem_object_alloc();
 	if (!obj)
 		goto err;
 
@@ -1681,25 +1681,31 @@ int i915_gem_gtt_mock_selftests(void)
 		SUBTEST(igt_gtt_insert),
 	};
 	struct drm_i915_private *i915;
-	struct i915_ggtt ggtt;
+	struct i915_ggtt *ggtt;
 	int err;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
-	mock_init_ggtt(i915, &ggtt);
+	ggtt = kmalloc(sizeof(*ggtt), GFP_KERNEL);
+	if (!ggtt) {
+		err = -ENOMEM;
+		goto out_put;
+	}
+	mock_init_ggtt(i915, ggtt);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	err = i915_subtests(tests, &ggtt);
+	err = i915_subtests(tests, ggtt);
 	mock_device_flush(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(i915);
 
-	mock_fini_ggtt(&ggtt);
+	mock_fini_ggtt(ggtt);
+	kfree(ggtt);
+out_put:
 	drm_dev_put(&i915->drm);
-
 	return err;
 }
 
