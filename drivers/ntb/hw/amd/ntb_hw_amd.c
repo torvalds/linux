@@ -333,7 +333,7 @@ static u64 amd_ntb_db_vector_mask(struct ntb_dev *ntb, int db_vector)
 	if (db_vector < 0 || db_vector > ndev->db_count)
 		return 0;
 
-	return ntb_ndev(ntb)->db_valid_mask & (1 << db_vector);
+	return ntb_ndev(ntb)->db_valid_mask & (1ULL << db_vector);
 }
 
 static u64 amd_ntb_db_read(struct ntb_dev *ntb)
