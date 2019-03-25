@@ -157,44 +157,54 @@ const struct mcs_group minstrel_mcs_groups[] = {
 	MCS_GROUP(1, 0, BW_20, 5),
 	MCS_GROUP(2, 0, BW_20, 4),
 	MCS_GROUP(3, 0, BW_20, 4),
+	MCS_GROUP(4, 0, BW_20, 4),
 
 	MCS_GROUP(1, 1, BW_20, 5),
 	MCS_GROUP(2, 1, BW_20, 4),
 	MCS_GROUP(3, 1, BW_20, 4),
+	MCS_GROUP(4, 1, BW_20, 4),
 
 	MCS_GROUP(1, 0, BW_40, 4),
 	MCS_GROUP(2, 0, BW_40, 4),
 	MCS_GROUP(3, 0, BW_40, 4),
+	MCS_GROUP(4, 0, BW_40, 4),
 
 	MCS_GROUP(1, 1, BW_40, 4),
 	MCS_GROUP(2, 1, BW_40, 4),
 	MCS_GROUP(3, 1, BW_40, 4),
+	MCS_GROUP(4, 1, BW_40, 4),
 
 	CCK_GROUP(8),
 
 	VHT_GROUP(1, 0, BW_20, 5),
 	VHT_GROUP(2, 0, BW_20, 4),
 	VHT_GROUP(3, 0, BW_20, 4),
+	VHT_GROUP(4, 0, BW_20, 4),
 
 	VHT_GROUP(1, 1, BW_20, 5),
 	VHT_GROUP(2, 1, BW_20, 4),
 	VHT_GROUP(3, 1, BW_20, 4),
+	VHT_GROUP(4, 1, BW_20, 4),
 
 	VHT_GROUP(1, 0, BW_40, 4),
 	VHT_GROUP(2, 0, BW_40, 4),
 	VHT_GROUP(3, 0, BW_40, 4),
+	VHT_GROUP(4, 0, BW_40, 3),
 
 	VHT_GROUP(1, 1, BW_40, 4),
 	VHT_GROUP(2, 1, BW_40, 4),
 	VHT_GROUP(3, 1, BW_40, 4),
+	VHT_GROUP(4, 1, BW_40, 3),
 
 	VHT_GROUP(1, 0, BW_80, 4),
 	VHT_GROUP(2, 0, BW_80, 4),
 	VHT_GROUP(3, 0, BW_80, 4),
+	VHT_GROUP(4, 0, BW_80, 2),
 
 	VHT_GROUP(1, 1, BW_80, 4),
 	VHT_GROUP(2, 1, BW_80, 4),
 	VHT_GROUP(3, 1, BW_80, 4),
+	VHT_GROUP(4, 1, BW_80, 2),
 };
 
 static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES] __read_mostly;
