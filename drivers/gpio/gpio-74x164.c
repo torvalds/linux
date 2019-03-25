@@ -9,14 +9,13 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/mutex.h>
-#include <linux/spi/spi.h>
-#include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/spi/spi.h>
 
 #define GEN_74X164_NUMBER_GPIOS	8
 
