@@ -426,6 +426,12 @@ config SPI_MT65XX
 	  say Y or M here.If you are not sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
+config SPI_MT7621
+	tristate "MediaTek MT7621 SPI Controller"
+	depends on RALINK || COMPILE_TEST
+	help
+	  This selects a driver for the MediaTek MT7621 SPI Controller.
+
 config SPI_NPCM_PSPI
 	tristate "Nuvoton NPCM PSPI Controller"
 	depends on ARCH_NPCM || COMPILE_TEST
