@@ -285,11 +285,26 @@ static const struct x86_cpu_id legacy_cpi_ids[] = {
 	{}
 };
 
+static struct snd_soc_dai_link_component rt5682_component[] = {
+	{
+		.name = "i2c-10EC5682:00",
+		.dai_name = "rt5682-aif1",
+	}
+};
+
+static struct snd_soc_dai_link_component dmic_component[] = {
+	{
+		.name = "dmic-codec",
+		.dai_name = "dmic-hifi",
+	}
+};
+
 static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 							  int ssp_port,
 							  int dmic_num,
 							  int hdmi_num)
 {
+	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link *links;
 	int i, id = 0;
 
@@ -299,8 +314,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 					"SSP%d-Codec", ssp_port);
 	links[id].id = id;
-	links[id].codec_name = "i2c-10EC5682:00";
-	links[id].codec_dai_name = "rt5682-aif1";
+	links[id].codecs = rt5682_component;
+	links[id].num_codecs = ARRAY_SIZE(rt5682_component);
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
@@ -325,8 +340,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].id = id;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"DMIC%02d Pin", i);
-		links[id].codec_name = "dmic-codec";
-		links[id].codec_dai_name = "dmic-hifi";
+		links[id].codecs = dmic_component;
+		links[id].num_codecs = ARRAY_SIZE(dmic_component);
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].ignore_suspend = 1;
@@ -336,16 +351,23 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	}
 
 	/* HDMI */
+	if (hdmi_num > 0) {
+		idisp_components = devm_kzalloc(dev,
+				   sizeof(struct snd_soc_dai_link_component) *
+				   hdmi_num, GFP_KERNEL);
+	}
 	for (i = 1; i <= hdmi_num; i++) {
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 						"iDisp%d", i);
 		links[id].id = id;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"iDisp%d Pin", i);
-		links[id].codec_name = "ehdaudio0D2";
-		links[id].codec_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							  "intel-hdmi-hifi%d",
-							  i);
+		idisp_components[i-1].name = "ehdaudio0D2";
+		idisp_components[i-1].dai_name = devm_kasprintf(dev, GFP_KERNEL,
+								"intel-hdmi-"
+								"hifi%d", i);
+		links[id].codecs = &idisp_components[i-1];
+		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].init = sof_hdmi_init;
