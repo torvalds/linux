@@ -990,6 +990,12 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 							    GFP_ATOMIC);
 			if (err)
 				return err;
+
+			/* helper installed, add seqadj if NAT is required */
+			if (info->nat && !nfct_seqadj(ct)) {
+				if (!nfct_seqadj_ext_add(ct))
+					return -EINVAL;
+			}
 		}
 
 		/* Call the helper only if:
