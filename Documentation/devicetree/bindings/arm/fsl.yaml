@@ -192,6 +192,7 @@ properties:
               - zii,vf610scu4-aib  # ZII VF610 SCU4 AIB
               - zii,vf610dtu       # ZII VF610 SSMB DTU Board
               - zii,vf610spu3      # ZII VF610 SSMB SPU3 Board
+              - zii,vf610spb4      # ZII VF610 SPB4 Board
           - const: zii,vf610dev
           - const: fsl,vf610
 
