@@ -189,7 +189,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	enum ipipeif_input_source ipipeif_source;
 	u32 isif_port_if;
 	void __iomem *ipipeif_base_addr;
-	unsigned int val;
+	unsigned long val;
 	int data_shift;
 	int pack_mode;
 	int source1;
@@ -296,14 +296,14 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 		case MEDIA_BUS_FMT_YUYV8_1X16:
 		case MEDIA_BUS_FMT_UYVY8_2X8:
 		case MEDIA_BUS_FMT_Y8_1X8:
-			RESETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
-			SETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
+			clear_bit(IPIPEIF_CFG2_YUV8_SHIFT, &val);
+			set_bit(IPIPEIF_CFG2_YUV16_SHIFT, &val);
 			ipipeif_write(val, ipipeif_base_addr, IPIPEIF_CFG2);
 			break;
 
 		default:
-			RESETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
-			RESETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
+			clear_bit(IPIPEIF_CFG2_YUV8_SHIFT, &val);
+			clear_bit(IPIPEIF_CFG2_YUV16_SHIFT, &val);
 			ipipeif_write(val, ipipeif_base_addr, IPIPEIF_CFG2);
 			break;
 		}
@@ -344,16 +344,16 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 		switch (isif_port_if) {
 		case MEDIA_BUS_FMT_YUYV8_1X16:
 		case MEDIA_BUS_FMT_YUYV10_1X20:
-			RESETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
-			SETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
+			clear_bit(IPIPEIF_CFG2_YUV8_SHIFT, &val);
+			set_bit(IPIPEIF_CFG2_YUV16_SHIFT, &val);
 			break;
 
 		case MEDIA_BUS_FMT_YUYV8_2X8:
 		case MEDIA_BUS_FMT_UYVY8_2X8:
 		case MEDIA_BUS_FMT_Y8_1X8:
 		case MEDIA_BUS_FMT_YUYV10_2X10:
-			SETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
-			SETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
+			set_bit(IPIPEIF_CFG2_YUV8_SHIFT, &val);
+			set_bit(IPIPEIF_CFG2_YUV16_SHIFT, &val);
 			val |= IPIPEIF_CBCR_Y << IPIPEIF_CFG2_YUV8P_SHIFT;
 			break;
 
