@@ -68,7 +68,7 @@ static int find_dvsec_afu_ctrl(struct pci_dev *dev, u8 afu_idx)
 	return 0;
 }
 
-static int read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
+static void read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
 {
 	u16 val;
 	int pos;
@@ -89,7 +89,6 @@ static int read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
 out:
 	dev_dbg(&dev->dev, "PASID capability:\n");
 	dev_dbg(&dev->dev, "  Max PASID log = %d\n", fn->max_pasid_log);
-	return 0;
 }
 
 static int read_dvsec_tl(struct pci_dev *dev, struct ocxl_fn_config *fn)
@@ -205,11 +204,7 @@ int ocxl_config_read_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 {
 	int rc;
 
-	rc = read_pasid(dev, fn);
-	if (rc) {
-		dev_err(&dev->dev, "Invalid PASID configuration: %d\n", rc);
-		return -ENODEV;
-	}
+	read_pasid(dev, fn);
 
 	rc = read_dvsec_tl(dev, fn);
 	if (rc) {
