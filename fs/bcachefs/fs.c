@@ -157,7 +157,7 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 				void *p)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter *iter = NULL;
 	struct bkey_inode_buf *inode_p;
 	int ret;
 
@@ -1193,7 +1193,8 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 {
 	struct bch_fs *c = vinode->i_sb->s_fs_info;
 	struct bch_inode_info *ei = to_bch_ei(vinode);
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	BKEY_PADDED(k) tmp;
 	bool have_extent = false;
@@ -1206,7 +1207,9 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	if (start + len < start)
 		return -EINVAL;
 
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS,
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(ei->v.i_ino, start >> 9), 0, k)
 		if (bkey_extent_is_data(k.k) ||
 		    k.k->type == KEY_TYPE_reservation) {
@@ -1227,7 +1230,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	if (have_extent)
 		ret = bch2_fill_extent(info, &tmp.k, FIEMAP_EXTENT_LAST);
 out:
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
 }
 

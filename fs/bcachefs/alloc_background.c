@@ -264,18 +264,21 @@ static void bch2_alloc_read_key(struct bch_fs *c, struct bkey_s_c k)
 int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
 {
 	struct journal_replay *r;
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bch_dev *ca;
 	unsigned i;
 	int ret;
 
-	for_each_btree_key(&iter, c, BTREE_ID_ALLOC, POS_MIN, 0, k) {
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_ALLOC, POS_MIN, 0, k) {
 		bch2_alloc_read_key(c, k);
-		bch2_btree_iter_cond_resched(&iter);
+		bch2_trans_cond_resched(&trans);
 	}
 
-	ret = bch2_btree_iter_unlock(&iter);
+	ret = bch2_trans_exit(&trans);
 	if (ret)
 		return ret;
 
@@ -391,8 +394,6 @@ static int __bch2_alloc_write_key(struct btree_trans *trans, struct bch_dev *ca,
 	__alloc_write_key(a, g, m);
 	percpu_up_read(&c->mark_lock);
 
-	bch2_btree_iter_cond_resched(iter);
-
 	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
 
 	ret = bch2_trans_commit(trans, NULL, journal_seq,
@@ -450,6 +451,7 @@ int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 			if (ret)
 				break;
 
+			bch2_trans_cond_resched(&trans);
 			*wrote = true;
 		}
 		up_read(&ca->bucket_lock);
@@ -937,8 +939,6 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 
 	spin_unlock(&c->freelist_lock);
 	percpu_up_read(&c->mark_lock);
-
-	bch2_btree_iter_cond_resched(iter);
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 

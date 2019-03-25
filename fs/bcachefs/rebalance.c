@@ -289,8 +289,8 @@ ssize_t bch2_rebalance_work_show(struct bch_fs *c, char *buf)
 	case REBALANCE_RUNNING:
 		pr_buf(&out, "running\n");
 		pr_buf(&out, "pos %llu:%llu\n",
-		       r->move_stats.iter.pos.inode,
-		       r->move_stats.iter.pos.offset);
+		       r->move_stats.pos.inode,
+		       r->move_stats.pos.offset);
 		break;
 	}
 

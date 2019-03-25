@@ -4,7 +4,8 @@
 
 struct bch_move_stats {
 	enum bch_data_type	data_type;
-	struct btree_iter	iter;
+	enum btree_id		btree_id;
+	struct bpos		pos;
 
 	atomic64_t		keys_moved;
 	atomic64_t		sectors_moved;

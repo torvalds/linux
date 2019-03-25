@@ -271,12 +271,16 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	struct bch_fs *c = dentry->d_sb->s_fs_info;
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 inum = dentry->d_inode->i_ino;
 	ssize_t ret = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_XATTRS, POS(inum, 0), 0, k) {
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_XATTRS,
+			   POS(inum, 0), 0, k) {
 		BUG_ON(k.k->p.inode < inum);
 
 		if (k.k->p.inode > inum)
@@ -290,7 +294,7 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (ret < 0)
 			break;
 	}
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	if (ret < 0)
 		return ret;

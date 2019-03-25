@@ -1623,15 +1623,18 @@ static bool bch2_extent_merge_inline(struct bch_fs *c,
 bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,
 			       unsigned nr_replicas)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bpos end = pos;
 	struct bkey_s_c k;
 	bool ret = true;
 
 	end.offset += size;
 
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, pos,
-			     BTREE_ITER_SLOTS, k) {
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, pos,
+			   BTREE_ITER_SLOTS, k) {
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
 
@@ -1640,7 +1643,7 @@ bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,
 			break;
 		}
 	}
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	return ret;
 }

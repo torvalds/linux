@@ -331,11 +331,15 @@ out:
 
 int bch2_empty_dir(struct bch_fs *c, u64 dir_inum)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS, POS(dir_inum, 0), 0, k) {
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS,
+			   POS(dir_inum, 0), 0, k) {
 		if (k.k->p.inode > dir_inum)
 			break;
 
@@ -344,7 +348,7 @@ int bch2_empty_dir(struct bch_fs *c, u64 dir_inum)
 			break;
 		}
 	}
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	return ret;
 }
@@ -353,7 +357,8 @@ int bch2_readdir(struct bch_fs *c, struct file *file,
 		 struct dir_context *ctx)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent dirent;
 	unsigned len;
@@ -361,7 +366,9 @@ int bch2_readdir(struct bch_fs *c, struct file *file,
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS,
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS,
 			   POS(inode->v.i_ino, ctx->pos), 0, k) {
 		if (k.k->type != KEY_TYPE_dirent)
 			continue;
@@ -387,7 +394,7 @@ int bch2_readdir(struct bch_fs *c, struct file *file,
 
 		ctx->pos = k.k->p.offset + 1;
 	}
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	return 0;
 }

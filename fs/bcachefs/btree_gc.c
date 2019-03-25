@@ -207,12 +207,15 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
 static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 			 bool initial)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct btree *b;
 	struct range_checks r;
 	unsigned depth = btree_node_type_needs_gc(btree_id) ? 0 : 1;
 	u8 max_stale;
 	int ret = 0;
+
+	bch2_trans_init(&trans, c);
 
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
 
@@ -227,7 +230,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 	btree_node_range_checks_init(&r, depth);
 
-	__for_each_btree_node(&iter, c, btree_id, POS_MIN,
+	__for_each_btree_node(&trans, iter, btree_id, POS_MIN,
 			      0, depth, BTREE_ITER_PREFETCH, b) {
 		btree_node_range_checks(c, b, &r);
 
@@ -241,22 +244,22 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		if (!initial) {
 			if (max_stale > 64)
-				bch2_btree_node_rewrite(c, &iter,
+				bch2_btree_node_rewrite(c, iter,
 						b->data->keys.seq,
 						BTREE_INSERT_USE_RESERVE|
 						BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
 			else if (!btree_gc_rewrite_disabled(c) &&
 				 (btree_gc_always_rewrite(c) || max_stale > 16))
-				bch2_btree_node_rewrite(c, &iter,
+				bch2_btree_node_rewrite(c, iter,
 						b->data->keys.seq,
 						BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
 		}
 
-		bch2_btree_iter_cond_resched(&iter);
+		bch2_trans_cond_resched(&trans);
 	}
-	ret = bch2_btree_iter_unlock(&iter) ?: ret;
+	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
 		return ret;
 
@@ -1030,7 +1033,8 @@ next:
 
 static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct btree *b;
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	unsigned i;
@@ -1038,6 +1042,8 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 	/* Sliding window of adjacent btree nodes */
 	struct btree *merge[GC_MERGE_NODES];
 	u32 lock_seq[GC_MERGE_NODES];
+
+	bch2_trans_init(&trans, c);
 
 	/*
 	 * XXX: We don't have a good way of positively matching on sibling nodes
@@ -1048,7 +1054,7 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 	 */
 	memset(merge, 0, sizeof(merge));
 
-	__for_each_btree_node(&iter, c, btree_id, POS_MIN,
+	__for_each_btree_node(&trans, iter, btree_id, POS_MIN,
 			      BTREE_MAX_DEPTH, 0,
 			      BTREE_ITER_PREFETCH, b) {
 		memmove(merge + 1, merge,
@@ -1070,7 +1076,7 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 		}
 		memset(merge + i, 0, (GC_MERGE_NODES - i) * sizeof(merge[0]));
 
-		bch2_coalesce_nodes(c, &iter, merge);
+		bch2_coalesce_nodes(c, iter, merge);
 
 		for (i = 1; i < GC_MERGE_NODES && merge[i]; i++) {
 			lock_seq[i] = merge[i]->lock.state.seq;
@@ -1080,23 +1086,23 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 		lock_seq[0] = merge[0]->lock.state.seq;
 
 		if (kthread && kthread_should_stop()) {
-			bch2_btree_iter_unlock(&iter);
+			bch2_trans_exit(&trans);
 			return -ESHUTDOWN;
 		}
 
-		bch2_btree_iter_cond_resched(&iter);
+		bch2_trans_cond_resched(&trans);
 
 		/*
 		 * If the parent node wasn't relocked, it might have been split
 		 * and the nodes in our sliding window might not have the same
 		 * parent anymore - blow away the sliding window:
 		 */
-		if (btree_iter_node(&iter, iter.level + 1) &&
-		    !btree_node_intent_locked(&iter, iter.level + 1))
+		if (btree_iter_node(iter, iter->level + 1) &&
+		    !btree_node_intent_locked(iter, iter->level + 1))
 			memset(merge + 1, 0,
 			       (GC_MERGE_NODES - 1) * sizeof(merge[0]));
 	}
-	return bch2_btree_iter_unlock(&iter);
+	return bch2_trans_exit(&trans);
 }
 
 /**

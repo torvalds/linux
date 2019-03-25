@@ -203,13 +203,16 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k) {
 		if (k.k->type != desc.key_type &&
 		    k.k->type != KEY_TYPE_whiteout)
-			return false;
+			break;
 
 		if (k.k->type == desc.key_type &&
-		    desc.hash_bkey(info, k) <= start->pos.offset)
-			return true;
+		    desc.hash_bkey(info, k) <= start->pos.offset) {
+			bch2_trans_iter_free_on_commit(trans, iter);
+			return 1;
+		}
 	}
-	return btree_iter_err(k);
+
+	return bch2_trans_iter_free(trans, iter);
 }
 
 static __always_inline
@@ -220,6 +223,8 @@ int bch2_hash_set(struct btree_trans *trans,
 {
 	struct btree_iter *iter, *slot = NULL;
 	struct bkey_s_c k;
+	bool found = false;
+	int ret = 0;
 
 	iter = bch2_trans_get_iter(trans, desc.btree_id,
 			POS(inode, desc.hash_bkey(info, bkey_i_to_s_c(insert))),
@@ -250,21 +255,30 @@ int bch2_hash_set(struct btree_trans *trans,
 			goto not_found;
 	}
 
-	return btree_iter_err(k) ?: -ENOSPC;
-not_found:
-	if (flags & BCH_HASH_SET_MUST_REPLACE)
-		return -ENOENT;
+	if (slot)
+		bch2_trans_iter_free(trans, iter);
 
-	insert->k.p = slot->pos;
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(slot, insert));
-	return 0;
+	return bch2_trans_iter_free(trans, iter) ?: -ENOSPC;
 found:
-	if (flags & BCH_HASH_SET_MUST_CREATE)
-		return -EEXIST;
+	found = true;
+not_found:
 
-	insert->k.p = iter->pos;
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, insert));
-	return 0;
+	if (!found && (flags & BCH_HASH_SET_MUST_REPLACE)) {
+		ret = -ENOENT;
+	} else if (found && (flags & BCH_HASH_SET_MUST_CREATE)) {
+		ret = -EEXIST;
+	} else {
+		if (!found && slot) {
+			bch2_trans_iter_free(trans, iter);
+			iter = slot;
+		}
+
+		insert->k.p = iter->pos;
+		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, insert));
+		bch2_trans_iter_free_on_commit(trans, iter);
+	}
+
+	return ret;
 }
 
 static __always_inline

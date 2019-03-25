@@ -89,10 +89,13 @@ static void test_delete_written(struct bch_fs *c, u64 nr)
 
 static void test_iterate(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 i;
 	int ret;
+
+	bch2_trans_init(&trans, c);
 
 	delete_test_keys(c);
 
@@ -113,27 +116,30 @@ static void test_iterate(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS, POS(0, 0), 0, k)
+	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS, POS(0, 0), 0, k)
 		BUG_ON(k.k->p.offset != i++);
-	bch2_btree_iter_unlock(&iter);
 
 	BUG_ON(i != nr);
 
 	pr_info("iterating backwards");
 
-	while (!IS_ERR_OR_NULL((k = bch2_btree_iter_prev(&iter)).k))
+	while (!IS_ERR_OR_NULL((k = bch2_btree_iter_prev(iter)).k))
 		BUG_ON(k.k->p.offset != --i);
-	bch2_btree_iter_unlock(&iter);
 
 	BUG_ON(i);
+
+	bch2_trans_exit(&trans);
 }
 
 static void test_iterate_extents(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 i;
 	int ret;
+
+	bch2_trans_init(&trans, c);
 
 	delete_test_keys(c);
 
@@ -155,31 +161,34 @@ static void test_iterate_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS(0, 0), 0, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS(0, 0), 0, k) {
 		BUG_ON(bkey_start_offset(k.k) != i);
 		i = k.k->p.offset;
 	}
-	bch2_btree_iter_unlock(&iter);
 
 	BUG_ON(i != nr);
 
 	pr_info("iterating backwards");
 
-	while (!IS_ERR_OR_NULL((k = bch2_btree_iter_prev(&iter)).k)) {
+	while (!IS_ERR_OR_NULL((k = bch2_btree_iter_prev(iter)).k)) {
 		BUG_ON(k.k->p.offset != i);
 		i = bkey_start_offset(k.k);
 	}
-	bch2_btree_iter_unlock(&iter);
 
 	BUG_ON(i);
+
+	bch2_trans_exit(&trans);
 }
 
 static void test_iterate_slots(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 i;
 	int ret;
+
+	bch2_trans_init(&trans, c);
 
 	delete_test_keys(c);
 
@@ -200,11 +209,11 @@ static void test_iterate_slots(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS, POS(0, 0), 0, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS, POS(0, 0), 0, k) {
 		BUG_ON(k.k->p.offset != i);
 		i += 2;
 	}
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_iter_free(&trans, iter);
 
 	BUG_ON(i != nr * 2);
 
@@ -212,7 +221,7 @@ static void test_iterate_slots(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS, POS(0, 0),
+	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS, POS(0, 0),
 			   BTREE_ITER_SLOTS, k) {
 		BUG_ON(bkey_deleted(k.k) != (i & 1));
 		BUG_ON(k.k->p.offset != i++);
@@ -220,15 +229,19 @@ static void test_iterate_slots(struct bch_fs *c, u64 nr)
 		if (i == nr * 2)
 			break;
 	}
-	bch2_btree_iter_unlock(&iter);
+
+	bch2_trans_exit(&trans);
 }
 
 static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	u64 i;
 	int ret;
+
+	bch2_trans_init(&trans, c);
 
 	delete_test_keys(c);
 
@@ -250,12 +263,12 @@ static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS(0, 0), 0, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS(0, 0), 0, k) {
 		BUG_ON(bkey_start_offset(k.k) != i + 8);
 		BUG_ON(k.k->size != 8);
 		i += 16;
 	}
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_iter_free(&trans, iter);
 
 	BUG_ON(i != nr);
 
@@ -263,7 +276,7 @@ static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS(0, 0),
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS(0, 0),
 			   BTREE_ITER_SLOTS, k) {
 		BUG_ON(bkey_deleted(k.k) != !(i % 16));
 
@@ -274,7 +287,8 @@ static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		if (i == nr)
 			break;
 	}
-	bch2_btree_iter_unlock(&iter);
+
+	bch2_trans_exit(&trans);
 }
 
 /*
@@ -283,34 +297,40 @@ static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
  */
 static void test_peek_end(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_DIRENTS, POS_MIN, 0);
+	bch2_trans_init(&trans, c);
 
-	k = bch2_btree_iter_peek(&iter);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS, POS_MIN, 0);
+
+	k = bch2_btree_iter_peek(iter);
 	BUG_ON(k.k);
 
-	k = bch2_btree_iter_peek(&iter);
+	k = bch2_btree_iter_peek(iter);
 	BUG_ON(k.k);
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 }
 
 static void test_peek_end_extents(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS, POS_MIN, 0);
+	bch2_trans_init(&trans, c);
 
-	k = bch2_btree_iter_peek(&iter);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, POS_MIN, 0);
+
+	k = bch2_btree_iter_peek(iter);
 	BUG_ON(k.k);
 
-	k = bch2_btree_iter_peek(&iter);
+	k = bch2_btree_iter_peek(iter);
 	BUG_ON(k.k);
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 }
 
 /* extent unit tests */
@@ -401,32 +421,35 @@ static void rand_insert(struct bch_fs *c, u64 nr)
 
 static void rand_lookup(struct bch_fs *c, u64 nr)
 {
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
 	u64 i;
 
+	bch2_trans_init(&trans, c);
+
 	for (i = 0; i < nr; i++) {
-		struct btree_iter iter;
-		struct bkey_s_c k;
+		iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
+					   POS(0, test_rand()), 0);
 
-		bch2_btree_iter_init(&iter, c, BTREE_ID_DIRENTS,
-				     POS(0, test_rand()), 0);
-
-		k = bch2_btree_iter_peek(&iter);
-		bch2_btree_iter_unlock(&iter);
+		k = bch2_btree_iter_peek(iter);
+		bch2_trans_iter_free(&trans, iter);
 	}
+
+	bch2_trans_exit(&trans);
 }
 
 static void rand_mixed(struct bch_fs *c, u64 nr)
 {
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
 	int ret;
 	u64 i;
 
+	bch2_trans_init(&trans, c);
+
 	for (i = 0; i < nr; i++) {
-		struct btree_trans trans;
-		struct btree_iter *iter;
-		struct bkey_s_c k;
-
-		bch2_trans_init(&trans, c);
-
 		iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
 					   POS(0, test_rand()), 0);
 
@@ -443,9 +466,10 @@ static void rand_mixed(struct bch_fs *c, u64 nr)
 			BUG_ON(ret);
 		}
 
-		bch2_trans_exit(&trans);
+		bch2_trans_iter_free(&trans, iter);
 	}
 
+	bch2_trans_exit(&trans);
 }
 
 static void rand_delete(struct bch_fs *c, u64 nr)
@@ -495,12 +519,15 @@ static void seq_insert(struct bch_fs *c, u64 nr)
 
 static void seq_lookup(struct bch_fs *c, u64 nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 
-	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS, POS_MIN, 0, k)
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS, POS_MIN, 0, k)
 		;
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 }
 
 static void seq_overwrite(struct bch_fs *c, u64 nr)

@@ -1263,27 +1263,28 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 				     struct bch_io_failures *failed,
 				     unsigned flags)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	BKEY_PADDED(k) tmp;
 	struct bkey_s_c k;
 	int ret;
 
 	flags &= ~BCH_READ_LAST_FRAGMENT;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
-			     rbio->pos, BTREE_ITER_SLOTS);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   rbio->pos, BTREE_ITER_SLOTS);
 retry:
 	rbio->bio.bi_status = 0;
 
-	k = bch2_btree_iter_peek_slot(&iter);
-	if (btree_iter_err(k)) {
-		bch2_btree_iter_unlock(&iter);
+	k = bch2_btree_iter_peek_slot(iter);
+	if (btree_iter_err(k))
 		goto err;
-	}
 
 	bkey_reassemble(&tmp.k, k);
 	k = bkey_i_to_s_c(&tmp.k);
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_unlock(&trans);
 
 	if (!bkey_extent_is_data(k.k) ||
 	    !bch2_extent_matches_ptr(c, bkey_i_to_s_c_extent(&tmp.k),
@@ -1300,25 +1301,30 @@ retry:
 		goto retry;
 	if (ret)
 		goto err;
-	goto out;
-err:
-	rbio->bio.bi_status = BLK_STS_IOERR;
 out:
 	bch2_rbio_done(rbio);
+	bch2_trans_exit(&trans);
+	return;
+err:
+	rbio->bio.bi_status = BLK_STS_IOERR;
+	goto out;
 }
 
 static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
 			    struct bvec_iter bvec_iter, u64 inode,
 			    struct bch_io_failures *failed, unsigned flags)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret;
+
+	bch2_trans_init(&trans, c);
 
 	flags &= ~BCH_READ_LAST_FRAGMENT;
 	flags |= BCH_READ_MUST_CLONE;
 retry:
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS,
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(inode, bvec_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k) {
 		BKEY_PADDED(k) tmp;
@@ -1326,7 +1332,7 @@ retry:
 
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
-		bch2_btree_iter_unlock(&iter);
+		bch2_btree_iter_unlock(iter);
 
 		bytes = min_t(unsigned, bvec_iter.bi_size,
 			      (k.k->p.offset - bvec_iter.bi_sector) << 9);
@@ -1351,12 +1357,12 @@ retry:
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
 	 */
-	ret = bch2_btree_iter_unlock(&iter);
-	BUG_ON(!ret);
-	__bcache_io_error(c, "btree IO error %i", ret);
+	BUG_ON(!(iter->flags & BTREE_ITER_ERROR));
+	__bcache_io_error(c, "btree IO error");
 err:
 	rbio->bio.bi_status = BLK_STS_IOERR;
 out:
+	bch2_trans_exit(&trans);
 	bch2_rbio_done(rbio);
 }
 
@@ -1859,12 +1865,14 @@ out_read_done:
 
 void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	unsigned flags = BCH_READ_RETRY_IF_STALE|
 		BCH_READ_MAY_PROMOTE|
 		BCH_READ_USER_MAPPED;
-	int ret;
+
+	bch2_trans_init(&trans, c);
 
 	BUG_ON(rbio->_state);
 	BUG_ON(flags & BCH_READ_NODECODE);
@@ -1873,7 +1881,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	rbio->c = c;
 	rbio->start_time = local_clock();
 
-	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS,
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(inode, rbio->bio.bi_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k) {
 		BKEY_PADDED(k) tmp;
@@ -1885,7 +1893,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		 */
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
-		bch2_btree_iter_unlock(&iter);
+		bch2_btree_iter_unlock(iter);
 
 		bytes = min_t(unsigned, rbio->bio.bi_iter.bi_size,
 			      (k.k->p.offset - rbio->bio.bi_iter.bi_sector) << 9);
@@ -1907,9 +1915,10 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
 	 */
-	ret = bch2_btree_iter_unlock(&iter);
-	BUG_ON(!ret);
-	bcache_io_error(c, &rbio->bio, "btree IO error %i", ret);
+	BUG_ON(!(iter->flags & BTREE_ITER_ERROR));
+	bcache_io_error(c, &rbio->bio, "btree IO error");
+
+	bch2_trans_exit(&trans);
 	bch2_rbio_done(rbio);
 }
 

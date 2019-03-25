@@ -150,20 +150,6 @@ struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *);
 void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *, struct bpos);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
 
-void __bch2_btree_iter_init(struct btree_iter *, struct bch_fs *,
-			   enum btree_id, struct bpos,
-			   unsigned , unsigned, unsigned);
-
-static inline void bch2_btree_iter_init(struct btree_iter *iter,
-			struct bch_fs *c, enum btree_id btree_id,
-			struct bpos pos, unsigned flags)
-{
-	__bch2_btree_iter_init(iter, c, btree_id, pos,
-			       flags & BTREE_ITER_INTENT ? 1 : 0, 0,
-			       (btree_id == BTREE_ID_EXTENTS
-				?  BTREE_ITER_IS_EXTENTS : 0)|flags);
-}
-
 void bch2_btree_iter_copy(struct btree_iter *, struct btree_iter *);
 
 static inline struct bpos btree_type_successor(enum btree_id id,
@@ -221,17 +207,18 @@ static inline void bch2_btree_iter_cond_resched(struct btree_iter *iter)
 	}
 }
 
-#define __for_each_btree_node(_iter, _c, _btree_id, _start,		\
+#define __for_each_btree_node(_trans, _iter, _btree_id, _start,	\
 			      _locks_want, _depth, _flags, _b)		\
-	for (__bch2_btree_iter_init((_iter), (_c), (_btree_id), _start,	\
-				    _locks_want, _depth,		\
-				    _flags|BTREE_ITER_NODES),		\
+	for (iter = bch2_trans_get_node_iter((_trans), (_btree_id),	\
+				_start, _locks_want, _depth, _flags),	\
 	     _b = bch2_btree_iter_peek_node(_iter);			\
 	     (_b);							\
 	     (_b) = bch2_btree_iter_next_node(_iter, _depth))
 
-#define for_each_btree_node(_iter, _c, _btree_id, _start, _flags, _b)	\
-	__for_each_btree_node(_iter, _c, _btree_id, _start, 0, 0, _flags, _b)
+#define for_each_btree_node(_trans, _iter, _btree_id, _start,		\
+			    _flags, _b)					\
+	__for_each_btree_node(_trans, _iter, _btree_id, _start,		\
+			      0, 0, _flags, _b)
 
 static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
 						     unsigned flags)
@@ -251,9 +238,9 @@ static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 		: bch2_btree_iter_next(iter);
 }
 
-#define for_each_btree_key(_iter, _c, _btree_id,  _start, _flags, _k)	\
-	for (bch2_btree_iter_init((_iter), (_c), (_btree_id),		\
-				  (_start), (_flags)),			\
+#define for_each_btree_key(_trans, _iter, _btree_id,  _start, _flags, _k)\
+	for (iter = bch2_trans_get_iter((_trans), (_btree_id),		\
+					(_start), (_flags)),		\
 	     (_k) = __bch2_btree_iter_peek(_iter, _flags);		\
 	     !IS_ERR_OR_NULL((_k).k);					\
 	     (_k) = __bch2_btree_iter_next(_iter, _flags))
@@ -271,9 +258,9 @@ static inline int btree_iter_err(struct bkey_s_c k)
 /* new multiple iterator interface: */
 
 void bch2_trans_preload_iters(struct btree_trans *);
-void bch2_trans_iter_put(struct btree_trans *, struct btree_iter *);
-void bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
-void bch2_trans_iter_free_on_commit(struct btree_trans *, struct btree_iter *);
+int bch2_trans_iter_put(struct btree_trans *, struct btree_iter *);
+int bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
+int bch2_trans_iter_free_on_commit(struct btree_trans *, struct btree_iter *);
 
 void bch2_trans_unlink_iters(struct btree_trans *, u64);
 
@@ -308,6 +295,10 @@ bch2_trans_copy_iter(struct btree_trans *trans, struct btree_iter *src)
 	return __bch2_trans_copy_iter(trans, src, __btree_iter_id());
 }
 
+struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,
+				enum btree_id, struct bpos,
+				unsigned, unsigned, unsigned);
+
 void __bch2_trans_begin(struct btree_trans *);
 
 static inline void bch2_trans_begin_updates(struct btree_trans *trans)
@@ -319,6 +310,16 @@ void *bch2_trans_kmalloc(struct btree_trans *, size_t);
 int bch2_trans_unlock(struct btree_trans *);
 void bch2_trans_init(struct btree_trans *, struct bch_fs *);
 int bch2_trans_exit(struct btree_trans *);
+
+static inline void bch2_trans_cond_resched(struct btree_trans *trans)
+{
+	if (need_resched()) {
+		bch2_trans_unlock(trans);
+		schedule();
+	} else if (race_fault()) {
+		bch2_trans_unlock(trans);
+	}
+}
 
 #ifdef TRACE_TRANSACTION_RESTARTS
 #define bch2_trans_begin(_trans)					\

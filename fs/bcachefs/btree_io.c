@@ -1153,19 +1153,21 @@ static void bch2_btree_node_write_error(struct bch_fs *c,
 	struct bkey_i_btree_ptr *new_key;
 	struct bkey_s_btree_ptr bp;
 	struct bch_extent_ptr *ptr;
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	int ret;
 
-	__bch2_btree_iter_init(&iter, c, b->btree_id, b->key.k.p,
-			       BTREE_MAX_DEPTH,
-			       b->level, BTREE_ITER_NODES);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_node_iter(&trans, b->btree_id, b->key.k.p,
+					BTREE_MAX_DEPTH, b->level, 0);
 retry:
-	ret = bch2_btree_iter_traverse(&iter);
+	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
 		goto err;
 
 	/* has node been freed? */
-	if (iter.l[b->level].b != b) {
+	if (iter->l[b->level].b != b) {
 		/* node has been freed: */
 		BUG_ON(!btree_node_dying(b));
 		goto out;
@@ -1184,13 +1186,13 @@ retry:
 	if (!bch2_bkey_nr_ptrs(bp.s_c))
 		goto err;
 
-	ret = bch2_btree_node_update_key(c, &iter, b, new_key);
+	ret = bch2_btree_node_update_key(c, iter, b, new_key);
 	if (ret == -EINTR)
 		goto retry;
 	if (ret)
 		goto err;
 out:
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 	bio_put(&wbio->wbio.bio);
 	btree_node_write_done(c, b);
 	return;

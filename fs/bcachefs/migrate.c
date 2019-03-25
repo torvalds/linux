@@ -106,7 +106,8 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct closure cl;
 	struct btree *b;
 	unsigned id;
@@ -116,13 +117,15 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	if (flags & BCH_FORCE_IF_METADATA_LOST)
 		return -EINVAL;
 
+	bch2_trans_init(&trans, c);
 	closure_init_stack(&cl);
 
 	mutex_lock(&c->replicas_gc_lock);
 	bch2_replicas_gc_start(c, 1 << BCH_DATA_BTREE);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
-		for_each_btree_node(&iter, c, id, POS_MIN, BTREE_ITER_PREFETCH, b) {
+		for_each_btree_node(&trans, iter, id, POS_MIN,
+				    BTREE_ITER_PREFETCH, b) {
 			__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
 			struct bkey_i_btree_ptr *new_key;
 retry:
@@ -134,7 +137,7 @@ retry:
 				 * but got -EINTR after upgrading the iter, but
 				 * then raced and the node is now gone:
 				 */
-				bch2_btree_iter_downgrade(&iter);
+				bch2_btree_iter_downgrade(iter);
 
 				ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(&b->key));
 				if (ret)
@@ -148,16 +151,16 @@ retry:
 				if (ret)
 					goto err;
 
-				ret = bch2_btree_node_update_key(c, &iter, b, new_key);
+				ret = bch2_btree_node_update_key(c, iter, b, new_key);
 				if (ret == -EINTR) {
-					b = bch2_btree_iter_peek_node(&iter);
+					b = bch2_btree_iter_peek_node(iter);
 					goto retry;
 				}
 				if (ret)
 					goto err;
 			}
 		}
-		bch2_btree_iter_unlock(&iter);
+		bch2_trans_iter_free(&trans, iter);
 	}
 
 	/* flush relevant btree updates */
@@ -171,14 +174,13 @@ retry:
 	}
 
 	ret = 0;
-out:
+err:
+	bch2_trans_exit(&trans);
+
 	ret = bch2_replicas_gc_end(c, ret);
 	mutex_unlock(&c->replicas_gc_lock);
 
 	return ret;
-err:
-	bch2_btree_iter_unlock(&iter);
-	goto out;
 }
 
 int bch2_dev_data_drop(struct bch_fs *c, unsigned dev_idx, int flags)

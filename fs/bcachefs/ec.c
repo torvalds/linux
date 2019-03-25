@@ -398,7 +398,8 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 /* recovery read path: */
 int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct ec_stripe_buf *buf;
 	struct closure cl;
 	struct bkey_s_c k;
@@ -419,19 +420,21 @@ int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 	if (!buf)
 		return -ENOMEM;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EC,
-			     POS(0, stripe_idx),
-			     BTREE_ITER_SLOTS);
-	k = bch2_btree_iter_peek_slot(&iter);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC,
+				   POS(0, stripe_idx),
+				   BTREE_ITER_SLOTS);
+	k = bch2_btree_iter_peek_slot(iter);
 	if (btree_iter_err(k) || k.k->type != KEY_TYPE_stripe) {
 		__bcache_io_error(c,
 			"error doing reconstruct read: stripe not found");
 		kfree(buf);
-		return bch2_btree_iter_unlock(&iter) ?: -EIO;
+		return bch2_trans_exit(&trans) ?: -EIO;
 	}
 
 	bkey_reassemble(&buf->key.k_i, k);
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	v = &buf->key.v;
 
@@ -1238,7 +1241,8 @@ static void bch2_stripe_read_key(struct bch_fs *c, struct bkey_s_c k)
 int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)
 {
 	struct journal_replay *r;
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret;
 
@@ -1246,12 +1250,14 @@ int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)
 	if (ret)
 		return ret;
 
-	for_each_btree_key(&iter, c, BTREE_ID_EC, POS_MIN, 0, k) {
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k) {
 		bch2_stripe_read_key(c, k);
-		bch2_btree_iter_cond_resched(&iter);
+		bch2_trans_cond_resched(&trans);
 	}
 
-	ret = bch2_btree_iter_unlock(&iter);
+	ret = bch2_trans_exit(&trans);
 	if (ret)
 		return ret;
 
@@ -1269,17 +1275,20 @@ int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)
 
 int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	size_t i, idx = 0;
 	int ret = 0;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EC, POS(0, U64_MAX), 0);
+	bch2_trans_init(&trans, c);
 
-	k = bch2_btree_iter_prev(&iter);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS(0, U64_MAX), 0);
+
+	k = bch2_btree_iter_prev(iter);
 	if (!IS_ERR_OR_NULL(k.k))
 		idx = k.k->p.offset + 1;
-	ret = bch2_btree_iter_unlock(&iter);
+	ret = bch2_trans_exit(&trans);
 	if (ret)
 		return ret;
 

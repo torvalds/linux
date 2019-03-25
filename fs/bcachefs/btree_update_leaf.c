@@ -999,7 +999,7 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 		if (ret)
 			break;
 
-		bch2_btree_iter_cond_resched(iter);
+		bch2_trans_cond_resched(&trans);
 	}
 
 	bch2_trans_exit(&trans);

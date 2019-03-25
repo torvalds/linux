@@ -62,8 +62,11 @@ static void journal_seq_blacklist_flush(struct journal *j,
 	closure_init_stack(&cl);
 
 	for (i = 0;; i++) {
-		struct btree_iter iter;
+		struct btree_trans trans;
+		struct btree_iter *iter;
 		struct btree *b;
+
+		bch2_trans_init(&trans, c);
 
 		mutex_lock(&j->blacklist_lock);
 		if (i >= bl->nr_entries) {
@@ -73,17 +76,17 @@ static void journal_seq_blacklist_flush(struct journal *j,
 		n = bl->entries[i];
 		mutex_unlock(&j->blacklist_lock);
 
-		__bch2_btree_iter_init(&iter, c, n.btree_id, n.pos,
-				       0, 0, BTREE_ITER_NODES);
+		iter = bch2_trans_get_node_iter(&trans, n.btree_id, n.pos,
+						0, 0, 0);
 
-		b = bch2_btree_iter_peek_node(&iter);
+		b = bch2_btree_iter_peek_node(iter);
 
 		/* The node might have already been rewritten: */
 
 		if (b->data->keys.seq == n.seq) {
-			ret = bch2_btree_node_rewrite(c, &iter, n.seq, 0);
+			ret = bch2_btree_node_rewrite(c, iter, n.seq, 0);
 			if (ret) {
-				bch2_btree_iter_unlock(&iter);
+				bch2_trans_exit(&trans);
 				bch2_fs_fatal_error(c,
 					"error %i rewriting btree node with blacklisted journal seq",
 					ret);
@@ -92,7 +95,7 @@ static void journal_seq_blacklist_flush(struct journal *j,
 			}
 		}
 
-		bch2_btree_iter_unlock(&iter);
+		bch2_trans_exit(&trans);
 	}
 
 	for (i = 0;; i++) {

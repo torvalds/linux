@@ -447,13 +447,15 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
 			    struct bch_inode_unpacked *inode)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = -ENOENT;
 
-	for_each_btree_key(&iter, c, BTREE_ID_INODES,
-			   POS(inode_nr, 0),
-			   BTREE_ITER_SLOTS, k) {
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_INODES,
+			   POS(inode_nr, 0), BTREE_ITER_SLOTS, k) {
 		switch (k.k->type) {
 		case KEY_TYPE_inode:
 			ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
@@ -466,7 +468,7 @@ int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
 		break;
 	}
 
-	return bch2_btree_iter_unlock(&iter) ?: ret;
+	return bch2_trans_exit(&trans) ?: ret;
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG
