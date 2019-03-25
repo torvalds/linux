@@ -44,6 +44,7 @@ static const struct file_operations komeda_register_fops = {
 	.release	= single_release,
 };
 
+#ifdef CONFIG_DEBUG_FS
 static void komeda_debugfs_init(struct komeda_dev *mdev)
 {
 	if (!debugfs_initialized())
@@ -56,6 +57,7 @@ static void komeda_debugfs_init(struct komeda_dev *mdev)
 	debugfs_create_file("register", 0444, mdev->debugfs_root,
 			    mdev, &komeda_register_fops);
 }
+#endif
 
 static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 {
