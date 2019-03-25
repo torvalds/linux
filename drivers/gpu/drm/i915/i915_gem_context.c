@@ -709,7 +709,7 @@ err:
 	idr_destroy(&file_priv->context_idr);
 	mutex_destroy(&file_priv->vm_idr_lock);
 	mutex_destroy(&file_priv->context_idr_lock);
-	return PTR_ERR(ctx);
+	return err;
 }
 
 void i915_gem_context_close(struct drm_file *file)
