@@ -120,7 +120,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
