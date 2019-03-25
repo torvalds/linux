@@ -65,8 +65,8 @@
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_lcd_pins>;
-		gpios = <&pio 0 23 GPIO_ACTIVE_HIGH>, /* PA23, sda */
-			<&pio 0 24 GPIO_ACTIVE_HIGH>; /* PA24, scl */
+		sda-gpios = <&pio 0 23 GPIO_ACTIVE_HIGH>; /* PA23 */
+		scl-gpios = <&pio 0 24 GPIO_ACTIVE_HIGH>; /* PA24 */
 		i2c-gpio,delay-us = <5>;
 	};
 };
