@@ -270,7 +270,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 * periodically arm the mmio checker to see if we are triggering
 	 * any invalid access.
 	 */
-	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+	intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
 
 	for_each_engine(engine, dev_priv, id) {
 		struct hangcheck hc;

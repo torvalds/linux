@@ -99,6 +99,9 @@ struct intel_uncore {
 
 	unsigned int flags;
 #define UNCORE_HAS_FORCEWAKE		BIT(0)
+#define UNCORE_HAS_FPGA_DBG_UNCLAIMED	BIT(1)
+#define UNCORE_HAS_DBG_UNCLAIMED	BIT(2)
+#define UNCORE_HAS_FIFO			BIT(3)
 
 	const struct intel_forcewake_range *fw_domains_table;
 	unsigned int fw_domains_table_entries;
@@ -152,11 +155,29 @@ intel_uncore_has_forcewake(const struct intel_uncore *uncore)
 	return uncore->flags & UNCORE_HAS_FORCEWAKE;
 }
 
+static inline bool
+intel_uncore_has_fpga_dbg_unclaimed(const struct intel_uncore *uncore)
+{
+	return uncore->flags & UNCORE_HAS_FPGA_DBG_UNCLAIMED;
+}
+
+static inline bool
+intel_uncore_has_dbg_unclaimed(const struct intel_uncore *uncore)
+{
+	return uncore->flags & UNCORE_HAS_DBG_UNCLAIMED;
+}
+
+static inline bool
+intel_uncore_has_fifo(const struct intel_uncore *uncore)
+{
+	return uncore->flags & UNCORE_HAS_FIFO;
+}
+
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
 int intel_uncore_init(struct intel_uncore *uncore);
 void intel_uncore_prune(struct intel_uncore *uncore);
-bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
-bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv);
+bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore);
+bool intel_uncore_arm_unclaimed_mmio_detection(struct intel_uncore *uncore);
 void intel_uncore_fini(struct intel_uncore *uncore);
 void intel_uncore_suspend(struct intel_uncore *uncore);
 void intel_uncore_resume_early(struct intel_uncore *uncore);

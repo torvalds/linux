@@ -244,6 +244,7 @@ static int live_forcewake_domains(void *arg)
 {
 #define FW_RANGE 0x40000
 	struct drm_i915_private *dev_priv = arg;
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned long *valid;
 	u32 offset;
 	int err;
@@ -263,31 +264,31 @@ static int live_forcewake_domains(void *arg)
 	if (!valid)
 		return -ENOMEM;
 
-	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
-	check_for_unclaimed_mmio(dev_priv);
+	check_for_unclaimed_mmio(uncore);
 	for (offset = 0; offset < FW_RANGE; offset += 4) {
 		i915_reg_t reg = { offset };
 
 		(void)I915_READ_FW(reg);
-		if (!check_for_unclaimed_mmio(dev_priv))
+		if (!check_for_unclaimed_mmio(uncore))
 			set_bit(offset, valid);
 	}
 
-	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
 	err = 0;
 	for_each_set_bit(offset, valid, FW_RANGE) {
 		i915_reg_t reg = { offset };
 
 		iosf_mbi_punit_acquire();
-		intel_uncore_forcewake_reset(&dev_priv->uncore);
+		intel_uncore_forcewake_reset(uncore);
 		iosf_mbi_punit_release();
 
-		check_for_unclaimed_mmio(dev_priv);
+		check_for_unclaimed_mmio(uncore);
 
 		(void)I915_READ(reg);
-		if (check_for_unclaimed_mmio(dev_priv)) {
+		if (check_for_unclaimed_mmio(uncore)) {
 			pr_err("Unclaimed mmio read to register 0x%04x\n",
 			       offset);
 			err = -EINVAL;
