@@ -1968,7 +1968,15 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		return 0;
 
 	if (sig) {
-		ret = set_user_sigmask(sig, &ksigmask, &sigsaved, sigsz);
+#ifdef CONFIG_COMPAT
+		if (in_compat_syscall())
+			ret = set_compat_user_sigmask((const compat_sigset_t __user *)sig,
+						      &ksigmask, &sigsaved, sigsz);
+		else
+#endif
+			ret = set_user_sigmask(sig, &ksigmask,
+					       &sigsaved, sigsz);
+
 		if (ret)
 			return ret;
 	}
