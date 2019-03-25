@@ -558,13 +558,38 @@ static ssize_t dfsdm_adc_audio_get_spiclk(struct iio_dev *indio_dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", adc->spi_freq);
 }
 
+static int dfsdm_adc_set_samp_freq(struct iio_dev *indio_dev,
+				   unsigned int sample_freq,
+				   unsigned int spi_freq)
+{
+	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
+	unsigned int oversamp;
+	int ret;
+
+	oversamp = DIV_ROUND_CLOSEST(spi_freq, sample_freq);
+	if (spi_freq % sample_freq)
+		dev_dbg(&indio_dev->dev,
+			"Rate not accurate. requested (%u), actual (%u)\n",
+			sample_freq, spi_freq / oversamp);
+
+	ret = stm32_dfsdm_set_osrs(fl, 0, oversamp);
+	if (ret < 0) {
+		dev_err(&indio_dev->dev, "No filter parameters that match!\n");
+		return ret;
+	}
+	adc->sample_freq = spi_freq / oversamp;
+	adc->oversamp = oversamp;
+
+	return 0;
+}
+
 static ssize_t dfsdm_adc_audio_set_spiclk(struct iio_dev *indio_dev,
 					  uintptr_t priv,
 					  const struct iio_chan_spec *chan,
 					  const char *buf, size_t len)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
-	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
 	struct stm32_dfsdm_channel *ch = &adc->dfsdm->ch_list[chan->channel];
 	unsigned int sample_freq = adc->sample_freq;
 	unsigned int spi_freq;
@@ -583,17 +608,9 @@ static ssize_t dfsdm_adc_audio_set_spiclk(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	if (sample_freq) {
-		if (spi_freq % sample_freq)
-			dev_warn(&indio_dev->dev,
-				 "Sampling rate not accurate (%d)\n",
-				 spi_freq / (spi_freq / sample_freq));
-
-		ret = stm32_dfsdm_set_osrs(fl, 0, (spi_freq / sample_freq));
-		if (ret < 0) {
-			dev_err(&indio_dev->dev,
-				"No filter parameters that match!\n");
+		ret = dfsdm_adc_set_samp_freq(indio_dev, sample_freq, spi_freq);
+		if (ret < 0)
 			return ret;
-		}
 	}
 	adc->spi_freq = spi_freq;
 
@@ -1068,22 +1085,9 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 			spi_freq = adc->spi_freq;
 		}
 
-		if (spi_freq % val)
-			dev_warn(&indio_dev->dev,
-				 "Sampling rate not accurate (%d)\n",
-				 spi_freq / (spi_freq / val));
-
-		ret = stm32_dfsdm_set_osrs(fl, 0, (spi_freq / val));
-		if (ret < 0) {
-			dev_err(&indio_dev->dev,
-				"Not able to find parameter that match!\n");
-			iio_device_release_direct_mode(indio_dev);
-			return ret;
-		}
-		adc->sample_freq = val;
+		ret = dfsdm_adc_set_samp_freq(indio_dev, val, spi_freq);
 		iio_device_release_direct_mode(indio_dev);
-
-		return 0;
+		return ret;
 	}
 
 	return -EINVAL;
