@@ -961,11 +961,10 @@
 			#gpio-cells = <3>;
 
 			gmac_rgmii_pins: gmac-rgmii-pins {
-				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
-						 "PA4", "PA5", "PA7", "PA8",
-						 "PA9", "PA10", "PA12", "PA13",
-						 "PA15", "PA16", "PA17";
-				allwinner,function = "gmac";
+				pins = "PA0", "PA1", "PA2", "PA3", "PA4", "PA5",
+				       "PA7", "PA8", "PA9", "PA10", "PA12",
+				       "PA13", "PA15", "PA16", "PA17";
+				function = "gmac";
 				/*
 				 * data lines in RGMII mode use DDR mode
 				 * and need a higher signal drive strength
