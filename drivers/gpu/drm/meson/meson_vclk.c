@@ -396,8 +396,8 @@ struct meson_vclk_params {
 	},
 	[MESON_VCLK_HDMI_297000] = {
 		.pixel_freq = 297000,
-		.pll_base_freq = 2970000,
-		.pll_od1 = 1,
+		.pll_base_freq = 5940000,
+		.pll_od1 = 2,
 		.pll_od2 = 1,
 		.pll_od3 = 1,
 		.vid_pll_div = VID_PLL_DIV_5,
