@@ -1093,7 +1093,6 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 }
 
 #define GEN2_READ_HEADER(x) \
-	struct intel_uncore *uncore = &dev_priv->uncore; \
 	u##x val = 0; \
 	__assert_rpm_wakelock_held(uncore->rpm);
 
@@ -1103,7 +1102,7 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 
 #define __gen2_read(x) \
 static u##x \
-gen2_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
+gen2_read##x(struct intel_uncore *uncore, i915_reg_t reg, bool trace) { \
 	GEN2_READ_HEADER(x); \
 	val = __raw_uncore_read##x(uncore, reg); \
 	GEN2_READ_FOOTER; \
@@ -1111,7 +1110,7 @@ gen2_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 
 #define __gen5_read(x) \
 static u##x \
-gen5_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
+gen5_read##x(struct intel_uncore *uncore, i915_reg_t reg, bool trace) { \
 	GEN2_READ_HEADER(x); \
 	ilk_dummy_write(uncore); \
 	val = __raw_uncore_read##x(uncore, reg); \
@@ -1134,7 +1133,6 @@ __gen2_read(64)
 #undef GEN2_READ_HEADER
 
 #define GEN6_READ_HEADER(x) \
-	struct intel_uncore *uncore = &dev_priv->uncore; \
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	u##x val = 0; \
@@ -1178,7 +1176,7 @@ static inline void __force_wake_auto(struct intel_uncore *uncore,
 
 #define __gen_read(func, x) \
 static u##x \
-func##_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
+func##_read##x(struct intel_uncore *uncore, i915_reg_t reg, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
 	fw_engine = __##func##_reg_read_fw_domains(uncore, offset); \
@@ -1211,7 +1209,6 @@ __gen6_read(64)
 #undef GEN6_READ_HEADER
 
 #define GEN2_WRITE_HEADER \
-	struct intel_uncore *uncore = &dev_priv->uncore; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	__assert_rpm_wakelock_held(uncore->rpm); \
 
@@ -1219,7 +1216,7 @@ __gen6_read(64)
 
 #define __gen2_write(x) \
 static void \
-gen2_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
+gen2_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { \
 	GEN2_WRITE_HEADER; \
 	__raw_uncore_write##x(uncore, reg, val); \
 	GEN2_WRITE_FOOTER; \
@@ -1227,7 +1224,7 @@ gen2_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 
 #define __gen5_write(x) \
 static void \
-gen5_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
+gen5_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { \
 	GEN2_WRITE_HEADER; \
 	ilk_dummy_write(uncore); \
 	__raw_uncore_write##x(uncore, reg, val); \
@@ -1248,7 +1245,6 @@ __gen2_write(32)
 #undef GEN2_WRITE_HEADER
 
 #define GEN6_WRITE_HEADER \
-	struct intel_uncore *uncore = &dev_priv->uncore; \
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
@@ -1262,7 +1258,7 @@ __gen2_write(32)
 
 #define __gen6_write(x) \
 static void \
-gen6_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
+gen6_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { \
 	GEN6_WRITE_HEADER; \
 	if (NEEDS_FORCE_WAKE(offset)) \
 		__gen6_gt_wait_for_fifo(uncore); \
@@ -1272,7 +1268,7 @@ gen6_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 
 #define __gen_write(func, x) \
 static void \
-func##_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
+func##_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
 	fw_engine = __##func##_reg_write_fw_domains(uncore, offset); \
