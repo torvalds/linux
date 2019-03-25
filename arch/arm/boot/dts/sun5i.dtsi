@@ -366,7 +366,7 @@
 		usbphy: phy@1c13400 {
 			#phy-cells = <1>;
 			compatible = "allwinner,sun5i-a13-usb-phy";
-			reg = <0x01c13400 0x10 0x01c14800 0x4>;
+			reg = <0x01c13400 0x10>, <0x01c14800 0x4>;
 			reg-names = "phy_ctrl", "pmu1";
 			clocks = <&ccu CLK_USB_PHY0>;
 			clock-names = "usb_phy";
