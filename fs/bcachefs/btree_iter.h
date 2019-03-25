@@ -273,6 +273,9 @@ static inline int btree_iter_err(struct bkey_s_c k)
 void bch2_trans_preload_iters(struct btree_trans *);
 void bch2_trans_iter_put(struct btree_trans *, struct btree_iter *);
 void bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
+void bch2_trans_iter_free_on_commit(struct btree_trans *, struct btree_iter *);
+
+void bch2_trans_unlink_iters(struct btree_trans *, u64);
 
 struct btree_iter *__bch2_trans_get_iter(struct btree_trans *, enum btree_id,
 					 struct bpos, unsigned, u64);

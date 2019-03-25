@@ -276,8 +276,11 @@ struct btree_trans {
 	size_t			nr_restarts;
 	u64			commit_start;
 
-	u64			iters_live;
 	u64			iters_linked;
+	u64			iters_live;
+	u64			iters_touched;
+	u64			iters_unlink_on_restart;
+	u64			iters_unlink_on_commit;
 
 	u8			nr_iters;
 	u8			nr_updates;

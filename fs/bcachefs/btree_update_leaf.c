@@ -886,9 +886,10 @@ out_noupdates:
 		trans->commit_start = 0;
 	}
 
-	trans->nr_updates = 0;
-
 	BUG_ON(!(trans->flags & BTREE_INSERT_ATOMIC) && ret == -EINTR);
+
+	bch2_trans_unlink_iters(trans, trans->iters_unlink_on_commit);
+	trans->nr_updates = 0;
 
 	return ret;
 err:
