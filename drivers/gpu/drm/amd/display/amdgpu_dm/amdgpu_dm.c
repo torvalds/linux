@@ -6064,6 +6064,69 @@ fail:
 	return ret;
 }
 
+static bool should_reset_plane(struct drm_atomic_state *state,
+			       struct drm_plane *plane,
+			       struct drm_plane_state *old_plane_state,
+			       struct drm_plane_state *new_plane_state)
+{
+	struct drm_plane *other;
+	struct drm_plane_state *old_other_state, *new_other_state;
+	struct drm_crtc_state *new_crtc_state;
+	int i;
+
+	/*
+	 * TODO: Remove this hack once the checks below are sufficient
+	 * enough to determine when we need to reset all the planes on
+	 * the stream.
+	 */
+	if (state->allow_modeset)
+		return true;
+
+	/* Exit early if we know that we're adding or removing the plane. */
+	if (old_plane_state->crtc != new_plane_state->crtc)
+		return true;
+
+	/* old crtc == new_crtc == NULL, plane not in context. */
+	if (!new_plane_state->crtc)
+		return false;
+
+	new_crtc_state =
+		drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
+
+	if (!new_crtc_state)
+		return true;
+
+	if (drm_atomic_crtc_needs_modeset(new_crtc_state))
+		return true;
+
+	/*
+	 * If there are any new primary or overlay planes being added or
+	 * removed then the z-order can potentially change. To ensure
+	 * correct z-order and pipe acquisition the current DC architecture
+	 * requires us to remove and recreate all existing planes.
+	 *
+	 * TODO: Come up with a more elegant solution for this.
+	 */
+	for_each_oldnew_plane_in_state(state, other, old_other_state, new_other_state, i) {
+		if (other->type == DRM_PLANE_TYPE_CURSOR)
+			continue;
+
+		if (old_other_state->crtc != new_plane_state->crtc &&
+		    new_other_state->crtc != new_plane_state->crtc)
+			continue;
+
+		if (old_other_state->crtc != new_other_state->crtc)
+			return true;
+
+		/* TODO: Remove this once we can handle fast format changes. */
+		if (old_other_state->fb && new_other_state->fb &&
+		    old_other_state->fb->format != new_other_state->fb->format)
+			return true;
+	}
+
+	return false;
+}
+
 static int dm_update_plane_state(struct dc *dc,
 				 struct drm_atomic_state *state,
 				 struct drm_plane *plane,
@@ -6078,8 +6141,7 @@ static int dm_update_plane_state(struct dc *dc,
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct dm_crtc_state *dm_new_crtc_state, *dm_old_crtc_state;
 	struct dm_plane_state *dm_new_plane_state, *dm_old_plane_state;
-	/* TODO return page_flip_needed() function */
-	bool pflip_needed  = !state->allow_modeset;
+	bool needs_reset;
 	int ret = 0;
 
 
@@ -6092,10 +6154,12 @@ static int dm_update_plane_state(struct dc *dc,
 	if (plane->type == DRM_PLANE_TYPE_CURSOR)
 		return 0;
 
+	needs_reset = should_reset_plane(state, plane, old_plane_state,
+					 new_plane_state);
+
 	/* Remove any changed/removed planes */
 	if (!enable) {
-		if (pflip_needed &&
-		    plane->type != DRM_PLANE_TYPE_OVERLAY)
+		if (!needs_reset)
 			return 0;
 
 		if (!old_plane_crtc)
@@ -6146,7 +6210,7 @@ static int dm_update_plane_state(struct dc *dc,
 		if (!dm_new_crtc_state->stream)
 			return 0;
 
-		if (pflip_needed && plane->type != DRM_PLANE_TYPE_OVERLAY)
+		if (!needs_reset)
 			return 0;
 
 		WARN_ON(dm_new_plane_state->dc_state);
