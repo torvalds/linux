@@ -193,17 +193,19 @@ static inline int btree_iter_cmp(const struct btree_iter *l,
 	return __btree_iter_cmp(l->btree_id, l->pos, r);
 }
 
+int bch2_trans_unlock(struct btree_trans *);
+
 /*
  * Unlocks before scheduling
  * Note: does not revalidate iterator
  */
-static inline void bch2_btree_iter_cond_resched(struct btree_iter *iter)
+static inline void bch2_trans_cond_resched(struct btree_trans *trans)
 {
 	if (need_resched()) {
-		bch2_btree_iter_unlock(iter);
+		bch2_trans_unlock(trans);
 		schedule();
 	} else if (race_fault()) {
-		bch2_btree_iter_unlock(iter);
+		bch2_trans_unlock(trans);
 	}
 }
 
@@ -231,7 +233,7 @@ static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
 static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 						     unsigned flags)
 {
-	bch2_btree_iter_cond_resched(iter);
+	bch2_trans_cond_resched(iter->trans);
 
 	return flags & BTREE_ITER_SLOTS
 		? bch2_btree_iter_next_slot(iter)
@@ -307,19 +309,8 @@ static inline void bch2_trans_begin_updates(struct btree_trans *trans)
 }
 
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
-int bch2_trans_unlock(struct btree_trans *);
 void bch2_trans_init(struct btree_trans *, struct bch_fs *);
 int bch2_trans_exit(struct btree_trans *);
-
-static inline void bch2_trans_cond_resched(struct btree_trans *trans)
-{
-	if (need_resched()) {
-		bch2_trans_unlock(trans);
-		schedule();
-	} else if (race_fault()) {
-		bch2_trans_unlock(trans);
-	}
-}
 
 #ifdef TRACE_TRANSACTION_RESTARTS
 #define bch2_trans_begin(_trans)					\
