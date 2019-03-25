@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
@@ -116,10 +117,9 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	if (of_property_read_u32(spi->dev.of_node, "registers-number",
-				 &nregs)) {
-		dev_err(&spi->dev,
-			"Missing registers-number property in the DT.\n");
+	ret = device_property_read_u32(&spi->dev, "registers-number", &nregs);
+	if (ret) {
+		dev_err(&spi->dev, "Missing 'registers-number' property.\n");
 		return -EINVAL;
 	}
 
