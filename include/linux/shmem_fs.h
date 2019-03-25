@@ -49,9 +49,9 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
 /*
  * Functions in mm/shmem.c called directly from elsewhere:
  */
+extern const struct fs_parameter_description shmem_fs_parameters;
 extern int shmem_init(void);
-extern struct dentry *shmem_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data);
+extern int shmem_init_fs_context(struct fs_context *fc);
 extern struct file *shmem_file_setup(const char *name,
 					loff_t size, unsigned long flags);
 extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
