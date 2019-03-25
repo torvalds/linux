@@ -3,6 +3,7 @@
  * R-Car Gen3 Clock Pulse Generator
  *
  * Copyright (C) 2015-2018 Glider bvba
+ * Copyright (C) 2018 Renesas Electronics Corp.
  *
  */
 
@@ -50,6 +51,9 @@ enum rcar_gen3_clk_types {
 #define DEF_GEN3_RCKSEL(_name, _id, _parent0, _div0, _parent1, _div1) \
 	DEF_BASE(_name, _id, CLK_TYPE_GEN3_RCKSEL,	\
 		 (_parent0) << 16 | (_parent1),	.div = (_div0) << 16 | (_div1))
+
+#define DEF_GEN3_Z(_name, _id, _type, _parent, _div)	\
+	DEF_BASE(_name, _id, _type, _parent, .div = _div)
 
 struct rcar_gen3_cpg_pll_config {
 	u8 extal_div;
