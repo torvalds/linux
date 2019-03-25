@@ -750,18 +750,19 @@ static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	unsigned int index = DSPSURF_TO_PIPE(offset);
-	i915_reg_t surflive_reg = DSPSURFLIVE(index);
-	int flip_event[] = {
-		[PIPE_A] = PRIMARY_A_FLIP_DONE,
-		[PIPE_B] = PRIMARY_B_FLIP_DONE,
-		[PIPE_C] = PRIMARY_C_FLIP_DONE,
-	};
+	u32 pipe = DSPSURF_TO_PIPE(offset);
+	int event = SKL_FLIP_EVENT(pipe, PLANE_PRIMARY);
 
 	write_vreg(vgpu, offset, p_data, bytes);
-	vgpu_vreg_t(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
+	vgpu_vreg_t(vgpu, DSPSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
 
-	set_bit(flip_event[index], vgpu->irq.flip_done_event[index]);
+	vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(pipe))++;
+
+	if (vgpu_vreg_t(vgpu, DSPCNTR(pipe)) & PLANE_CTL_ASYNC_FLIP)
+		intel_vgpu_trigger_virtual_event(vgpu, event);
+	else
+		set_bit(event, vgpu->irq.flip_done_event[pipe]);
+
 	return 0;
 }
 
@@ -771,18 +772,42 @@ static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int spr_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	unsigned int index = SPRSURF_TO_PIPE(offset);
-	i915_reg_t surflive_reg = SPRSURFLIVE(index);
-	int flip_event[] = {
-		[PIPE_A] = SPRITE_A_FLIP_DONE,
-		[PIPE_B] = SPRITE_B_FLIP_DONE,
-		[PIPE_C] = SPRITE_C_FLIP_DONE,
-	};
+	u32 pipe = SPRSURF_TO_PIPE(offset);
+	int event = SKL_FLIP_EVENT(pipe, PLANE_SPRITE0);
 
 	write_vreg(vgpu, offset, p_data, bytes);
-	vgpu_vreg_t(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
+	vgpu_vreg_t(vgpu, SPRSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
 
-	set_bit(flip_event[index], vgpu->irq.flip_done_event[index]);
+	if (vgpu_vreg_t(vgpu, SPRCTL(pipe)) & PLANE_CTL_ASYNC_FLIP)
+		intel_vgpu_trigger_virtual_event(vgpu, event);
+	else
+		set_bit(event, vgpu->irq.flip_done_event[pipe]);
+
+	return 0;
+}
+
+static int reg50080_mmio_write(struct intel_vgpu *vgpu,
+			       unsigned int offset, void *p_data,
+			       unsigned int bytes)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	enum pipe pipe = REG_50080_TO_PIPE(offset);
+	enum plane_id plane = REG_50080_TO_PLANE(offset);
+	int event = SKL_FLIP_EVENT(pipe, plane);
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	if (plane == PLANE_PRIMARY) {
+		vgpu_vreg_t(vgpu, DSPSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
+		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(pipe))++;
+	} else {
+		vgpu_vreg_t(vgpu, SPRSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
+	}
+
+	if ((vgpu_vreg(vgpu, offset) & REG50080_FLIP_TYPE_MASK) == REG50080_FLIP_TYPE_ASYNC)
+		intel_vgpu_trigger_virtual_event(vgpu, event);
+	else
+		set_bit(event, vgpu->irq.flip_done_event[pipe]);
+
 	return 0;
 }
 
@@ -1969,6 +1994,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(DSPSURF(PIPE_A), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_D(DSPOFFSET(PIPE_A), D_ALL);
 	MMIO_D(DSPSURFLIVE(PIPE_A), D_ALL);
+	MMIO_DH(REG_50080(PIPE_A, PLANE_PRIMARY), D_ALL, NULL,
+		reg50080_mmio_write);
 
 	MMIO_D(DSPCNTR(PIPE_B), D_ALL);
 	MMIO_D(DSPADDR(PIPE_B), D_ALL);
@@ -1978,6 +2005,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(DSPSURF(PIPE_B), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_D(DSPOFFSET(PIPE_B), D_ALL);
 	MMIO_D(DSPSURFLIVE(PIPE_B), D_ALL);
+	MMIO_DH(REG_50080(PIPE_B, PLANE_PRIMARY), D_ALL, NULL,
+		reg50080_mmio_write);
 
 	MMIO_D(DSPCNTR(PIPE_C), D_ALL);
 	MMIO_D(DSPADDR(PIPE_C), D_ALL);
@@ -1987,6 +2016,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(DSPSURF(PIPE_C), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_D(DSPOFFSET(PIPE_C), D_ALL);
 	MMIO_D(DSPSURFLIVE(PIPE_C), D_ALL);
+	MMIO_DH(REG_50080(PIPE_C, PLANE_PRIMARY), D_ALL, NULL,
+		reg50080_mmio_write);
 
 	MMIO_D(SPRCTL(PIPE_A), D_ALL);
 	MMIO_D(SPRLINOFF(PIPE_A), D_ALL);
@@ -2000,6 +2031,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPROFFSET(PIPE_A), D_ALL);
 	MMIO_D(SPRSCALE(PIPE_A), D_ALL);
 	MMIO_D(SPRSURFLIVE(PIPE_A), D_ALL);
+	MMIO_DH(REG_50080(PIPE_A, PLANE_SPRITE0), D_ALL, NULL,
+		reg50080_mmio_write);
 
 	MMIO_D(SPRCTL(PIPE_B), D_ALL);
 	MMIO_D(SPRLINOFF(PIPE_B), D_ALL);
@@ -2013,6 +2046,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPROFFSET(PIPE_B), D_ALL);
 	MMIO_D(SPRSCALE(PIPE_B), D_ALL);
 	MMIO_D(SPRSURFLIVE(PIPE_B), D_ALL);
+	MMIO_DH(REG_50080(PIPE_B, PLANE_SPRITE0), D_ALL, NULL,
+		reg50080_mmio_write);
 
 	MMIO_D(SPRCTL(PIPE_C), D_ALL);
 	MMIO_D(SPRLINOFF(PIPE_C), D_ALL);
@@ -2026,6 +2061,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPROFFSET(PIPE_C), D_ALL);
 	MMIO_D(SPRSCALE(PIPE_C), D_ALL);
 	MMIO_D(SPRSURFLIVE(PIPE_C), D_ALL);
+	MMIO_DH(REG_50080(PIPE_C, PLANE_SPRITE0), D_ALL, NULL,
+		reg50080_mmio_write);
 
 	MMIO_D(HTOTAL(TRANSCODER_A), D_ALL);
 	MMIO_D(HBLANK(TRANSCODER_A), D_ALL);

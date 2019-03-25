@@ -407,7 +407,6 @@ static void emulate_vblank_on_pipe(struct intel_vgpu *vgpu, int pipe)
 		if (!pipe_is_enabled(vgpu, pipe))
 			continue;
 
-		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(pipe))++;
 		intel_vgpu_trigger_virtual_event(vgpu, event);
 	}
 
