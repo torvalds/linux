@@ -3569,7 +3569,7 @@ errout:
 	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
 }
 
-/**
+/*
  * ndo_dflt_fdb_add - default netdevice operation to add an FDB entry
  */
 int ndo_dflt_fdb_add(struct ndmsg *ndm,
@@ -3708,7 +3708,7 @@ out:
 	return err;
 }
 
-/**
+/*
  * ndo_dflt_fdb_del - default netdevice operation to delete an FDB entry
  */
 int ndo_dflt_fdb_del(struct ndmsg *ndm,
@@ -3847,8 +3847,11 @@ skip:
 
 /**
  * ndo_dflt_fdb_dump - default netdevice operation to dump an FDB table.
- * @nlh: netlink message header
+ * @skb: socket buffer to store message in
+ * @cb: netlink callback
  * @dev: netdevice
+ * @filter_dev: ignored
+ * @idx: the number of FDB table entries dumped is added to *@idx
  *
  * Default netdevice operation to dump the existing unicast address list.
  * Returns number of addresses from list put in skb.
