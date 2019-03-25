@@ -762,7 +762,6 @@
 			clocks = <&ccu CLK_BUS_CODEC>, <&ccu CLK_AC_DIG>;
 			clock-names = "apb", "mod";
 			resets = <&ccu RST_BUS_CODEC>;
-			reset-names = "rst";
 			dmas = <&dma 15>, <&dma 15>;
 			dma-names = "rx", "tx";
 			status = "disabled";
