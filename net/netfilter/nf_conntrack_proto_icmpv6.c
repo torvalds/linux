@@ -123,51 +123,6 @@ int nf_conntrack_icmpv6_packet(struct nf_conn *ct,
 	return NF_ACCEPT;
 }
 
-static int
-icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
-		     struct sk_buff *skb,
-		     unsigned int icmp6off)
-{
-	struct nf_conntrack_tuple intuple, origtuple;
-	const struct nf_conntrack_tuple_hash *h;
-	enum ip_conntrack_info ctinfo;
-	struct nf_conntrack_zone tmp;
-
-	WARN_ON(skb_nfct(skb));
-
-	/* Are they talking about one of our connections? */
-	if (!nf_ct_get_tuplepr(skb,
-			       skb_network_offset(skb)
-				+ sizeof(struct ipv6hdr)
-				+ sizeof(struct icmp6hdr),
-			       PF_INET6, net, &origtuple)) {
-		pr_debug("icmpv6_error: Can't get tuple\n");
-		return -NF_ACCEPT;
-	}
-
-	/* Ordinarily, we'd expect the inverted tupleproto, but it's
-	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&intuple, &origtuple)) {
-		pr_debug("icmpv6_error: Can't invert tuple\n");
-		return -NF_ACCEPT;
-	}
-
-	ctinfo = IP_CT_RELATED;
-
-	h = nf_conntrack_find_get(net, nf_ct_zone_tmpl(tmpl, skb, &tmp),
-				  &intuple);
-	if (!h) {
-		pr_debug("icmpv6_error: no match\n");
-		return -NF_ACCEPT;
-	} else {
-		if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)
-			ctinfo += IP_CT_IS_REPLY;
-	}
-
-	/* Update skb to refer to this connection */
-	nf_ct_set(skb, nf_ct_tuplehash_to_ctrack(h), ctinfo);
-	return NF_ACCEPT;
-}
 
 static void icmpv6_error_log(const struct sk_buff *skb,
 			     const struct nf_hook_state *state,
@@ -182,6 +137,7 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 			      unsigned int dataoff,
 			      const struct nf_hook_state *state)
 {
+	union nf_inet_addr outer_daddr;
 	const struct icmp6hdr *icmp6h;
 	struct icmp6hdr _ih;
 	int type;
@@ -210,7 +166,11 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 	if (icmp6h->icmp6_type >= 128)
 		return NF_ACCEPT;
 
-	return icmpv6_error_message(state->net, tmpl, skb, dataoff);
+	memcpy(&outer_daddr.ip6, &ipv6_hdr(skb)->daddr,
+	       sizeof(outer_daddr.ip6));
+	dataoff += sizeof(*icmp6h);
+	return nf_conntrack_inet_error(tmpl, skb, dataoff, state,
+				       IPPROTO_ICMPV6, &outer_daddr);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
