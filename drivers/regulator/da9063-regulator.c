@@ -1,18 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Regulator driver for DA9063 PMIC series
+//
+// Copyright 2012 Dialog Semiconductors Ltd.
+// Copyright 2013 Philipp Zabel, Pengutronix
+//
+// Author: Krystian Garbaciak <krystian.garbaciak@diasemi.com>
 
-/*
- * Regulator driver for DA9063 PMIC series
- *
- * Copyright 2012 Dialog Semiconductors Ltd.
- * Copyright 2013 Philipp Zabel, Pengutronix
- *
- * Author: Krystian Garbaciak <krystian.garbaciak@diasemi.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
