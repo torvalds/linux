@@ -183,6 +183,18 @@ properties:
               - fsl,vf610
               - fsl,vf610m4
 
+      - description: ZII's VF610 based Boards
+        items:
+          - enum:
+              - zii,vf610cfu1      # ZII VF610 CFU1 Board
+              - zii,vf610dev-c     # ZII VF610 Development Board, Rev C
+              - zii,vf610dev-b     # ZII VF610 Development Board, Rev B
+              - zii,vf610scu4-aib  # ZII VF610 SCU4 AIB
+              - zii,vf610dtu       # ZII VF610 SSMB DTU Board
+              - zii,vf610spu3      # ZII VF610 SSMB SPU3 Board
+          - const: zii,vf610dev
+          - const: fsl,vf610
+
       - description: LS1012A based Boards
         items:
           - enum:
