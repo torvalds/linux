@@ -588,6 +588,7 @@
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
 			allwinner,sram = <&otg_sram 1>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
