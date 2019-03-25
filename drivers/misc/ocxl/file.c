@@ -151,10 +151,9 @@ static long afu_ioctl_enable_p9_wait(struct ocxl_context *ctx,
 		mutex_unlock(&ctx->status_mutex);
 
 		if (status == ATTACHED) {
-			int rc;
-			struct link *link = ctx->afu->fn->link;
+			int rc = ocxl_link_update_pe(ctx->afu->fn->link,
+				ctx->pasid, ctx->tidr);
 
-			rc = ocxl_link_update_pe(link, ctx->pasid, ctx->tidr);
 			if (rc)
 				return rc;
 		}
