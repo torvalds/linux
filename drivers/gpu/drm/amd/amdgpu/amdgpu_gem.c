@@ -31,6 +31,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_display.h"
+#include "amdgpu_xgmi.h"
 
 void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 {
@@ -668,6 +669,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_gem_op *args = data;
 	struct drm_gem_object *gobj;
+	struct amdgpu_vm_bo_base *base;
 	struct amdgpu_bo *robj;
 	int r;
 
@@ -706,6 +708,15 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			amdgpu_bo_unreserve(robj);
 			break;
 		}
+		for (base = robj->vm_bo; base; base = base->next)
+			if (amdgpu_xgmi_same_hive(amdgpu_ttm_adev(robj->tbo.bdev),
+				amdgpu_ttm_adev(base->vm->root.base.bo->tbo.bdev))) {
+				r = -EINVAL;
+				amdgpu_bo_unreserve(robj);
+				goto out;
+			}
+
+
 		robj->preferred_domains = args->value & (AMDGPU_GEM_DOMAIN_VRAM |
 							AMDGPU_GEM_DOMAIN_GTT |
 							AMDGPU_GEM_DOMAIN_CPU);

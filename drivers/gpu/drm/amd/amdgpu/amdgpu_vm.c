@@ -2037,7 +2037,8 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->valids);
 	INIT_LIST_HEAD(&bo_va->invalids);
 
-	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev))) {
+	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev)) &&
+	    (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)) {
 		bo_va->is_xgmi = true;
 		mutex_lock(&adev->vm_manager.lock_pstate);
 		/* Power up XGMI if it can be potentially used */
