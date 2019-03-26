@@ -530,6 +530,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
+	drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	return connector;
 
