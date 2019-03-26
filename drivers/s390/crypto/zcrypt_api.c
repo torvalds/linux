@@ -525,7 +525,7 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	filp->private_data = (void *) perms;
 
 	atomic_inc(&zcrypt_open_count);
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 /**

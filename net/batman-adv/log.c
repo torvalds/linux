@@ -102,7 +102,7 @@ static int batadv_log_open(struct inode *inode, struct file *file)
 	batadv_debugfs_deprecated(file,
 				  "Use tracepoint batadv:batadv_dbg instead\n");
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 	file->private_data = inode->i_private;
 	return 0;
 }

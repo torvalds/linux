@@ -54,7 +54,7 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 	struct snd_ctl_file *ctl;
 	int i, err;
 
-	err = nonseekable_open(inode, file);
+	err = stream_open(inode, file);
 	if (err < 0)
 		return err;
 

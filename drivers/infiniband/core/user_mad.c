@@ -985,7 +985,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 
 	list_add_tail(&file->port_list, &port->file_list);
 
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 out:
 	mutex_unlock(&port->file_mutex);
 	return ret;

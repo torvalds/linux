@@ -132,7 +132,7 @@ static int cros_ec_console_log_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static ssize_t cros_ec_console_log_read(struct file *file, char __user *buf,

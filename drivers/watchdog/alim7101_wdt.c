@@ -214,7 +214,7 @@ static int fop_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	/* Good, fire up the show */
 	wdt_startup();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int fop_close(struct inode *inode, struct file *file)

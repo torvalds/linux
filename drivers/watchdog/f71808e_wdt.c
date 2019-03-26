@@ -525,7 +525,7 @@ static int watchdog_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	watchdog.expect_close = 0;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int watchdog_release(struct inode *inode, struct file *file)

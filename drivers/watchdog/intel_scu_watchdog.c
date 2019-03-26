@@ -304,7 +304,7 @@ static int intel_scu_open(struct inode *inode, struct file *file)
 	if (watchdog_device.driver_closed)
 		return -EPERM;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int intel_scu_release(struct inode *inode, struct file *file)

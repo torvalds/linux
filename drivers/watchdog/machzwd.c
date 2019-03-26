@@ -333,7 +333,7 @@ static int zf_open(struct inode *inode, struct file *file)
 	if (nowayout)
 		__module_get(THIS_MODULE);
 	zf_timer_on();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int zf_close(struct inode *inode, struct file *file)

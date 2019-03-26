@@ -302,7 +302,7 @@ static int dtlk_open(struct inode *inode, struct file *file)
 	case DTLK_MINOR:
 		if (dtlk_busy)
 			return -EBUSY;
-		return nonseekable_open(inode, file);
+		return stream_open(inode, file);
 
 	default:
 		return -ENXIO;
