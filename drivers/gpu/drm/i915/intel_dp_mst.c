@@ -124,7 +124,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	limits.min_lane_count =
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = 6 * 3;
+	limits.min_bpp = intel_dp_min_bpp(pipe_config);
 	limits.max_bpp = pipe_config->pipe_bpp;
 
 	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);

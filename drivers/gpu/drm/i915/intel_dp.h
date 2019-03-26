@@ -34,6 +34,7 @@ void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 				       struct link_config_limits *limits);
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
+int intel_dp_min_bpp(const struct intel_crtc_state *crtc_state);
 bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
 			   i915_reg_t dp_reg, enum port port,
 			   enum pipe *pipe);

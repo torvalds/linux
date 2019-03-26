@@ -1978,6 +1978,14 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	return 0;
 }
 
+int intel_dp_min_bpp(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB)
+		return 6 * 3;
+	else
+		return 8 * 3;
+}
+
 static int
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
@@ -2001,7 +2009,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_lane_count = 1;
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = 6 * 3;
+	limits.min_bpp = intel_dp_min_bpp(pipe_config);
 	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 
 	if (intel_dp_is_edp(intel_dp)) {
