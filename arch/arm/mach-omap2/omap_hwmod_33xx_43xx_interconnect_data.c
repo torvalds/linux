@@ -122,30 +122,6 @@ struct omap_hwmod_ocp_if am33xx_l4_per__dcan1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4 per/ls -> GPIO2 */
-struct omap_hwmod_ocp_if am33xx_l4_per__gpio1 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_gpio1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4 per/ls -> gpio3 */
-struct omap_hwmod_ocp_if am33xx_l4_per__gpio2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_gpio2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4 per/ls -> gpio4 */
-struct omap_hwmod_ocp_if am33xx_l4_per__gpio3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_gpio3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
 	.master		= &am33xx_cpgmac0_hwmod,
 	.slave		= &am33xx_mdio_hwmod,
