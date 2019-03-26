@@ -236,9 +236,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2,
 		    "do_reset=%d.\n", do_reset);
 		if (do_reset) {
-			fcoe_ctlr_link_down(&qedf->ctlr);
-			qedf_wait_for_upload(qedf);
-			fcoe_ctlr_link_up(&qedf->ctlr);
+			qedf_ctx_soft_reset(qedf->lport);
 		}
 		kfree_skb(skb);
 	} else {

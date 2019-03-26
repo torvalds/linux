@@ -500,7 +500,7 @@ extern void qedf_set_vlan_id(struct qedf_ctx *qedf, int vlan_id);
 extern void qedf_create_sysfs_ctx_attr(struct qedf_ctx *qedf);
 extern void qedf_remove_sysfs_ctx_attr(struct qedf_ctx *qedf);
 extern void qedf_capture_grc_dump(struct qedf_ctx *qedf);
-extern void qedf_wait_for_upload(struct qedf_ctx *qedf);
+bool qedf_wait_for_upload(struct qedf_ctx *qedf);
 extern void qedf_process_unsol_compl(struct qedf_ctx *qedf, uint16_t que_idx,
 	struct fcoe_cqe *cqe);
 extern void qedf_restart_rport(struct qedf_rport *fcport);
@@ -514,6 +514,8 @@ extern void qedf_get_protocol_tlv_data(void *dev, void *data);
 extern void qedf_fp_io_handler(struct work_struct *work);
 extern void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data);
 extern void qedf_wq_grcdump(struct work_struct *work);
+void qedf_stag_change_work(struct work_struct *work);
+void qedf_ctx_soft_reset(struct fc_lport *lport);
 
 #define FCOE_WORD_TO_BYTE  4
 #define QEDF_MAX_TASK_NUM	0xFFFF
