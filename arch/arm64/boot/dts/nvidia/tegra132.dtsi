@@ -1082,13 +1082,13 @@
 
 		cpu@0 {
 			device_type = "cpu";
-			compatible = "nvidia,denver", "arm,armv8";
+			compatible = "nvidia,denver";
 			reg = <0>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
-			compatible = "nvidia,denver", "arm,armv8";
+			compatible = "nvidia,denver";
 			reg = <1>;
 		};
 	};

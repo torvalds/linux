@@ -25,7 +25,7 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 	/* if the egress device isn't on the same HW e-switch or
 	 * it's a LAG device, use the uplink
 	 */
-	if (!switchdev_port_same_parent_id(priv->netdev, dev) ||
+	if (!netdev_port_same_parent_id(priv->netdev, dev) ||
 	    dst_is_lag_dev) {
 		*route_dev = uplink_dev;
 		*out_dev = *route_dev;
@@ -54,12 +54,24 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	struct neighbour *n = NULL;
 
 #if IS_ENABLED(CONFIG_INET)
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct net_device *uplink_dev;
 	int ret;
+
+	if (mlx5_lag_is_multipath(mdev)) {
+		struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+		uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
+		fl4->flowi4_oif = uplink_dev->ifindex;
+	}
 
 	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
 	ret = PTR_ERR_OR_ZERO(rt);
 	if (ret)
 		return ret;
+
+	if (mlx5_lag_is_multipath(mdev) && !rt->rt_gateway)
+		return -ENETUNREACH;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -256,6 +268,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	e->m_neigh.family = n->ops->family;
 	memcpy(&e->m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
 	e->out_dev = out_dev;
+	e->route_dev = route_dev;
 
 	/* It's important to add the neigh to the hash table before checking
 	 * the neigh validity state. So if we'll get a notification, in case the
@@ -294,7 +307,9 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		err = -EAGAIN;
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
 		goto out;
 	}
 
@@ -369,6 +384,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	e->m_neigh.family = n->ops->family;
 	memcpy(&e->m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
 	e->out_dev = out_dev;
+	e->route_dev = route_dev;
 
 	/* It's importent to add the neigh to the hash table before checking
 	 * the neigh validity state. So if we'll get a notification, in case the
@@ -406,7 +422,9 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		err = -EAGAIN;
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
 		goto out;
 	}
 
@@ -496,25 +514,21 @@ static int mlx5e_tc_tun_parse_vxlan(struct mlx5e_priv *priv,
 				    void *headers_c,
 				    void *headers_v)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 	struct netlink_ext_ack *extack = f->common.extack;
-	struct flow_dissector_key_ports *key =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_ENC_PORTS,
-					  f->key);
-	struct flow_dissector_key_ports *mask =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_ENC_PORTS,
-					  f->mask);
 	void *misc_c = MLX5_ADDR_OF(fte_match_param,
 				    spec->match_criteria,
 				    misc_parameters);
 	void *misc_v = MLX5_ADDR_OF(fte_match_param,
 				    spec->match_value,
 				    misc_parameters);
+	struct flow_match_ports enc_ports;
+
+	flow_rule_match_enc_ports(rule, &enc_ports);
 
 	/* Full udp dst port must be given */
-	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
-	    memchr_inv(&mask->dst, 0xff, sizeof(mask->dst))) {
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
+	    memchr_inv(&enc_ports.mask->dst, 0xff, sizeof(enc_ports.mask->dst))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "VXLAN decap filter must include enc_dst_port condition");
 		netdev_warn(priv->netdev,
@@ -523,12 +537,12 @@ static int mlx5e_tc_tun_parse_vxlan(struct mlx5e_priv *priv,
 	}
 
 	/* udp dst port must be knonwn as a VXLAN port */
-	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan, be16_to_cpu(key->dst))) {
+	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan, be16_to_cpu(enc_ports.key->dst))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Matched UDP port is not registered as a VXLAN port");
 		netdev_warn(priv->netdev,
 			    "UDP port %d is not registered as a VXLAN port\n",
-			    be16_to_cpu(key->dst));
+			    be16_to_cpu(enc_ports.key->dst));
 		return -EOPNOTSUPP;
 	}
 
@@ -536,26 +550,26 @@ static int mlx5e_tc_tun_parse_vxlan(struct mlx5e_priv *priv,
 	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ip_protocol);
 	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol, IPPROTO_UDP);
 
-	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_dport, ntohs(mask->dst));
-	MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_dport, ntohs(key->dst));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_dport,
+		 ntohs(enc_ports.mask->dst));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_dport,
+		 ntohs(enc_ports.key->dst));
 
-	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_sport, ntohs(mask->src));
-	MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_sport, ntohs(key->src));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_sport,
+		 ntohs(enc_ports.mask->src));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_sport,
+		 ntohs(enc_ports.key->src));
 
 	/* match on VNI */
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_dissector_key_keyid *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_KEYID,
-						  f->key);
-		struct flow_dissector_key_keyid *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_KEYID,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid enc_keyid;
+
+		flow_rule_match_enc_keyid(rule, &enc_keyid);
+
 		MLX5_SET(fte_match_set_misc, misc_c, vxlan_vni,
-			 be32_to_cpu(mask->keyid));
+			 be32_to_cpu(enc_keyid.mask->keyid));
 		MLX5_SET(fte_match_set_misc, misc_v, vxlan_vni,
-			 be32_to_cpu(key->keyid));
+			 be32_to_cpu(enc_keyid.key->keyid));
 	}
 	return 0;
 }
@@ -570,6 +584,7 @@ static int mlx5e_tc_tun_parse_gretap(struct mlx5e_priv *priv,
 				    misc_parameters);
 	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				    misc_parameters);
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 
 	if (!MLX5_CAP_ESW(priv->mdev, nvgre_encap_decap)) {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
@@ -587,21 +602,14 @@ static int mlx5e_tc_tun_parse_gretap(struct mlx5e_priv *priv,
 	MLX5_SET(fte_match_set_misc, misc_v, gre_protocol, ETH_P_TEB);
 
 	/* gre key */
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_dissector_key_keyid *mask = NULL;
-		struct flow_dissector_key_keyid *key = NULL;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid enc_keyid;
 
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_ENC_KEYID,
-						 f->mask);
+		flow_rule_match_enc_keyid(rule, &enc_keyid);
 		MLX5_SET(fte_match_set_misc, misc_c,
-			 gre_key.key, be32_to_cpu(mask->keyid));
-
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_ENC_KEYID,
-						f->key);
+			 gre_key.key, be32_to_cpu(enc_keyid.mask->keyid));
 		MLX5_SET(fte_match_set_misc, misc_v,
-			 gre_key.key, be32_to_cpu(key->keyid));
+			 gre_key.key, be32_to_cpu(enc_keyid.key->keyid));
 	}
 
 	return 0;
@@ -612,16 +620,18 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		       struct mlx5_flow_spec *spec,
 		       struct tc_cls_flower_offload *f,
 		       void *headers_c,
-		       void *headers_v)
+		       void *headers_v, u8 *match_level)
 {
 	int tunnel_type;
 	int err = 0;
 
 	tunnel_type = mlx5e_tc_tun_get_type(filter_dev);
 	if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
+		*match_level = MLX5_MATCH_L4;
 		err = mlx5e_tc_tun_parse_vxlan(priv, spec, f,
 					       headers_c, headers_v);
 	} else if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP) {
+		*match_level = MLX5_MATCH_L3;
 		err = mlx5e_tc_tun_parse_gretap(priv, spec, f,
 						headers_c, headers_v);
 	} else {

@@ -122,6 +122,7 @@ static noinline void switch_commit_roots(struct btrfs_transaction *trans)
 		if (is_fstree(root->root_key.objectid))
 			btrfs_unpin_free_ino(root);
 		clear_btree_io_tree(&root->dirty_log_pages);
+		btrfs_qgroup_clean_swapped_blocks(root);
 	}
 
 	/* We can free old roots now. */
@@ -845,18 +846,9 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	btrfs_trans_release_metadata(trans);
 	trans->block_rsv = NULL;
 
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
+	btrfs_create_pending_block_groups(trans);
 
 	btrfs_trans_release_chunk_metadata(trans);
-
-	if (lock && should_end_transaction(trans) &&
-	    READ_ONCE(cur_trans->state) == TRANS_STATE_RUNNING) {
-		spin_lock(&info->trans_lock);
-		if (cur_trans->state == TRANS_STATE_RUNNING)
-			cur_trans->state = TRANS_STATE_BLOCKED;
-		spin_unlock(&info->trans_lock);
-	}
 
 	if (lock && READ_ONCE(cur_trans->state) == TRANS_STATE_BLOCKED) {
 		if (throttle)
@@ -1540,7 +1532,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	btrfs_set_lock_blocking(old);
+	btrfs_set_lock_blocking_write(old);
 
 	ret = btrfs_copy_root(trans, root, old, &tmp, objectid);
 	/* clean up in any case */
@@ -1879,6 +1871,21 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 }
 
+/*
+ * Release reserved delayed ref space of all pending block groups of the
+ * transaction and remove them from the list
+ */
+static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
+{
+       struct btrfs_fs_info *fs_info = trans->fs_info;
+       struct btrfs_block_group_cache *block_group, *tmp;
+
+       list_for_each_entry_safe(block_group, tmp, &trans->new_bgs, bg_list) {
+               btrfs_delayed_refs_rsv_release(fs_info, 1);
+               list_del_init(&block_group->bg_list);
+       }
+}
+
 static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
 	/*
@@ -1936,8 +1943,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	cur_trans->delayed_refs.flushing = 1;
 	smp_wmb();
 
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
+	btrfs_create_pending_block_groups(trans);
 
 	ret = btrfs_run_delayed_refs(trans, 0);
 	if (ret) {
@@ -2270,6 +2276,7 @@ scrub_continue:
 	btrfs_scrub_continue(fs_info);
 cleanup_transaction:
 	btrfs_trans_release_metadata(trans);
+	btrfs_cleanup_pending_block_groups(trans);
 	btrfs_trans_release_chunk_metadata(trans);
 	trans->block_rsv = NULL;
 	btrfs_warn(fs_info, "Skipping commit of aborted transaction.");

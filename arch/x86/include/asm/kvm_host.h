@@ -35,6 +35,7 @@
 #include <asm/msr-index.h>
 #include <asm/asm.h>
 #include <asm/kvm_page_track.h>
+#include <asm/kvm_vcpu_regs.h>
 #include <asm/hyperv-tlfs.h>
 
 #define KVM_MAX_VCPUS 288
@@ -137,23 +138,23 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 #define ASYNC_PF_PER_VCPU 64
 
 enum kvm_reg {
-	VCPU_REGS_RAX = 0,
-	VCPU_REGS_RCX = 1,
-	VCPU_REGS_RDX = 2,
-	VCPU_REGS_RBX = 3,
-	VCPU_REGS_RSP = 4,
-	VCPU_REGS_RBP = 5,
-	VCPU_REGS_RSI = 6,
-	VCPU_REGS_RDI = 7,
+	VCPU_REGS_RAX = __VCPU_REGS_RAX,
+	VCPU_REGS_RCX = __VCPU_REGS_RCX,
+	VCPU_REGS_RDX = __VCPU_REGS_RDX,
+	VCPU_REGS_RBX = __VCPU_REGS_RBX,
+	VCPU_REGS_RSP = __VCPU_REGS_RSP,
+	VCPU_REGS_RBP = __VCPU_REGS_RBP,
+	VCPU_REGS_RSI = __VCPU_REGS_RSI,
+	VCPU_REGS_RDI = __VCPU_REGS_RDI,
 #ifdef CONFIG_X86_64
-	VCPU_REGS_R8 = 8,
-	VCPU_REGS_R9 = 9,
-	VCPU_REGS_R10 = 10,
-	VCPU_REGS_R11 = 11,
-	VCPU_REGS_R12 = 12,
-	VCPU_REGS_R13 = 13,
-	VCPU_REGS_R14 = 14,
-	VCPU_REGS_R15 = 15,
+	VCPU_REGS_R8  = __VCPU_REGS_R8,
+	VCPU_REGS_R9  = __VCPU_REGS_R9,
+	VCPU_REGS_R10 = __VCPU_REGS_R10,
+	VCPU_REGS_R11 = __VCPU_REGS_R11,
+	VCPU_REGS_R12 = __VCPU_REGS_R12,
+	VCPU_REGS_R13 = __VCPU_REGS_R13,
+	VCPU_REGS_R14 = __VCPU_REGS_R14,
+	VCPU_REGS_R15 = __VCPU_REGS_R15,
 #endif
 	VCPU_REGS_RIP,
 	NR_VCPU_REGS
@@ -299,6 +300,7 @@ union kvm_mmu_extended_role {
 		unsigned int cr4_smap:1;
 		unsigned int cr4_smep:1;
 		unsigned int cr4_la57:1;
+		unsigned int maxphyaddr:6;
 	};
 };
 
@@ -318,6 +320,7 @@ struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
 	bool unsync;
+	bool mmio_cached;
 
 	/*
 	 * The following two entries are used to key the shadow page in the
@@ -332,10 +335,6 @@ struct kvm_mmu_page {
 	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
 	struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
-
-	/* The page is obsolete if mmu_valid_gen != kvm->arch.mmu_valid_gen.  */
-	unsigned long mmu_valid_gen;
-
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 #ifdef CONFIG_X86_32
@@ -397,6 +396,7 @@ struct kvm_mmu {
 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
+	gpa_t root_cr3;
 	union kvm_mmu_role mmu_role;
 	u8 root_level;
 	u8 shadow_root_level;
@@ -846,13 +846,11 @@ struct kvm_arch {
 	unsigned int n_requested_mmu_pages;
 	unsigned int n_max_mmu_pages;
 	unsigned int indirect_shadow_pages;
-	unsigned long mmu_valid_gen;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	/*
 	 * Hash table of struct kvm_mmu_page.
 	 */
 	struct list_head active_mmu_pages;
-	struct list_head zapped_obsolete_pages;
 	struct kvm_page_track_notifier_node mmu_sp_tracker;
 	struct kvm_page_track_notifier_head track_notifier_head;
 
@@ -1253,7 +1251,7 @@ void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 				   struct kvm_memory_slot *slot,
 				   gfn_t gfn_offset, unsigned long mask);
 void kvm_mmu_zap_all(struct kvm *kvm);
-void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, struct kvm_memslots *slots);
+void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen);
 unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm);
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages);
 

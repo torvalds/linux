@@ -4715,18 +4715,12 @@ static const struct qcom_cc_desc gcc_ipq8074_desc = {
 	.num_clks = ARRAY_SIZE(gcc_ipq8074_clks),
 	.resets = gcc_ipq8074_resets,
 	.num_resets = ARRAY_SIZE(gcc_ipq8074_resets),
+	.clk_hws = gcc_ipq8074_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_ipq8074_hws),
 };
 
 static int gcc_ipq8074_probe(struct platform_device *pdev)
 {
-	int ret, i;
-
-	for (i = 0; i < ARRAY_SIZE(gcc_ipq8074_hws); i++) {
-		ret = devm_clk_hw_register(&pdev->dev, gcc_ipq8074_hws[i]);
-		if (ret)
-			return ret;
-	}
-
 	return qcom_cc_probe(pdev, &gcc_ipq8074_desc);
 }
 

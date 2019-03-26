@@ -12,17 +12,17 @@
 
 #include "stratix10-clk.h"
 
-static const char * const pll_mux[] = { "osc1", "cb_intosc_hs_div2_clk",
-					"f2s_free_clk",};
+static const char * const pll_mux[] = { "osc1", "cb-intosc-hs-div2-clk",
+					"f2s-free-clk",};
 static const char * const cntr_mux[] = { "main_pll", "periph_pll",
-					 "osc1", "cb_intosc_hs_div2_clk",
-					 "f2s_free_clk"};
-static const char * const boot_mux[] = { "osc1", "cb_intosc_hs_div2_clk",};
+					 "osc1", "cb-intosc-hs-div2-clk",
+					 "f2s-free-clk"};
+static const char * const boot_mux[] = { "osc1", "cb-intosc-hs-div2-clk",};
 
 static const char * const noc_free_mux[] = {"main_noc_base_clk",
 					    "peri_noc_base_clk",
-					    "osc1", "cb_intosc_hs_div2_clk",
-					    "f2s_free_clk"};
+					    "osc1", "cb-intosc-hs-div2-clk",
+					    "f2s-free-clk"};
 
 static const char * const emaca_free_mux[] = {"peri_emaca_clk", "boot_clk"};
 static const char * const emacb_free_mux[] = {"peri_emacb_clk", "boot_clk"};
@@ -33,14 +33,14 @@ static const char * const s2f_usr1_free_mux[] = {"peri_s2f_usr1_clk", "boot_clk"
 static const char * const psi_ref_free_mux[] = {"peri_psi_ref_clk", "boot_clk"};
 static const char * const mpu_mux[] = { "mpu_free_clk", "boot_clk",};
 
-static const char * const s2f_usr0_mux[] = {"f2s_free_clk", "boot_clk"};
+static const char * const s2f_usr0_mux[] = {"f2s-free-clk", "boot_clk"};
 static const char * const emac_mux[] = {"emaca_free_clk", "emacb_free_clk"};
 static const char * const noc_mux[] = {"noc_free_clk", "boot_clk"};
 
 static const char * const mpu_free_mux[] = {"main_mpu_base_clk",
 					    "peri_mpu_base_clk",
-					    "osc1", "cb_intosc_hs_div2_clk",
-					    "f2s_free_clk"};
+					    "osc1", "cb-intosc-hs-div2-clk",
+					    "f2s-free-clk"};
 
 /* clocks in AO (always on) controller */
 static const struct stratix10_pll_clock s10_pll_clks[] = {

@@ -251,9 +251,9 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	spin_lock_irqsave(&irq->irq_lock, flags);
+	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	print_irq_state(s, irq, vcpu);
-	spin_unlock_irqrestore(&irq->irq_lock, flags);
+	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 
 	vgic_put_irq(kvm, irq);
 	return 0;

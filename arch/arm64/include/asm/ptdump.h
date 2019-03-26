@@ -34,13 +34,10 @@ struct ptdump_info {
 
 void ptdump_walk_pgd(struct seq_file *s, struct ptdump_info *info);
 #ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
-int ptdump_debugfs_register(struct ptdump_info *info, const char *name);
+void ptdump_debugfs_register(struct ptdump_info *info, const char *name);
 #else
-static inline int ptdump_debugfs_register(struct ptdump_info *info,
-					const char *name)
-{
-	return 0;
-}
+static inline void ptdump_debugfs_register(struct ptdump_info *info,
+					   const char *name) { }
 #endif
 void ptdump_check_wx(void);
 #endif /* CONFIG_ARM64_PTDUMP_CORE */

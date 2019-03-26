@@ -78,9 +78,9 @@ static int hns_roce_hw2sw_srq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn, u16 xrcd,
-		       struct hns_roce_mtt *hr_mtt, u64 db_rec_addr,
-		       struct hns_roce_srq *srq)
+static int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn,
+			      u16 xrcd, struct hns_roce_mtt *hr_mtt,
+			      u64 db_rec_addr, struct hns_roce_srq *srq)
 {
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	struct hns_roce_cmd_mailbox *mailbox;
@@ -155,7 +155,8 @@ err_out:
 	return ret;
 }
 
-void hns_roce_srq_free(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+static void hns_roce_srq_free(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_srq *srq)
 {
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	int ret;
@@ -210,6 +211,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 				   struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+	struct hns_roce_ib_create_srq_resp resp = {};
 	struct hns_roce_srq *srq;
 	int srq_desc_size;
 	int srq_buf_size;
@@ -252,8 +254,8 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq;
 		}
 
-		srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-					srq_buf_size, 0, 0);
+		srq->umem =
+			ib_umem_get(udata, ucmd.buf_addr, srq_buf_size, 0, 0);
 		if (IS_ERR(srq->umem)) {
 			ret = PTR_ERR(srq->umem);
 			goto err_srq;
@@ -280,8 +282,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq_mtt;
 
 		/* config index queue BA */
-		srq->idx_que.umem = ib_umem_get(pd->uobject->context,
-						ucmd.que_addr,
+		srq->idx_que.umem = ib_umem_get(udata, ucmd.que_addr,
 						srq->idx_que.buf_size, 0, 0);
 		if (IS_ERR(srq->idx_que.umem)) {
 			dev_err(hr_dev->dev,
@@ -378,15 +379,20 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 
 	srq->event = hns_roce_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->srqn;
+	resp.srqn = srq->srqn;
 
 	if (udata) {
-		if (ib_copy_to_udata(udata, &srq->srqn, sizeof(__u32))) {
+		if (ib_copy_to_udata(udata, &resp,
+				     min(udata->outlen, sizeof(resp)))) {
 			ret = -EFAULT;
-			goto err_wrid;
+			goto err_srqc_alloc;
 		}
 	}
 
 	return &srq->ibsrq;
+
+err_srqc_alloc:
+	hns_roce_srq_free(hr_dev, srq);
 
 err_wrid:
 	kvfree(srq->wrid);

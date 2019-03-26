@@ -213,14 +213,4 @@ struct vring_packed_desc {
 	__le16 flags;
 };
 
-struct vring_packed {
-	unsigned int num;
-
-	struct vring_packed_desc *desc;
-
-	struct vring_packed_desc_event *driver;
-
-	struct vring_packed_desc_event *device;
-};
-
 #endif /* _UAPI_LINUX_VIRTIO_RING_H */

@@ -42,6 +42,8 @@ enum {
 	NDD_SECURITY_OVERWRITE = 3,
 	/*  tracking whether or not there is a pending device reference */
 	NDD_WORK_PENDING = 4,
+	/* ignore / filter NSLABEL_FLAG_LOCAL for this DIMM, i.e. no aliasing */
+	NDD_NOBLK = 5,
 
 	/* need to set a limit somewhere, but yes, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
@@ -128,6 +130,7 @@ struct nd_region_desc {
 	void *provider_data;
 	int num_lanes;
 	int numa_node;
+	int target_node;
 	unsigned long flags;
 	struct device_node *of_node;
 };
@@ -235,7 +238,6 @@ static inline struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 			cmd_mask, num_flush, flush_wpq, NULL, NULL);
 }
 
-int nvdimm_security_setup_events(struct nvdimm *nvdimm);
 const struct nd_cmd_desc *nd_cmd_dimm_desc(int cmd);
 const struct nd_cmd_desc *nd_cmd_bus_desc(int cmd);
 u32 nd_cmd_in_size(struct nvdimm *nvdimm, int cmd,

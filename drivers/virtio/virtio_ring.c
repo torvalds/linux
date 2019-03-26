@@ -152,7 +152,12 @@ struct vring_virtqueue {
 		/* Available for packed ring */
 		struct {
 			/* Actual memory layout for this queue. */
-			struct vring_packed vring;
+			struct {
+				unsigned int num;
+				struct vring_packed_desc *desc;
+				struct vring_packed_desc_event *driver;
+				struct vring_packed_desc_event *device;
+			} vring;
 
 			/* Driver ring wrap counter. */
 			bool avail_wrap_counter;
@@ -265,6 +270,17 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 
 	return false;
 }
+
+size_t virtio_max_dma_size(struct virtio_device *vdev)
+{
+	size_t max_segment_size = SIZE_MAX;
+
+	if (vring_use_dma_api(vdev))
+		max_segment_size = dma_max_mapping_size(&vdev->dev);
+
+	return max_segment_size;
+}
+EXPORT_SYMBOL_GPL(virtio_max_dma_size);
 
 static void *vring_alloc_queue(struct virtio_device *vdev, size_t size,
 			      dma_addr_t *dma_handle, gfp_t flag)
@@ -1609,6 +1625,9 @@ static struct virtqueue *vring_create_virtqueue_packed(
 		!context;
 	vq->event = virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
 
+	if (virtio_has_feature(vdev, VIRTIO_F_ORDER_PLATFORM))
+		vq->weak_barriers = false;
+
 	vq->packed.ring_dma_addr = ring_dma_addr;
 	vq->packed.driver_event_dma_addr = driver_event_dma_addr;
 	vq->packed.device_event_dma_addr = device_event_dma_addr;
@@ -2079,6 +2098,9 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 		!context;
 	vq->event = virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
 
+	if (virtio_has_feature(vdev, VIRTIO_F_ORDER_PLATFORM))
+		vq->weak_barriers = false;
+
 	vq->split.queue_dma_addr = 0;
 	vq->split.queue_size_in_bytes = 0;
 
@@ -2212,6 +2234,8 @@ void vring_transport_features(struct virtio_device *vdev)
 		case VIRTIO_F_IOMMU_PLATFORM:
 			break;
 		case VIRTIO_F_RING_PACKED:
+			break;
+		case VIRTIO_F_ORDER_PLATFORM:
 			break;
 		default:
 			/* We don't understand this bit. */

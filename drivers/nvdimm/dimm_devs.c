@@ -11,6 +11,7 @@
  * General Public License for more details.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
 #include <linux/device.h>
 #include <linux/ndctl.h>
@@ -24,6 +25,10 @@
 #include "nd.h"
 
 static DEFINE_IDA(dimm_ida);
+
+static bool noblk;
+module_param(noblk, bool, 0444);
+MODULE_PARM_DESC(noblk, "force disable BLK / local alias support");
 
 /*
  * Retrieve bus and dimm handle and return if this bus supports
@@ -551,6 +556,8 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 
 	nvdimm->dimm_id = dimm_id;
 	nvdimm->provider_data = provider_data;
+	if (noblk)
+		flags |= 1 << NDD_NOBLK;
 	nvdimm->flags = flags;
 	nvdimm->cmd_mask = cmd_mask;
 	nvdimm->num_flush = num_flush;
@@ -578,13 +585,25 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_create);
 
-int nvdimm_security_setup_events(struct nvdimm *nvdimm)
+static void shutdown_security_notify(void *data)
 {
-	nvdimm->sec.overwrite_state = sysfs_get_dirent(nvdimm->dev.kobj.sd,
-			"security");
+	struct nvdimm *nvdimm = data;
+
+	sysfs_put(nvdimm->sec.overwrite_state);
+}
+
+int nvdimm_security_setup_events(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	if (nvdimm->sec.state < 0 || !nvdimm->sec.ops
+			|| !nvdimm->sec.ops->overwrite)
+		return 0;
+	nvdimm->sec.overwrite_state = sysfs_get_dirent(dev->kobj.sd, "security");
 	if (!nvdimm->sec.overwrite_state)
-		return -ENODEV;
-	return 0;
+		return -ENOMEM;
+
+	return devm_add_action_or_reset(dev, shutdown_security_notify, nvdimm);
 }
 EXPORT_SYMBOL_GPL(nvdimm_security_setup_events);
 

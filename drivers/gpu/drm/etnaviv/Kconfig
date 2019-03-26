@@ -2,7 +2,6 @@
 config DRM_ETNAVIV
 	tristate "ETNAVIV (DRM support for Vivante GPU IP cores)"
 	depends on DRM
-	depends on ARCH_MXC || ARCH_DOVE || (ARM && COMPILE_TEST)
 	depends on MMU
 	select SHMEM
 	select SYNC_FILE

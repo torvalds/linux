@@ -37,44 +37,10 @@ static void release_resources(struct snd_ff *ff)
 	fw_iso_resources_free(&ff->rx_resources);
 }
 
-static int switch_fetching_mode(struct snd_ff *ff, bool enable)
-{
-	unsigned int count;
-	__le32 *reg;
-	int i;
-	int err;
-
-	count = 0;
-	for (i = 0; i < SND_FF_STREAM_MODE_COUNT; ++i)
-		count = max(count, ff->spec->pcm_playback_channels[i]);
-
-	reg = kcalloc(count, sizeof(__le32), GFP_KERNEL);
-	if (!reg)
-		return -ENOMEM;
-
-	if (!enable) {
-		/*
-		 * Each quadlet is corresponding to data channels in a data
-		 * blocks in reverse order. Precisely, quadlets for available
-		 * data channels should be enabled. Here, I take second best
-		 * to fetch PCM frames from all of data channels regardless of
-		 * stf.
-		 */
-		for (i = 0; i < count; ++i)
-			reg[i] = cpu_to_le32(0x00000001);
-	}
-
-	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
-				 SND_FF_REG_FETCH_PCM_FRAMES, reg,
-				 sizeof(__le32) * count, 0);
-	kfree(reg);
-	return err;
-}
-
 static inline void finish_session(struct snd_ff *ff)
 {
 	ff->spec->protocol->finish_session(ff);
-	switch_fetching_mode(ff, false);
+	ff->spec->protocol->switch_fetching_mode(ff, false);
 }
 
 static int init_stream(struct snd_ff *ff, enum amdtp_stream_direction dir)
@@ -147,7 +113,7 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 	if (ff->substreams_counter == 0)
 		return 0;
 
-	err = snd_ff_transaction_get_clock(ff, &curr_rate, &src);
+	err = ff->spec->protocol->get_clock(ff, &curr_rate, &src);
 	if (err < 0)
 		return err;
 	if (curr_rate != rate ||
@@ -206,7 +172,7 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 			goto error;
 		}
 
-		err = switch_fetching_mode(ff, true);
+		err = ff->spec->protocol->switch_fetching_mode(ff, true);
 		if (err < 0)
 			goto error;
 	}

@@ -12,6 +12,8 @@ enum gpio_lookup_flags {
 	GPIO_OPEN_SOURCE = (1 << 2),
 	GPIO_PERSISTENT = (0 << 3),
 	GPIO_TRANSITORY = (1 << 3),
+	GPIO_PULL_UP = (1 << 4),
+	GPIO_PULL_DOWN = (1 << 5),
 };
 
 /**

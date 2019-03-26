@@ -79,7 +79,7 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 		break;
 	case 9:
 		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << (id * 4));
+			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
 		break;
 	}
 
@@ -181,28 +181,26 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	if (rsnd_ssi_use_busif(io)) {
 		int id = rsnd_mod_id(mod);
 		int busif = rsnd_mod_id_sub(mod);
+		enum rsnd_reg adinr_reg, mode_reg, dalign_reg;
 
-		/*
-		 * FIXME
-		 *
-		 * We can't support SSI9-4/5/6/7, because its address is
-		 * out of calculation rule
-		 */
 		if ((id == 9) && (busif >= 4)) {
-			struct device *dev = rsnd_priv_to_dev(priv);
-
-			dev_err(dev, "This driver doesn't support SSI%d-%d, so far",
-				id, busif);
+			adinr_reg = SSI9_BUSIF_ADINR(busif);
+			mode_reg = SSI9_BUSIF_MODE(busif);
+			dalign_reg = SSI9_BUSIF_DALIGN(busif);
+		} else {
+			adinr_reg = SSI_BUSIF_ADINR(busif);
+			mode_reg = SSI_BUSIF_MODE(busif);
+			dalign_reg = SSI_BUSIF_DALIGN(busif);
 		}
 
-		rsnd_mod_write(mod, SSI_BUSIF_ADINR(busif),
+		rsnd_mod_write(mod, adinr_reg,
 			       rsnd_get_adinr_bit(mod, io) |
 			       (rsnd_io_is_play(io) ?
 				rsnd_runtime_channel_after_ctu(io) :
 				rsnd_runtime_channel_original(io)));
-		rsnd_mod_write(mod, SSI_BUSIF_MODE(busif),
+		rsnd_mod_write(mod, mode_reg,
 			       rsnd_get_busif_shift(io, mod) | 1);
-		rsnd_mod_write(mod, SSI_BUSIF_DALIGN(busif),
+		rsnd_mod_write(mod, dalign_reg,
 			       rsnd_get_dalign(mod, io));
 	}
 

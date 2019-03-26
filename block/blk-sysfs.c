@@ -360,8 +360,8 @@ static ssize_t queue_poll_delay_show(struct request_queue *q, char *page)
 {
 	int val;
 
-	if (q->poll_nsec == -1)
-		val = -1;
+	if (q->poll_nsec == BLK_MQ_POLL_CLASSIC)
+		val = BLK_MQ_POLL_CLASSIC;
 	else
 		val = q->poll_nsec / 1000;
 
@@ -380,10 +380,12 @@ static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 	if (err < 0)
 		return err;
 
-	if (val == -1)
-		q->poll_nsec = -1;
-	else
+	if (val == BLK_MQ_POLL_CLASSIC)
+		q->poll_nsec = BLK_MQ_POLL_CLASSIC;
+	else if (val >= 0)
 		q->poll_nsec = val * 1000;
+	else
+		return -EINVAL;
 
 	return count;
 }
@@ -467,6 +469,9 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 		val = wbt_default_latency_nsec(q);
 	else if (val >= 0)
 		val *= 1000ULL;
+
+	if (wbt_get_min_lat(q) == val)
+		return count;
 
 	/*
 	 * Ensure that the queue is idled, in case the latency update
@@ -817,21 +822,16 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 }
 
 /**
- * __blk_release_queue - release a request queue when it is no longer needed
+ * __blk_release_queue - release a request queue
  * @work: pointer to the release_work member of the request queue to be released
  *
  * Description:
- *     blk_release_queue is the counterpart of blk_init_queue(). It should be
- *     called when a request queue is being released; typically when a block
- *     device is being de-registered. Its primary task it to free the queue
- *     itself.
- *
- * Notes:
- *     The low level driver must have finished any outstanding requests first
- *     via blk_cleanup_queue().
- *
- *     Although blk_release_queue() may be called with preemption disabled,
- *     __blk_release_queue() may sleep.
+ *     This function is called when a block device is being unregistered. The
+ *     process of releasing a request queue starts with blk_cleanup_queue, which
+ *     set the appropriate flags and then calls blk_put_queue, that decrements
+ *     the reference counter of the request queue. Once the reference counter
+ *     of the request queue reaches zero, blk_release_queue is called to release
+ *     all allocated resources of the request queue.
  */
 static void __blk_release_queue(struct work_struct *work)
 {

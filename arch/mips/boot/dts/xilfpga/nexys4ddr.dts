@@ -90,11 +90,11 @@
 		interrupts = <0>;
 	};
 
-	axi_i2c: i2c@10A00000 {
+	axi_i2c: i2c@10a00000 {
 	    compatible = "xlnx,xps-iic-2.00.a";
 	    interrupt-parent = <&axi_intc>;
 	    interrupts = <4>;
-	    reg = < 0x10A00000 0x10000 >;
+	    reg = < 0x10a00000 0x10000 >;
 	    clocks = <&ext>;
 	    xlnx,clk-freq = <0x5f5e100>;
 	    xlnx,family = "Artix7";
@@ -106,9 +106,9 @@
 	    #address-cells = <1>;
 	    #size-cells = <0>;
 
-	    ad7420@4B {
+	    ad7420@4b {
 		compatible = "adi,adt7420";
-		reg = <0x4B>;
+		reg = <0x4b>;
 	    };
 	} ;
 };

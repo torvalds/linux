@@ -119,11 +119,6 @@ static const struct attribute_group ports_group = {
 	.attrs = ports_attrs,
 };
 
-static const struct attribute_group *ports_groups[] = {
-	&ports_group,
-	NULL
-};
-
 /***************************************
  * Adding & removing ports
  ***************************************/
@@ -307,6 +302,7 @@ static int usbport_trig_notify(struct notifier_block *nb, unsigned long action,
 static int usbport_trig_activate(struct led_classdev *led_cdev)
 {
 	struct usbport_trig_data *usbport_data;
+	int err;
 
 	usbport_data = kzalloc(sizeof(*usbport_data), GFP_KERNEL);
 	if (!usbport_data)
@@ -315,6 +311,9 @@ static int usbport_trig_activate(struct led_classdev *led_cdev)
 
 	/* List of ports */
 	INIT_LIST_HEAD(&usbport_data->ports);
+	err = sysfs_create_group(&led_cdev->dev->kobj, &ports_group);
+	if (err)
+		goto err_free;
 	usb_for_each_dev(usbport_data, usbport_trig_add_usb_dev_ports);
 	usbport_trig_update_count(usbport_data);
 
@@ -322,8 +321,11 @@ static int usbport_trig_activate(struct led_classdev *led_cdev)
 	usbport_data->nb.notifier_call = usbport_trig_notify;
 	led_set_trigger_data(led_cdev, usbport_data);
 	usb_register_notify(&usbport_data->nb);
-
 	return 0;
+
+err_free:
+	kfree(usbport_data);
+	return err;
 }
 
 static void usbport_trig_deactivate(struct led_classdev *led_cdev)
@@ -335,6 +337,8 @@ static void usbport_trig_deactivate(struct led_classdev *led_cdev)
 		usbport_trig_remove_port(usbport_data, port);
 	}
 
+	sysfs_remove_group(&led_cdev->dev->kobj, &ports_group);
+
 	usb_unregister_notify(&usbport_data->nb);
 
 	kfree(usbport_data);
@@ -344,7 +348,6 @@ static struct led_trigger usbport_led_trigger = {
 	.name     = "usbport",
 	.activate = usbport_trig_activate,
 	.deactivate = usbport_trig_deactivate,
-	.groups = ports_groups,
 };
 
 static int __init usbport_trig_init(void)

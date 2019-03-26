@@ -1,4 +1,3 @@
 # SPDX-License-Identifier: GPL-2.0
-include include/uapi/asm-generic/Kbuild.asm
 
 generic-y += kvm_para.h

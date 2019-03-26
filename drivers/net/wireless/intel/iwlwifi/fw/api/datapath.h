@@ -105,6 +105,12 @@ enum iwl_data_path_subcmd_ids {
 	HE_AIR_SNIFFER_CONFIG_CMD = 0x13,
 
 	/**
+	 * @CHEST_COLLECTOR_FILTER_CONFIG_CMD: Configure the CSI
+	 *	matrix collection, uses &struct iwl_channel_estimation_cfg
+	 */
+	CHEST_COLLECTOR_FILTER_CONFIG_CMD = 0x14,
+
+	/**
 	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
 	 */
 	RX_NO_DATA_NOTIF = 0xF5,
@@ -155,5 +161,54 @@ struct iwl_mu_group_mgmt_notif {
 	__le32 membership_status[2];
 	__le32 user_position[4];
 } __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
+
+enum iwl_channel_estimation_flags {
+	IWL_CHANNEL_ESTIMATION_ENABLE	= BIT(0),
+	IWL_CHANNEL_ESTIMATION_TIMER	= BIT(1),
+	IWL_CHANNEL_ESTIMATION_COUNTER	= BIT(2),
+};
+
+/**
+ * struct iwl_channel_estimation_cfg - channel estimation reporting config
+ */
+struct iwl_channel_estimation_cfg {
+	/**
+	 * @flags: flags, see &enum iwl_channel_estimation_flags
+	 */
+	__le32 flags;
+	/**
+	 * @timer: if enabled via flags, automatically disable after this many
+	 *	microseconds
+	 */
+	__le32 timer;
+	/**
+	 * @count: if enabled via flags, automatically disable after this many
+	 *	frames with channel estimation matrix were captured
+	 */
+	__le32 count;
+	/**
+	 * @rate_n_flags_mask: only try to record the channel estimation matrix
+	 *	if the rate_n_flags value for the received frame (let's call
+	 *	that rx_rnf) matches the mask/value given here like this:
+	 *	(rx_rnf & rate_n_flags_mask) == rate_n_flags_val.
+	 */
+	__le32 rate_n_flags_mask;
+	/**
+	 * @rate_n_flags_val: see @rate_n_flags_mask
+	 */
+	__le32 rate_n_flags_val;
+	/**
+	 * @reserved: reserved (for alignment)
+	 */
+	__le32 reserved;
+	/**
+	 * @frame_types: bitmap of frame types to capture, the received frame's
+	 *	subtype|type takes 6 bits in the frame and the corresponding bit
+	 *	in this field must be set to 1 to capture channel estimation for
+	 *	that frame type. Set to all-ones to enable capturing for all
+	 *	frame types.
+	 */
+	__le64 frame_types;
+} __packed; /* CHEST_COLLECTOR_FILTER_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_datapath_h__ */

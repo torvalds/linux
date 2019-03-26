@@ -85,7 +85,7 @@ static void __free_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 		       struct scatterlist *sghead, u32 pages, u32 pg_size)
 {
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	bool is_umem = false;
 	int i;
 
@@ -116,13 +116,11 @@ static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 	} else {
 		i = 0;
 		is_umem = true;
-		for_each_sg(sghead, sg, pages, i) {
-			pbl->pg_map_arr[i] = sg_dma_address(sg);
-			pbl->pg_arr[i] = sg_virt(sg);
-			if (!pbl->pg_arr[i])
-				goto fail;
-
+		for_each_sg_dma_page (sghead, &sg_iter, pages, 0) {
+			pbl->pg_map_arr[i] = sg_page_iter_dma_address(&sg_iter);
+			pbl->pg_arr[i] = NULL;
 			pbl->pg_count++;
+			i++;
 		}
 	}
 
@@ -330,13 +328,13 @@ void bnxt_qplib_free_ctx(struct pci_dev *pdev,
  */
 int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 			 struct bnxt_qplib_ctx *ctx,
-			 bool virt_fn)
+			 bool virt_fn, bool is_p5)
 {
 	int i, j, k, rc = 0;
 	int fnz_idx = -1;
 	__le64 **pbl_ptr;
 
-	if (virt_fn)
+	if (virt_fn || is_p5)
 		goto stats_alloc;
 
 	/* QPC Tables */
@@ -762,7 +760,11 @@ static int bnxt_qplib_alloc_stats_ctx(struct pci_dev *pdev,
 {
 	memset(stats, 0, sizeof(*stats));
 	stats->fw_id = -1;
-	stats->size = sizeof(struct ctx_hw_stats);
+	/* 128 byte aligned context memory is required only for 57500.
+	 * However making this unconditional, it does not harm previous
+	 * generation.
+	 */
+	stats->size = ALIGN(sizeof(struct ctx_hw_stats), 128);
 	stats->dma = dma_alloc_coherent(&pdev->dev, stats->size,
 					&stats->dma_map, GFP_KERNEL);
 	if (!stats->dma) {

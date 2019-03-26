@@ -143,8 +143,8 @@ int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 	rts_cfg = mt76_rr(dev, MT_TX_RTS_CFG);
 	mt76_wr(dev, MT_TX_RTS_CFG, rts_cfg & ~MT_TX_RTS_CFG_RETRY_LIMIT);
 
-	mt76_clear(dev, MT_TXOP_CTRL_CFG, BIT(20));
-	mt76_clear(dev, MT_TXOP_HLDR_ET, BIT(1));
+	mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+	mt76_clear(dev, MT_TXOP_HLDR_ET, MT_TXOP_HLDR_TX40M_BLK_EN);
 
 	/* wait tx dma to stop */
 	for (i = 0; i < 2000; i++) {
@@ -210,13 +210,4 @@ int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_TX_RTS_CFG, rts_cfg);
 
 	return 0;
-}
-
-void mt76x2u_mac_resume(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-	mt76_set(dev, MT_TXOP_CTRL_CFG, BIT(20));
-	mt76_set(dev, MT_TXOP_HLDR_ET, BIT(1));
 }

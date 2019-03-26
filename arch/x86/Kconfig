@@ -14,8 +14,6 @@ config X86_32
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select CLKSRC_I8253
 	select CLONE_BACKWARDS
-	select HAVE_AOUT
-	select HAVE_GENERIC_DMA_COHERENT
 	select MODULES_USE_ELF_REL
 	select OLD_SIGACTION
 
@@ -47,6 +45,7 @@ config X86
 	select ACPI_LEGACY_TABLES_LOOKUP	if ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
 	select ANON_INODES
+	select ARCH_32BIT_OFF_T			if X86_32
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_CLOCKSOURCE_INIT
 	select ARCH_DISCARD_MEMBLOCK
@@ -198,7 +197,7 @@ config X86
 	select IRQ_FORCED_THREADING
 	select NEED_SG_DMA_LENGTH
 	select PCI_DOMAINS			if PCI
-	select PCI_LOCKLESS_CONFIG
+	select PCI_LOCKLESS_CONFIG		if PCI
 	select PERF_EVENTS
 	select RTC_LIB
 	select RTC_MC146818_LIB
@@ -446,12 +445,12 @@ config RETPOLINE
 	  branches. Requires a compiler with -mindirect-branch=thunk-extern
 	  support for full protection. The kernel may run slower.
 
-config X86_RESCTRL
-	bool "Resource Control support"
+config X86_CPU_RESCTRL
+	bool "x86 CPU resource control support"
 	depends on X86 && (CPU_SUP_INTEL || CPU_SUP_AMD)
 	select KERNFS
 	help
-	  Enable Resource Control support.
+	  Enable x86 CPU resource control support.
 
 	  Provide support for the allocation and monitoring of system resources
 	  usage by the CPU.
@@ -1510,6 +1509,7 @@ config AMD_MEM_ENCRYPT
 	bool "AMD Secure Memory Encryption (SME) support"
 	depends on X86_64 && CPU_SUP_AMD
 	select DYNAMIC_PHYSICAL_MASK
+	select ARCH_USE_MEMREMAP_PROT
 	---help---
 	  Say yes to enable support for the encryption of system memory.
 	  This requires an AMD processor that supports Secure Memory
@@ -1528,10 +1528,6 @@ config AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT
 
 	  If set to N, then the encryption of system memory can be
 	  activated with the mem_encrypt=on command line option.
-
-config ARCH_USE_MEMREMAP_PROT
-	def_bool y
-	depends on AMD_MEM_ENCRYPT
 
 # Common NUMA Features
 config NUMA
@@ -2843,6 +2839,7 @@ config IA32_EMULATION
 config IA32_AOUT
 	tristate "IA32 a.out support"
 	depends on IA32_EMULATION
+	depends on BROKEN
 	---help---
 	  Support old a.out binaries in the 32bit emulation.
 

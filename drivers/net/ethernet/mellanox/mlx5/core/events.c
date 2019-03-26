@@ -103,6 +103,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_STALL_EVENT";
 	case MLX5_EVENT_TYPE_CMD:
 		return "MLX5_EVENT_TYPE_CMD";
+	case MLX5_EVENT_TYPE_HOST_PARAMS_CHANGE:
+		return "MLX5_EVENT_TYPE_HOST_PARAMS_CHANGE";
 	case MLX5_EVENT_TYPE_PAGE_REQUEST:
 		return "MLX5_EVENT_TYPE_PAGE_REQUEST";
 	case MLX5_EVENT_TYPE_PAGE_FAULT:
@@ -211,11 +213,10 @@ static int port_module(struct notifier_block *nb, unsigned long type, void *data
 	enum port_module_event_status_type module_status;
 	enum port_module_event_error_type error_type;
 	struct mlx5_eqe_port_module *module_event_eqe;
-	const char *status_str, *error_str;
+	const char *status_str;
 	u8 module_num;
 
 	module_event_eqe = &eqe->data.port_module;
-	module_num = module_event_eqe->module;
 	module_status = module_event_eqe->module_status &
 			PORT_MODULE_EVENT_MODULE_STATUS_MASK;
 	error_type = module_event_eqe->error_type &
@@ -223,25 +224,27 @@ static int port_module(struct notifier_block *nb, unsigned long type, void *data
 
 	if (module_status < MLX5_MODULE_STATUS_NUM)
 		events->pme_stats.status_counters[module_status]++;
-	status_str = mlx5_pme_status_to_string(module_status);
 
-	if (module_status == MLX5_MODULE_STATUS_ERROR) {
+	if (module_status == MLX5_MODULE_STATUS_ERROR)
 		if (error_type < MLX5_MODULE_EVENT_ERROR_NUM)
 			events->pme_stats.error_counters[error_type]++;
-		error_str = mlx5_pme_error_to_string(error_type);
-	}
 
 	if (!printk_ratelimit())
 		return NOTIFY_OK;
 
-	if (module_status == MLX5_MODULE_STATUS_ERROR)
+	module_num = module_event_eqe->module;
+	status_str = mlx5_pme_status_to_string(module_status);
+	if (module_status == MLX5_MODULE_STATUS_ERROR) {
+		const char *error_str = mlx5_pme_error_to_string(error_type);
+
 		mlx5_core_err(events->dev,
 			      "Port module event[error]: module %u, %s, %s\n",
 			      module_num, status_str, error_str);
-	else
+	} else {
 		mlx5_core_info(events->dev,
 			       "Port module event: module %u, %s\n",
 			       module_num, status_str);
+	}
 
 	return NOTIFY_OK;
 }

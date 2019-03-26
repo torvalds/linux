@@ -14,6 +14,8 @@
  *
  */
 
+#define __KASAN_INTERNAL
+
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -361,10 +363,15 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
  *    get different tags.
  */
 static u8 assign_tag(struct kmem_cache *cache, const void *object,
-			bool init, bool krealloc)
+			bool init, bool keep_tag)
 {
-	/* Reuse the same tag for krealloc'ed objects. */
-	if (krealloc)
+	/*
+	 * 1. When an object is kmalloc()'ed, two hooks are called:
+	 *    kasan_slab_alloc() and kasan_kmalloc(). We assign the
+	 *    tag only in the first one.
+	 * 2. We reuse the same tag for krealloc'ed objects.
+	 */
+	if (keep_tag)
 		return get_tag(object);
 
 	/*
@@ -403,12 +410,6 @@ void * __must_check kasan_init_slab_obj(struct kmem_cache *cache,
 				assign_tag(cache, object, true, false));
 
 	return (void *)object;
-}
-
-void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
-					gfp_t flags)
-{
-	return kasan_kmalloc(cache, object, cache->object_size, flags);
 }
 
 static inline bool shadow_invalid(u8 tag, s8 shadow_byte)
@@ -467,7 +468,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
 }
 
 static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
-				size_t size, gfp_t flags, bool krealloc)
+				size_t size, gfp_t flags, bool keep_tag)
 {
 	unsigned long redzone_start;
 	unsigned long redzone_end;
@@ -485,7 +486,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
 				KASAN_SHADOW_SCALE_SIZE);
 
 	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
-		tag = assign_tag(cache, object, false, krealloc);
+		tag = assign_tag(cache, object, false, keep_tag);
 
 	/* Tag is ignored in set_tag without CONFIG_KASAN_SW_TAGS */
 	kasan_unpoison_shadow(set_tag(object, tag), size);
@@ -498,10 +499,16 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
 	return set_tag(object, tag);
 }
 
+void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
+					gfp_t flags)
+{
+	return __kasan_kmalloc(cache, object, cache->object_size, flags, false);
+}
+
 void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
 				size_t size, gfp_t flags)
 {
-	return __kasan_kmalloc(cache, object, size, flags, false);
+	return __kasan_kmalloc(cache, object, size, flags, true);
 }
 EXPORT_SYMBOL(kasan_kmalloc);
 

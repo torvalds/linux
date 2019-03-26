@@ -285,7 +285,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 	struct zpci_dev *zdev =	to_zpci(pdev);
 	int idx;
 
-	if (!pci_resource_len(pdev, bar))
+	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
 		return NULL;
 
 	idx = zdev->bars[bar].map_idx;
@@ -382,7 +382,9 @@ static void zpci_irq_handler(struct airq_struct *airq)
 			if (ai == -1UL)
 				break;
 			inc_irq_stat(IRQIO_MSI);
+			airq_iv_lock(aibv, ai);
 			generic_handle_irq(airq_iv_get_data(aibv, ai));
+			airq_iv_unlock(aibv, ai);
 		}
 	}
 }
@@ -408,7 +410,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	zdev->aisb = aisb;
 
 	/* Create adapter interrupt vector */
-	zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA);
+	zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA | AIRQ_IV_BITLOCK);
 	if (!zdev->aibv)
 		return -ENOMEM;
 
@@ -482,6 +484,15 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	}
 }
 
+#ifdef CONFIG_PCI_IOV
+static struct resource iov_res = {
+	.name	= "PCI IOV res",
+	.start	= 0,
+	.end	= -1,
+	.flags	= IORESOURCE_MEM,
+};
+#endif
+
 static void zpci_map_resources(struct pci_dev *pdev)
 {
 	resource_size_t len;
@@ -495,6 +506,17 @@ static void zpci_map_resources(struct pci_dev *pdev)
 			(resource_size_t __force) pci_iomap(pdev, i, 0);
 		pdev->resource[i].end = pdev->resource[i].start + len - 1;
 	}
+
+#ifdef CONFIG_PCI_IOV
+	i = PCI_IOV_RESOURCES;
+
+	for (; i < PCI_SRIOV_NUM_BARS + PCI_IOV_RESOURCES; i++) {
+		len = pci_resource_len(pdev, i);
+		if (!len)
+			continue;
+		pdev->resource[i].parent = &iov_res;
+	}
+#endif
 }
 
 static void zpci_unmap_resources(struct pci_dev *pdev)

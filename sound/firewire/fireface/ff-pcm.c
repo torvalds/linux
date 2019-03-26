@@ -152,7 +152,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto release_lock;
 
-	err = snd_ff_transaction_get_clock(ff, &rate, &src);
+	err = ff->spec->protocol->get_clock(ff, &rate, &src);
 	if (err < 0)
 		goto release_lock;
 

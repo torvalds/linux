@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2011-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2019  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing, Marek Lindner
  *
@@ -103,6 +103,9 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 			goto default_throughput;
 
 		ret = cfg80211_get_station(real_netdev, neigh->addr, &sinfo);
+
+		/* free the TID stats immediately */
+		cfg80211_sinfo_release_content(&sinfo);
 
 		dev_put(real_netdev);
 		if (ret == -ENOENT) {

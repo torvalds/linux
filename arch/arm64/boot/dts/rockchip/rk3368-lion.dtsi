@@ -139,7 +139,6 @@
 &emmc {
 	bus-width = <8>;
 	clock-frequency = <150000000>;
-	disable-wp;
 	mmc-hs200-1_8v;
 	non-removable;
 	vmmc-supply = <&vcc33_io>;

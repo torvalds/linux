@@ -2059,7 +2059,7 @@ static inline void ace_tx_int(struct net_device *dev,
 		if (skb) {
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			info->skb = NULL;
 		}
 

@@ -67,6 +67,8 @@
 	SRI(OTG_CLOCK_CONTROL, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT0_CONTROL, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT0_POSITION, OTG, inst),\
+	SRI(OTG_VERTICAL_INTERRUPT1_CONTROL, OTG, inst),\
+	SRI(OTG_VERTICAL_INTERRUPT1_POSITION, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT2_CONTROL, OTG, inst),\
 	SRI(OTG_VERTICAL_INTERRUPT2_POSITION, OTG, inst),\
 	SRI(OPTC_INPUT_CLOCK_CONTROL, ODM, inst),\
@@ -135,6 +137,8 @@ struct dcn_optc_registers {
 	uint32_t OTG_CLOCK_CONTROL;
 	uint32_t OTG_VERTICAL_INTERRUPT0_CONTROL;
 	uint32_t OTG_VERTICAL_INTERRUPT0_POSITION;
+	uint32_t OTG_VERTICAL_INTERRUPT1_CONTROL;
+	uint32_t OTG_VERTICAL_INTERRUPT1_POSITION;
 	uint32_t OTG_VERTICAL_INTERRUPT2_CONTROL;
 	uint32_t OTG_VERTICAL_INTERRUPT2_POSITION;
 	uint32_t OPTC_INPUT_CLOCK_CONTROL;
@@ -227,6 +231,8 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_INT_ENABLE, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT0_POSITION, OTG_VERTICAL_INTERRUPT0_LINE_START, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT0_POSITION, OTG_VERTICAL_INTERRUPT0_LINE_END, mask_sh),\
+	SF(OTG0_OTG_VERTICAL_INTERRUPT1_CONTROL, OTG_VERTICAL_INTERRUPT1_INT_ENABLE, mask_sh),\
+	SF(OTG0_OTG_VERTICAL_INTERRUPT1_POSITION, OTG_VERTICAL_INTERRUPT1_LINE_START, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT2_CONTROL, OTG_VERTICAL_INTERRUPT2_INT_ENABLE, mask_sh),\
 	SF(OTG0_OTG_VERTICAL_INTERRUPT2_POSITION, OTG_VERTICAL_INTERRUPT2_LINE_START, mask_sh),\
 	SF(ODM0_OPTC_INPUT_CLOCK_CONTROL, OPTC_INPUT_CLK_EN, mask_sh),\
@@ -361,6 +367,8 @@ struct dcn_optc_registers {
 	type OTG_VERTICAL_INTERRUPT0_INT_ENABLE;\
 	type OTG_VERTICAL_INTERRUPT0_LINE_START;\
 	type OTG_VERTICAL_INTERRUPT0_LINE_END;\
+	type OTG_VERTICAL_INTERRUPT1_INT_ENABLE;\
+	type OTG_VERTICAL_INTERRUPT1_LINE_START;\
 	type OTG_VERTICAL_INTERRUPT2_INT_ENABLE;\
 	type OTG_VERTICAL_INTERRUPT2_LINE_START;\
 	type OPTC_INPUT_CLK_EN;\
@@ -427,7 +435,7 @@ struct optc {
 	const struct dcn_optc_shift *tg_shift;
 	const struct dcn_optc_mask *tg_mask;
 
-	enum controller_id controller_id;
+	int comb_opp_id;
 
 	uint32_t max_h_total;
 	uint32_t max_v_total;
@@ -475,9 +483,16 @@ void optc1_program_timing(
 	const struct dc_crtc_timing *dc_crtc_timing,
 	bool use_vbios);
 
-void optc1_program_vline_interrupt(struct timing_generator *optc,
-		const struct dc_crtc_timing *dc_crtc_timing,
-		unsigned long long vsync_delta);
+void optc1_setup_vertical_interrupt0(
+		struct timing_generator *optc,
+		uint32_t start_line,
+		uint32_t end_line);
+void optc1_setup_vertical_interrupt1(
+		struct timing_generator *optc,
+		uint32_t start_line);
+void optc1_setup_vertical_interrupt2(
+		struct timing_generator *optc,
+		uint32_t start_line);
 
 void optc1_program_global_sync(
 		struct timing_generator *optc);

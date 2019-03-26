@@ -662,6 +662,8 @@ static int virtio_transport_reset(struct vsock_sock *vsk,
  */
 static int virtio_transport_reset_no_sock(struct virtio_vsock_pkt *pkt)
 {
+	const struct virtio_transport *t;
+	struct virtio_vsock_pkt *reply;
 	struct virtio_vsock_pkt_info info = {
 		.op = VIRTIO_VSOCK_OP_RST,
 		.type = le16_to_cpu(pkt->hdr.type),
@@ -672,15 +674,21 @@ static int virtio_transport_reset_no_sock(struct virtio_vsock_pkt *pkt)
 	if (le16_to_cpu(pkt->hdr.op) == VIRTIO_VSOCK_OP_RST)
 		return 0;
 
-	pkt = virtio_transport_alloc_pkt(&info, 0,
-					 le64_to_cpu(pkt->hdr.dst_cid),
-					 le32_to_cpu(pkt->hdr.dst_port),
-					 le64_to_cpu(pkt->hdr.src_cid),
-					 le32_to_cpu(pkt->hdr.src_port));
-	if (!pkt)
+	reply = virtio_transport_alloc_pkt(&info, 0,
+					   le64_to_cpu(pkt->hdr.dst_cid),
+					   le32_to_cpu(pkt->hdr.dst_port),
+					   le64_to_cpu(pkt->hdr.src_cid),
+					   le32_to_cpu(pkt->hdr.src_port));
+	if (!reply)
 		return -ENOMEM;
 
-	return virtio_transport_get_ops()->send_pkt(pkt);
+	t = virtio_transport_get_ops();
+	if (!t) {
+		virtio_transport_free_pkt(reply);
+		return -ENOTCONN;
+	}
+
+	return t->send_pkt(reply);
 }
 
 static void virtio_transport_wait_close(struct sock *sk, long timeout)

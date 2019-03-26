@@ -1269,7 +1269,7 @@ void blkcg_drain_queue(struct request_queue *q)
  * blkcg_exit_queue - exit and release blkcg part of request_queue
  * @q: request_queue being released
  *
- * Called from blk_release_queue().  Responsible for exiting blkcg part.
+ * Called from blk_exit_queue().  Responsible for exiting blkcg part.
  */
 void blkcg_exit_queue(struct request_queue *q)
 {
@@ -1736,8 +1736,8 @@ out:
 
 /**
  * blkcg_schedule_throttle - this task needs to check for throttling
- * @q - the request queue IO was submitted on
- * @use_memdelay - do we charge this to memory delay for PSI
+ * @q: the request queue IO was submitted on
+ * @use_memdelay: do we charge this to memory delay for PSI
  *
  * This is called by the IO controller when we know there's delay accumulated
  * for the blkg for this task.  We do not pass the blkg because there are places
@@ -1769,8 +1769,9 @@ void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
 
 /**
  * blkcg_add_delay - add delay to this blkg
- * @now - the current time in nanoseconds
- * @delta - how many nanoseconds of delay to add
+ * @blkg: blkg of interest
+ * @now: the current time in nanoseconds
+ * @delta: how many nanoseconds of delay to add
  *
  * Charge @delta to the blkg's current delay accumulation.  This is used to
  * throttle tasks if an IO controller thinks we need more throttling.

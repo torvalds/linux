@@ -23,6 +23,31 @@
 			0x50000000 0x08000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		mfc_left: region@43000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x43000000 0x2000000>;
+		};
+
+		mfc_right: region@51000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x51000000 0x2000000>;
+		};
+	};
+
+	vibrator_pwr: regulator-fixed-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vibrator-en";
+		enable-active-high;
+		gpio = <&gpj1 1 GPIO_ACTIVE_HIGH>;
+	};
+
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpg1 2 GPIO_ACTIVE_LOW>;
@@ -296,6 +321,22 @@
 			reg = <0x36>;
 		};
 	};
+
+	vibrator: pwm-vibrator {
+		compatible = "pwm-vibrator";
+		pwms = <&pwm 1 44642 0>;
+		pwm-names = "enable";
+		vcc-supply = <&vibrator_pwr>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm1_out>;
+	};
+
+	poweroff: syscon-poweroff {
+		compatible = "syscon-poweroff";
+		regmap = <&pmu_syscon>;
+		offset = <0x681c>; /* PS_HOLD_CONTROL */
+		value = <0x5200>;
+	};
 };
 
 &fimd {
@@ -329,6 +370,27 @@
 	status = "okay";
 };
 
+&i2c2 {
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <400000>;
+	samsung,i2c-slave-addr = <0x10>;
+	status = "okay";
+
+	touchscreen@4a {
+		compatible = "atmel,maxtouch";
+		reg = <0x4a>;
+		interrupt-parent = <&gpj0>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_irq>;
+		reset-gpios = <&gpj1 3 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mfc {
+	memory-region = <&mfc_left>, <&mfc_right>;
+};
+
 &pinctrl0 {
 	wlan_bt_en: wlan-bt-en {
 		samsung,pins = "gpb-5";
@@ -350,6 +412,13 @@
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
+	bt_host_wake: bt-host-wake {
+		samsung,pins = "gph2-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	tf_detect: tf-detect {
 		samsung,pins = "gph3-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
@@ -362,6 +431,17 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
+
+	ts_irq: ts-irq {
+		samsung,pins = "gpj0-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+};
+
+&pwm {
+	samsung,pwm-outputs = <1>;
 };
 
 &sdhci1 {
@@ -399,6 +479,16 @@
 
 &uart0 {
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <115200>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_data &uart0_fctl &bt_host_wake>;
+		shutdown-gpios = <&gpb 3 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpg3 4 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gph2 5 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &uart1 {

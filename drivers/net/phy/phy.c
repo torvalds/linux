@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Framework for configuring and reading PHY devices
  * Based on code in sungem_phy.c and gianfar_phy.c
  *
@@ -5,15 +6,7 @@
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
  * Copyright (c) 2006, 2007  Maciej W. Rozycki
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -36,8 +29,6 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 
-#include <asm/irq.h>
-
 #define PHY_STATE_STR(_state)			\
 	case PHY_##_state:			\
 		return __stringify(_state);	\
@@ -51,7 +42,6 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(RUNNING)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(FORCING)
-	PHY_STATE_STR(CHANGELINK)
 	PHY_STATE_STR(HALTED)
 	PHY_STATE_STR(RESUMING)
 	}
@@ -154,14 +144,10 @@ int phy_aneg_done(struct phy_device *phydev)
 {
 	if (phydev->drv && phydev->drv->aneg_done)
 		return phydev->drv->aneg_done(phydev);
-
-	/* Avoid genphy_aneg_done() if the Clause 45 PHY does not
-	 * implement Clause 22 registers
-	 */
-	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
-		return -EINVAL;
-
-	return genphy_aneg_done(phydev);
+	else if (phydev->is_c45)
+		return genphy_c45_aneg_done(phydev);
+	else
+		return genphy_aneg_done(phydev);
 }
 EXPORT_SYMBOL(phy_aneg_done);
 
@@ -553,7 +539,7 @@ int phy_start_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto out_unlock;
 
-	if (__phy_is_started(phydev)) {
+	if (phy_is_started(phydev)) {
 		if (phydev->autoneg == AUTONEG_ENABLE) {
 			err = phy_check_link_status(phydev);
 		} else {
@@ -709,7 +695,7 @@ void phy_stop_machine(struct phy_device *phydev)
 	cancel_delayed_work_sync(&phydev->state_queue);
 
 	mutex_lock(&phydev->lock);
-	if (__phy_is_started(phydev))
+	if (phy_is_started(phydev))
 		phydev->state = PHY_UP;
 	mutex_unlock(&phydev->lock);
 }
@@ -762,9 +748,6 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
 
-	if (!phy_is_started(phydev))
-		return IRQ_NONE;		/* It can't be ours.  */
-
 	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
 		return IRQ_NONE;
 
@@ -795,46 +778,27 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 }
 
 /**
- * phy_start_interrupts - request and enable interrupts for a PHY device
+ * phy_request_interrupt - request interrupt for a PHY device
  * @phydev: target phy_device struct
  *
  * Description: Request the interrupt for the given PHY.
  *   If this fails, then we set irq to PHY_POLL.
- *   Otherwise, we enable the interrupts in the PHY.
  *   This should only be called with a valid IRQ number.
- *   Returns 0 on success or < 0 on error.
  */
-int phy_start_interrupts(struct phy_device *phydev)
+void phy_request_interrupt(struct phy_device *phydev)
 {
-	if (request_threaded_irq(phydev->irq, NULL, phy_interrupt,
-				 IRQF_ONESHOT | IRQF_SHARED,
-				 phydev_name(phydev), phydev) < 0) {
-		pr_warn("%s: Can't get IRQ %d (PHY)\n",
-			phydev->mdio.bus->name, phydev->irq);
+	int err;
+
+	err = request_threaded_irq(phydev->irq, NULL, phy_interrupt,
+				   IRQF_ONESHOT | IRQF_SHARED,
+				   phydev_name(phydev), phydev);
+	if (err) {
+		phydev_warn(phydev, "Error %d requesting IRQ %d, falling back to polling\n",
+			    err, phydev->irq);
 		phydev->irq = PHY_POLL;
-		return 0;
 	}
-
-	return phy_enable_interrupts(phydev);
 }
-EXPORT_SYMBOL(phy_start_interrupts);
-
-/**
- * phy_stop_interrupts - disable interrupts from a PHY device
- * @phydev: target phy_device struct
- */
-int phy_stop_interrupts(struct phy_device *phydev)
-{
-	int err = phy_disable_interrupts(phydev);
-
-	if (err)
-		phy_error(phydev);
-
-	free_irq(phydev->irq, phydev);
-
-	return err;
-}
-EXPORT_SYMBOL(phy_stop_interrupts);
+EXPORT_SYMBOL(phy_request_interrupt);
 
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
@@ -842,14 +806,13 @@ EXPORT_SYMBOL(phy_stop_interrupts);
  */
 void phy_stop(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
-
-	if (!__phy_is_started(phydev)) {
+	if (!phy_is_started(phydev)) {
 		WARN(1, "called from state %s\n",
 		     phy_state_to_str(phydev->state));
-		mutex_unlock(&phydev->lock);
 		return;
 	}
+
+	mutex_lock(&phydev->lock);
 
 	if (phy_interrupt_is_valid(phydev))
 		phy_disable_interrupts(phydev);
@@ -859,6 +822,7 @@ void phy_stop(struct phy_device *phydev)
 	mutex_unlock(&phydev->lock);
 
 	phy_state_machine(&phydev->state_queue.work);
+	phy_stop_machine(phydev);
 
 	/* Cannot call flush_scheduled_work() here as desired because
 	 * of rtnl_lock(), but PHY_HALTED shall guarantee irq handler
@@ -879,33 +843,34 @@ EXPORT_SYMBOL(phy_stop);
  */
 void phy_start(struct phy_device *phydev)
 {
-	int err = 0;
+	int err;
 
 	mutex_lock(&phydev->lock);
 
-	switch (phydev->state) {
-	case PHY_READY:
-		phydev->state = PHY_UP;
-		break;
-	case PHY_HALTED:
-		/* if phy was suspended, bring the physical link up again */
-		__phy_resume(phydev);
-
-		/* make sure interrupts are re-enabled for the PHY */
-		if (phy_interrupt_is_valid(phydev)) {
-			err = phy_enable_interrupts(phydev);
-			if (err < 0)
-				break;
-		}
-
-		phydev->state = PHY_RESUMING;
-		break;
-	default:
-		break;
+	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
+		WARN(1, "called from state %s\n",
+		     phy_state_to_str(phydev->state));
+		goto out;
 	}
-	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev);
+	/* if phy was suspended, bring the physical link up again */
+	__phy_resume(phydev);
+
+	/* make sure interrupts are enabled for the PHY */
+	if (phy_interrupt_is_valid(phydev)) {
+		err = phy_enable_interrupts(phydev);
+		if (err < 0)
+			goto out;
+	}
+
+	if (phydev->state == PHY_READY)
+		phydev->state = PHY_UP;
+	else
+		phydev->state = PHY_RESUMING;
+
+	phy_start_machine(phydev);
+out:
+	mutex_unlock(&phydev->lock);
 }
 EXPORT_SYMBOL(phy_start);
 
@@ -939,7 +904,6 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	case PHY_NOLINK:
 	case PHY_RUNNING:
-	case PHY_CHANGELINK:
 	case PHY_RESUMING:
 		err = phy_check_link_status(phydev);
 		break;
@@ -989,8 +953,10 @@ void phy_state_machine(struct work_struct *work)
 	 * state machine would be pointless and possibly error prone when
 	 * called from phy_disconnect() synchronously.
 	 */
+	mutex_lock(&phydev->lock);
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
+	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -1088,17 +1054,12 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		if (!phy_check_valid(phydev->speed, phydev->duplex, common))
 			goto eee_exit_err;
 
-		if (clk_stop_enable) {
+		if (clk_stop_enable)
 			/* Configure the PHY to stop receiving xMII
 			 * clock while it is signaling LPI.
 			 */
-			int val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1);
-			if (val < 0)
-				return val;
-
-			val |= MDIO_PCS_CTRL1_CLKSTOP_EN;
-			phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1, val);
-		}
+			phy_set_bits_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1,
+					 MDIO_PCS_CTRL1_CLKSTOP_EN);
 
 		return 0; /* EEE supported */
 	}

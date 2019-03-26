@@ -114,10 +114,6 @@ int snd_opl4_create_proc(struct snd_opl4 *opl4)
 		entry->c.ops = &snd_opl4_mem_proc_ops;
 		entry->module = THIS_MODULE;
 		entry->private_data = opl4;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
 	opl4->proc_entry = entry;
 	return 0;

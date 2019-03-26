@@ -33,8 +33,8 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "SDA0",
-			  "SCL0",
+	gpio-line-names = "ID_SDA",
+			  "ID_SCL",
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",

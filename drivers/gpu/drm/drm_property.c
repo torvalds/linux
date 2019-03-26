@@ -866,7 +866,7 @@ err:
  * value doesn't become invalid part way through the property update due to
  * race).  The value returned by reference via 'obj' should be passed back
  * to drm_property_change_valid_put() after the property is set (and the
- * object to which the property is attached has a chance to take it's own
+ * object to which the property is attached has a chance to take its own
  * reference).
  */
 bool drm_property_change_valid_get(struct drm_property *property,

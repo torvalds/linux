@@ -214,10 +214,13 @@ retry:
 	/*
 	 * Get IO TLB memory from any location.
 	 */
-	if (early)
+	if (early) {
 		xen_io_tlb_start = memblock_alloc(PAGE_ALIGN(bytes),
 						  PAGE_SIZE);
-	else {
+		if (!xen_io_tlb_start)
+			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+			      __func__, PAGE_ALIGN(bytes), PAGE_SIZE);
+	} else {
 #define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
 		while ((SLABS_PER_PAGE << order) > IO_TLB_MIN_SLABS) {
@@ -645,7 +648,7 @@ xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		     unsigned long attrs)
 {
-#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#ifdef CONFIG_ARM
 	if (xen_get_dma_ops(dev)->mmap)
 		return xen_get_dma_ops(dev)->mmap(dev, vma, cpu_addr,
 						    dma_addr, size, attrs);
@@ -662,7 +665,7 @@ xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 			void *cpu_addr, dma_addr_t handle, size_t size,
 			unsigned long attrs)
 {
-#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#ifdef CONFIG_ARM
 	if (xen_get_dma_ops(dev)->get_sgtable) {
 #if 0
 	/*

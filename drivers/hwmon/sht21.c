@@ -135,9 +135,9 @@ out:
  * Will be called on read access to temp1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht21_show_temperature(struct device *dev,
-	struct device_attribute *attr,
-	char *buf)
+static ssize_t sht21_temperature_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct sht21 *sht21 = dev_get_drvdata(dev);
 	int ret;
@@ -157,9 +157,8 @@ static ssize_t sht21_show_temperature(struct device *dev,
  * Will be called on read access to humidity1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht21_show_humidity(struct device *dev,
-	struct device_attribute *attr,
-	char *buf)
+static ssize_t sht21_humidity_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct sht21 *sht21 = dev_get_drvdata(dev);
 	int ret;
@@ -251,10 +250,8 @@ static ssize_t eic_show(struct device *dev,
 }
 
 /* sysfs attributes */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, sht21_show_temperature,
-	NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO, sht21_show_humidity,
-	NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, sht21_temperature, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, sht21_humidity, 0);
 static DEVICE_ATTR_RO(eic);
 
 static struct attribute *sht21_attrs[] = {

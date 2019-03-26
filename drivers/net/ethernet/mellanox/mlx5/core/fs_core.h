@@ -172,6 +172,7 @@ struct fs_fte {
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 	struct rhash_head		hash;
+	int				modify_mask;
 };
 
 /* Type of children is mlx5_flow_table/namespace */

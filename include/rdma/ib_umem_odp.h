@@ -83,6 +83,19 @@ static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 	return container_of(umem, struct ib_umem_odp, umem);
 }
 
+/*
+ * The lower 2 bits of the DMA address signal the R/W permissions for
+ * the entry. To upgrade the permissions, provide the appropriate
+ * bitmask to the map_dma_pages function.
+ *
+ * Be aware that upgrading a mapped address might result in change of
+ * the DMA address for the page.
+ */
+#define ODP_READ_ALLOWED_BIT  (1<<0ULL)
+#define ODP_WRITE_ALLOWED_BIT (1<<1ULL)
+
+#define ODP_DMA_ADDR_MASK (~(ODP_READ_ALLOWED_BIT | ODP_WRITE_ALLOWED_BIT))
+
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 
 struct ib_ucontext_per_mm {
@@ -103,22 +116,9 @@ struct ib_ucontext_per_mm {
 };
 
 int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access);
-struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
+struct ib_umem_odp *ib_alloc_odp_umem(struct ib_umem_odp *root_umem,
 				      unsigned long addr, size_t size);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp);
-
-/*
- * The lower 2 bits of the DMA address signal the R/W permissions for
- * the entry. To upgrade the permissions, provide the appropriate
- * bitmask to the map_dma_pages function.
- *
- * Be aware that upgrading a mapped address might result in change of
- * the DMA address for the page.
- */
-#define ODP_READ_ALLOWED_BIT  (1<<0ULL)
-#define ODP_WRITE_ALLOWED_BIT (1<<1ULL)
-
-#define ODP_DMA_ADDR_MASK (~(ODP_READ_ALLOWED_BIT | ODP_WRITE_ALLOWED_BIT))
 
 int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 start_offset,
 			      u64 bcnt, u64 access_mask,
@@ -167,12 +167,6 @@ static inline int ib_umem_mmu_notifier_retry(struct ib_umem_odp *umem_odp,
 static inline int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
 {
 	return -EINVAL;
-}
-
-static inline struct ib_umem_odp *
-ib_alloc_odp_umem(struct ib_ucontext *context, unsigned long addr, size_t size)
-{
-	return ERR_PTR(-EINVAL);
 }
 
 static inline void ib_umem_odp_release(struct ib_umem_odp *umem_odp) {}

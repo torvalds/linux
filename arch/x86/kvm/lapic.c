@@ -181,7 +181,8 @@ static void recalculate_apic_map(struct kvm *kvm)
 			max_id = max(max_id, kvm_x2apic_id(vcpu->arch.apic));
 
 	new = kvzalloc(sizeof(struct kvm_apic_map) +
-	                   sizeof(struct kvm_lapic *) * ((u64)max_id + 1), GFP_KERNEL);
+	                   sizeof(struct kvm_lapic *) * ((u64)max_id + 1),
+			   GFP_KERNEL_ACCOUNT);
 
 	if (!new)
 		goto out;
@@ -1035,6 +1036,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	switch (delivery_mode) {
 	case APIC_DM_LOWEST:
 		vcpu->arch.apic_arb_prio++;
+		/* fall through */
 	case APIC_DM_FIXED:
 		if (unlikely(trig_mode && !level))
 			break;
@@ -1874,6 +1876,7 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 
 	case APIC_LVT0:
 		apic_manage_nmi_watchdog(apic, val);
+		/* fall through */
 	case APIC_LVTTHMR:
 	case APIC_LVTPC:
 	case APIC_LVT1:
@@ -2257,13 +2260,13 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	ASSERT(vcpu != NULL);
 	apic_debug("apic_init %d\n", vcpu->vcpu_id);
 
-	apic = kzalloc(sizeof(*apic), GFP_KERNEL);
+	apic = kzalloc(sizeof(*apic), GFP_KERNEL_ACCOUNT);
 	if (!apic)
 		goto nomem;
 
 	vcpu->arch.apic = apic;
 
-	apic->regs = (void *)get_zeroed_page(GFP_KERNEL);
+	apic->regs = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!apic->regs) {
 		printk(KERN_ERR "malloc apic regs error for vcpu %x\n",
 		       vcpu->vcpu_id);

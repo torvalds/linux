@@ -25,6 +25,7 @@
 	compatible = "lacie,ethernet-disk-mini-v2", "marvell,orion5x-88f5182", "marvell,orion5x";
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x4000000>; /* 64 MB */
 	};
 

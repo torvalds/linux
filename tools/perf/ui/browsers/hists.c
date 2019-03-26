@@ -7,10 +7,14 @@
 #include <string.h>
 #include <linux/rbtree.h>
 #include <sys/ttydefaults.h>
+#include <linux/time64.h>
 
+#include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
 #include "../../util/hist.h"
+#include "../../util/map.h"
+#include "../../util/symbol.h"
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/util.h"
@@ -27,6 +31,7 @@
 #include "srcline.h"
 #include "string2.h"
 #include "units.h"
+#include "time-utils.h"
 
 #include "sane_ctype.h"
 
@@ -49,7 +54,7 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 	struct hists *hists = browser->hists;
 	int unfolded_rows = 0;
 
-	for (nd = rb_first(&hists->entries);
+	for (nd = rb_first_cached(&hists->entries);
 	     (nd = hists__filter_entries(nd, browser->min_pcnt)) != NULL;
 	     nd = rb_hierarchy_next(nd)) {
 		struct hist_entry *he =
@@ -267,7 +272,7 @@ static int hierarchy_count_rows(struct hist_browser *hb, struct hist_entry *he,
 	if (he->has_no_entry)
 		return 1;
 
-	node = rb_first(&he->hroot_out);
+	node = rb_first_cached(&he->hroot_out);
 	while (node) {
 		float percent;
 
@@ -372,7 +377,7 @@ static void hist_entry__init_have_children(struct hist_entry *he)
 		he->has_children = !RB_EMPTY_ROOT(&he->sorted_chain);
 		callchain__init_have_children(&he->sorted_chain);
 	} else {
-		he->has_children = !RB_EMPTY_ROOT(&he->hroot_out);
+		he->has_children = !RB_EMPTY_ROOT(&he->hroot_out.rb_root);
 	}
 
 	he->init_have_children = true;
@@ -508,7 +513,7 @@ static int hierarchy_set_folding(struct hist_browser *hb, struct hist_entry *he,
 	struct hist_entry *child;
 	int n = 0;
 
-	for (nd = rb_first(&he->hroot_out); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&he->hroot_out); nd; nd = rb_next(nd)) {
 		child = rb_entry(nd, struct hist_entry, rb_node);
 		percent = hist_entry__get_percent_limit(child);
 		if (!child->filtered && percent >= hb->min_pcnt)
@@ -566,7 +571,7 @@ __hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 	struct rb_node *nd;
 	struct hist_entry *he;
 
-	nd = rb_first(&browser->hists->entries);
+	nd = rb_first_cached(&browser->hists->entries);
 	while (nd) {
 		he = rb_entry(nd, struct hist_entry, rb_node);
 
@@ -1221,6 +1226,8 @@ void hist_browser__init_hpp(void)
 				hist_browser__hpp_color_overhead_guest_us;
 	perf_hpp__format[PERF_HPP__OVERHEAD_ACC].color =
 				hist_browser__hpp_color_overhead_acc;
+
+	res_sample_init();
 }
 
 static int hist_browser__show_entry(struct hist_browser *browser,
@@ -1738,7 +1745,7 @@ static void ui_browser__hists_init_top(struct ui_browser *browser)
 		struct hist_browser *hb;
 
 		hb = container_of(browser, struct hist_browser, b);
-		browser->top = rb_first(&hb->hists->entries);
+		browser->top = rb_first_cached(&hb->hists->entries);
 	}
 }
 
@@ -2335,9 +2342,12 @@ close_file_and_continue:
 }
 
 struct popup_action {
+	unsigned long		time;
 	struct thread 		*thread;
 	struct map_symbol 	ms;
 	int			socket;
+	struct perf_evsel	*evsel;
+	enum rstype		rstype;
 
 	int (*fn)(struct hist_browser *browser, struct popup_action *act);
 };
@@ -2524,42 +2534,133 @@ static int
 do_run_script(struct hist_browser *browser __maybe_unused,
 	      struct popup_action *act)
 {
-	char script_opt[64];
-	memset(script_opt, 0, sizeof(script_opt));
+	char *script_opt;
+	int len;
+	int n = 0;
 
+	len = 100;
+	if (act->thread)
+		len += strlen(thread__comm_str(act->thread));
+	else if (act->ms.sym)
+		len += strlen(act->ms.sym->name);
+	script_opt = malloc(len);
+	if (!script_opt)
+		return -1;
+
+	script_opt[0] = 0;
 	if (act->thread) {
-		scnprintf(script_opt, sizeof(script_opt), " -c %s ",
+		n = scnprintf(script_opt, len, " -c %s ",
 			  thread__comm_str(act->thread));
 	} else if (act->ms.sym) {
-		scnprintf(script_opt, sizeof(script_opt), " -S %s ",
+		n = scnprintf(script_opt, len, " -S %s ",
 			  act->ms.sym->name);
 	}
 
-	script_browse(script_opt);
+	if (act->time) {
+		char start[32], end[32];
+		unsigned long starttime = act->time;
+		unsigned long endtime = act->time + symbol_conf.time_quantum;
+
+		if (starttime == endtime) { /* Display 1ms as fallback */
+			starttime -= 1*NSEC_PER_MSEC;
+			endtime += 1*NSEC_PER_MSEC;
+		}
+		timestamp__scnprintf_usec(starttime, start, sizeof start);
+		timestamp__scnprintf_usec(endtime, end, sizeof end);
+		n += snprintf(script_opt + n, len - n, " --time %s,%s", start, end);
+	}
+
+	script_browse(script_opt, act->evsel);
+	free(script_opt);
 	return 0;
 }
 
 static int
-add_script_opt(struct hist_browser *browser __maybe_unused,
-	       struct popup_action *act, char **optstr,
-	       struct thread *thread, struct symbol *sym)
+do_res_sample_script(struct hist_browser *browser __maybe_unused,
+		     struct popup_action *act)
 {
+	struct hist_entry *he;
+
+	he = hist_browser__selected_entry(browser);
+	res_sample_browse(he->res_samples, he->num_res, act->evsel, act->rstype);
+	return 0;
+}
+
+static int
+add_script_opt_2(struct hist_browser *browser __maybe_unused,
+	       struct popup_action *act, char **optstr,
+	       struct thread *thread, struct symbol *sym,
+	       struct perf_evsel *evsel, const char *tstr)
+{
+
 	if (thread) {
-		if (asprintf(optstr, "Run scripts for samples of thread [%s]",
-			     thread__comm_str(thread)) < 0)
+		if (asprintf(optstr, "Run scripts for samples of thread [%s]%s",
+			     thread__comm_str(thread), tstr) < 0)
 			return 0;
 	} else if (sym) {
-		if (asprintf(optstr, "Run scripts for samples of symbol [%s]",
-			     sym->name) < 0)
+		if (asprintf(optstr, "Run scripts for samples of symbol [%s]%s",
+			     sym->name, tstr) < 0)
 			return 0;
 	} else {
-		if (asprintf(optstr, "Run scripts for all samples") < 0)
+		if (asprintf(optstr, "Run scripts for all samples%s", tstr) < 0)
 			return 0;
 	}
 
 	act->thread = thread;
 	act->ms.sym = sym;
+	act->evsel = evsel;
 	act->fn = do_run_script;
+	return 1;
+}
+
+static int
+add_script_opt(struct hist_browser *browser,
+	       struct popup_action *act, char **optstr,
+	       struct thread *thread, struct symbol *sym,
+	       struct perf_evsel *evsel)
+{
+	int n, j;
+	struct hist_entry *he;
+
+	n = add_script_opt_2(browser, act, optstr, thread, sym, evsel, "");
+
+	he = hist_browser__selected_entry(browser);
+	if (sort_order && strstr(sort_order, "time")) {
+		char tstr[128];
+
+		optstr++;
+		act++;
+		j = sprintf(tstr, " in ");
+		j += timestamp__scnprintf_usec(he->time, tstr + j,
+					       sizeof tstr - j);
+		j += sprintf(tstr + j, "-");
+		timestamp__scnprintf_usec(he->time + symbol_conf.time_quantum,
+				          tstr + j, sizeof tstr - j);
+		n += add_script_opt_2(browser, act, optstr, thread, sym,
+					  evsel, tstr);
+		act->time = he->time;
+	}
+	return n;
+}
+
+static int
+add_res_sample_opt(struct hist_browser *browser __maybe_unused,
+		   struct popup_action *act, char **optstr,
+		   struct res_sample *res_sample,
+		   struct perf_evsel *evsel,
+		   enum rstype type)
+{
+	if (!res_sample)
+		return 0;
+
+	if (asprintf(optstr, "Show context for individual samples %s",
+		type == A_ASM ? "with assembler" :
+		type == A_SOURCE ? "with source" : "") < 0)
+		return 0;
+
+	act->fn = do_res_sample_script;
+	act->evsel = evsel;
+	act->rstype = type;
 	return 1;
 }
 
@@ -2649,7 +2750,7 @@ add_socket_opt(struct hist_browser *browser, struct popup_action *act,
 static void hist_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
-	struct rb_node *nd = rb_first(&hb->hists->entries);
+	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
 
 	if (hb->min_pcnt == 0 && !symbol_conf.report_hierarchy) {
 		hb->nr_non_filtered_entries = hb->hists->nr_non_filtered_entries;
@@ -2669,7 +2770,7 @@ static void hist_browser__update_percent_limit(struct hist_browser *hb,
 					       double percent)
 {
 	struct hist_entry *he;
-	struct rb_node *nd = rb_first(&hb->hists->entries);
+	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
 	u64 total = hists__total_period(hb->hists);
 	u64 min_callchain_hits = total * (percent / 100);
 
@@ -2748,7 +2849,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"S             Zoom into current Processor Socket\n"		\
 
 	/* help messages are sorted by lexical order of the hotkey */
-	const char report_help[] = HIST_BROWSER_HELP_COMMON
+	static const char report_help[] = HIST_BROWSER_HELP_COMMON
 	"i             Show header information\n"
 	"P             Print histograms to perf.hist.N\n"
 	"r             Run available scripts\n"
@@ -2756,7 +2857,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
 	"/             Filter symbol by name";
-	const char top_help[] = HIST_BROWSER_HELP_COMMON
+	static const char top_help[] = HIST_BROWSER_HELP_COMMON
 	"P             Print histograms to perf.hist.N\n"
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
@@ -3028,7 +3129,7 @@ skip_annotation:
 				nr_options += add_script_opt(browser,
 							     &actions[nr_options],
 							     &options[nr_options],
-							     thread, NULL);
+							     thread, NULL, evsel);
 			}
 			/*
 			 * Note that browser->selection != NULL
@@ -3043,11 +3144,24 @@ skip_annotation:
 				nr_options += add_script_opt(browser,
 							     &actions[nr_options],
 							     &options[nr_options],
-							     NULL, browser->selection->sym);
+							     NULL, browser->selection->sym,
+							     evsel);
 			}
 		}
 		nr_options += add_script_opt(browser, &actions[nr_options],
-					     &options[nr_options], NULL, NULL);
+					     &options[nr_options], NULL, NULL, evsel);
+		nr_options += add_res_sample_opt(browser, &actions[nr_options],
+						 &options[nr_options],
+				 hist_browser__selected_entry(browser)->res_samples,
+				 evsel, A_NORMAL);
+		nr_options += add_res_sample_opt(browser, &actions[nr_options],
+						 &options[nr_options],
+				 hist_browser__selected_entry(browser)->res_samples,
+				 evsel, A_ASM);
+		nr_options += add_res_sample_opt(browser, &actions[nr_options],
+						 &options[nr_options],
+				 hist_browser__selected_entry(browser)->res_samples,
+				 evsel, A_SOURCE);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
 skip_scripting:

@@ -301,17 +301,17 @@ static enum bp_result set_pixel_clock_v7(
 			cmd_helper->encoder_mode_bp_to_atom(
 				bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
-		clk.pixclk_100hz = cpu_to_le32(bp_params->target_pixel_clock *
-				10);
+		clk.pixclk_100hz = cpu_to_le32(bp_params->target_pixel_clock_100hz);
 
 		clk.deep_color_ratio =
 			(uint8_t) bp->cmd_helper->
 				transmitter_color_depth_to_atom(
 					bp_params->color_depth);
-		DC_LOG_BIOS("%s:program display clock = %d"\
-				"colorDepth = %d\n", __func__,\
-				bp_params->target_pixel_clock, bp_params->color_depth);
+
+		DC_LOG_BIOS("%s:program display clock = %d, tg = %d, pll = %d, "\
+				"colorDepth = %d\n", __func__,
+				bp_params->target_pixel_clock_100hz, (int)controller_id,
+				pll_id, bp_params->color_depth);
 
 		if (bp_params->flags.FORCE_PROGRAMMING_OF_PLL)
 			clk.miscinfo |= PIXEL_CLOCK_V7_MISC_FORCE_PROG_PPLL;
@@ -455,75 +455,6 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 					0x100); /* ATOM_DOUBLE_CLOCK_MODE */
 
 	if (EXEC_BIOS_CMD_TABLE(setcrtc_usingdtdtiming, params))
-		result = BP_RESULT_OK;
-
-	return result;
-}
-
-/******************************************************************************
- ******************************************************************************
- **
- **                  SELECT CRTC SOURCE
- **
- ******************************************************************************
- *****************************************************************************/
-
-
-static enum bp_result select_crtc_source_v3(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params);
-
-static void init_select_crtc_source(struct bios_parser *bp)
-{
-	switch (BIOS_CMD_TABLE_PARA_REVISION(selectcrtc_source)) {
-	case 3:
-		bp->cmd_tbl.select_crtc_source = select_crtc_source_v3;
-		break;
-	default:
-		dm_output_to_console("Don't select_crtc_source enable_crtc for v%d\n",
-			 BIOS_CMD_TABLE_PARA_REVISION(selectcrtc_source));
-		bp->cmd_tbl.select_crtc_source = NULL;
-		break;
-	}
-}
-
-
-static enum bp_result select_crtc_source_v3(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params)
-{
-	bool result = BP_RESULT_FAILURE;
-	struct select_crtc_source_parameters_v2_3 params;
-	uint8_t atom_controller_id;
-	uint32_t atom_engine_id;
-	enum signal_type s = bp_params->signal;
-
-	memset(&params, 0, sizeof(params));
-
-	if (bp->cmd_helper->controller_id_to_atom(bp_params->controller_id,
-			&atom_controller_id))
-		params.crtc_id = atom_controller_id;
-	else
-		return result;
-
-	if (bp->cmd_helper->engine_bp_to_atom(bp_params->engine_id,
-			&atom_engine_id))
-		params.encoder_id = (uint8_t)atom_engine_id;
-	else
-		return result;
-
-	if (s == SIGNAL_TYPE_EDP ||
-		(s == SIGNAL_TYPE_DISPLAY_PORT && bp_params->sink_signal ==
-							SIGNAL_TYPE_LVDS))
-		s = SIGNAL_TYPE_LVDS;
-
-	params.encode_mode =
-			bp->cmd_helper->encoder_mode_bp_to_atom(
-					s, bp_params->enable_dp_audio);
-	/* Needed for VBIOS Random Spatial Dithering feature */
-	params.dst_bpc = (uint8_t)(bp_params->display_output_bit_depth);
-
-	if (EXEC_BIOS_CMD_TABLE(selectcrtc_source, params))
 		result = BP_RESULT_OK;
 
 	return result;
@@ -808,7 +739,6 @@ void dal_firmware_parser_init_cmd_tbl(struct bios_parser *bp)
 
 	init_set_crtc_timing(bp);
 
-	init_select_crtc_source(bp);
 	init_enable_crtc(bp);
 
 	init_external_encoder_control(bp);

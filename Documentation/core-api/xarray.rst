@@ -85,7 +85,7 @@ which was at that index; if it returns the same entry which was passed as
 
 If you want to only store a new entry to an index if the current entry
 at that index is ``NULL``, you can use :c:func:`xa_insert` which
-returns ``-EEXIST`` if the entry is not empty.
+returns ``-EBUSY`` if the entry is not empty.
 
 You can enquire whether a mark is set on an entry by using
 :c:func:`xa_get_mark`.  If the entry is not ``NULL``, you can set a mark
@@ -108,12 +108,13 @@ some, but not all of the other indices changing.
 
 Sometimes you need to ensure that a subsequent call to :c:func:`xa_store`
 will not need to allocate memory.  The :c:func:`xa_reserve` function
-will store a reserved entry at the indicated index.  Users of the normal
-API will see this entry as containing ``NULL``.  If you do not need to
-use the reserved entry, you can call :c:func:`xa_release` to remove the
-unused entry.  If another user has stored to the entry in the meantime,
-:c:func:`xa_release` will do nothing; if instead you want the entry to
-become ``NULL``, you should use :c:func:`xa_erase`.
+will store a reserved entry at the indicated index.  Users of the
+normal API will see this entry as containing ``NULL``.  If you do
+not need to use the reserved entry, you can call :c:func:`xa_release`
+to remove the unused entry.  If another user has stored to the entry
+in the meantime, :c:func:`xa_release` will do nothing; if instead you
+want the entry to become ``NULL``, you should use :c:func:`xa_erase`.
+Using :c:func:`xa_insert` on a reserved entry will fail.
 
 If all entries in the array are ``NULL``, the :c:func:`xa_empty` function
 will return ``true``.
@@ -130,16 +131,22 @@ If you use :c:func:`DEFINE_XARRAY_ALLOC` to define the XArray, or
 initialise it by passing ``XA_FLAGS_ALLOC`` to :c:func:`xa_init_flags`,
 the XArray changes to track whether entries are in use or not.
 
-You can call :c:func:`xa_alloc` to store the entry at any unused index
+You can call :c:func:`xa_alloc` to store the entry at an unused index
 in the XArray.  If you need to modify the array from interrupt context,
 you can use :c:func:`xa_alloc_bh` or :c:func:`xa_alloc_irq` to disable
 interrupts while allocating the ID.
 
-Using :c:func:`xa_store`, :c:func:`xa_cmpxchg` or :c:func:`xa_insert`
-will mark the entry as being allocated.  Unlike a normal XArray, storing
+Using :c:func:`xa_store`, :c:func:`xa_cmpxchg` or :c:func:`xa_insert` will
+also mark the entry as being allocated.  Unlike a normal XArray, storing
 ``NULL`` will mark the entry as being in use, like :c:func:`xa_reserve`.
 To free an entry, use :c:func:`xa_erase` (or :c:func:`xa_release` if
 you only want to free the entry if it's ``NULL``).
+
+By default, the lowest free entry is allocated starting from 0.  If you
+want to allocate entries starting at 1, it is more efficient to use
+:c:func:`DEFINE_XARRAY_ALLOC1` or ``XA_FLAGS_ALLOC1``.  If you want to
+allocate IDs up to a maximum, then wrap back around to the lowest free
+ID, you can use :c:func:`xa_alloc_cyclic`.
 
 You cannot use ``XA_MARK_0`` with an allocating XArray as this mark
 is used to track whether an entry is free or not.  The other marks are
@@ -183,6 +190,8 @@ Takes xa_lock internally:
  * :c:func:`xa_store_bh`
  * :c:func:`xa_store_irq`
  * :c:func:`xa_insert`
+ * :c:func:`xa_insert_bh`
+ * :c:func:`xa_insert_irq`
  * :c:func:`xa_erase`
  * :c:func:`xa_erase_bh`
  * :c:func:`xa_erase_irq`
@@ -206,7 +215,6 @@ Assumes xa_lock held on entry:
  * :c:func:`__xa_erase`
  * :c:func:`__xa_cmpxchg`
  * :c:func:`__xa_alloc`
- * :c:func:`__xa_reserve`
  * :c:func:`__xa_set_mark`
  * :c:func:`__xa_clear_mark`
 
