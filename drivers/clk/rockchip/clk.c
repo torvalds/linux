@@ -733,6 +733,21 @@ void rockchip_clk_protect_critical(const char *const clocks[],
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_protect_critical);
 
+void (*rk_dump_cru)(void);
+EXPORT_SYMBOL(rk_dump_cru);
+
+static int rk_clk_panic(struct notifier_block *this,
+			unsigned long ev, void *ptr)
+{
+	if (rk_dump_cru)
+		rk_dump_cru();
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rk_clk_panic_block = {
+	.notifier_call = rk_clk_panic,
+};
+
 static void __iomem *rst_base;
 static unsigned int reg_restart;
 static void (*cb_restart)(void);
@@ -765,5 +780,7 @@ rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 	if (ret)
 		pr_err("%s: cannot register restart handler, %d\n",
 		       __func__, ret);
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &rk_clk_panic_block);
 }
 EXPORT_SYMBOL_GPL(rockchip_register_restart_notifier);

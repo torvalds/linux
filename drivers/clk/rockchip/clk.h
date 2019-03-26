@@ -1037,5 +1037,6 @@ static inline void rockchip_register_softrst(struct device_node *np,
 {
 }
 #endif
+extern void (*rk_dump_cru)(void);
 
 #endif
