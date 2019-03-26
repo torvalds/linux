@@ -548,4 +548,19 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 #define TRACE_EVENT_PERF_PERM(event, expr...)
 
+#define DECLARE_EVENT_NOP(name, proto, args)				\
+	static inline void trace_##name(proto)				\
+	{ }								\
+	static inline bool trace_##name##_enabled(void)			\
+	{								\
+		return false;						\
+	}
+
+#define TRACE_EVENT_NOP(name, proto, args, struct, assign, print)	\
+	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
+
+#define DECLARE_EVENT_CLASS_NOP(name, proto, args, tstruct, assign, print)
+#define DEFINE_EVENT_NOP(template, name, proto, args)			\
+	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
+
 #endif /* ifdef TRACE_EVENT (see note above) */
