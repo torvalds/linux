@@ -113,6 +113,8 @@ struct qedf_ioreq {
 #define QEDF_CMD_IN_ABORT		0x1
 #define QEDF_CMD_IN_CLEANUP		0x2
 #define QEDF_CMD_SRR_SENT		0x3
+#define QEDF_CMD_DIRTY			0x4
+#define QEDF_CMD_ERR_SCSI_DONE		0x5
 	u8 io_req_flags;
 	uint8_t tm_flags;
 	struct qedf_rport *fcport;
@@ -129,6 +131,7 @@ struct qedf_ioreq {
 	struct fcoe_task_params *task_params;
 	struct scsi_sgl_task_params *sgl_task_params;
 	int idx;
+	int lun;
 /*
  * Need to allocate enough room for both sense data and FCP response data
  * which has a max length of 8 bytes according to spec.
@@ -168,6 +171,8 @@ struct qedf_ioreq {
 	 * during some form of error processing.
 	 */
 	bool return_scsi_cmd_on_abts;
+
+	unsigned int alloc;
 };
 
 extern struct workqueue_struct *qedf_io_wq;
@@ -187,6 +192,7 @@ struct qedf_rport {
 	void __iomem *p_doorbell;
 	/* Send queue management */
 	atomic_t free_sqes;
+	atomic_t ios_to_queue;
 	atomic_t num_active_ios;
 	struct fcoe_wqe *sq;
 	dma_addr_t sq_dma;

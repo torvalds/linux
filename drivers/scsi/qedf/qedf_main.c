@@ -1370,10 +1370,12 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 		fcport = (struct qedf_rport *)&rp[1];
 
 		/* Only free this fcport if it is offloaded already */
-		if (test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-			set_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags);
+		if (test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) &&
+		    !test_bit(QEDF_RPORT_UPLOADING_CONNECTION,
+		    &fcport->flags)) {
+			set_bit(QEDF_RPORT_UPLOADING_CONNECTION,
+				&fcport->flags);
 			qedf_cleanup_fcport(qedf, fcport);
-
 			/*
 			 * Remove fcport to list of qedf_ctx list of offloaded
 			 * ports
