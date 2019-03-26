@@ -1067,9 +1067,9 @@ static unsigned int clientid_hashval(u32 id)
 	return id & CLIENT_HASH_MASK;
 }
 
-static unsigned int clientstr_hashval(const char *name)
+static unsigned int clientstr_hashval(struct xdr_netobj name)
 {
-	return opaque_hashval(name, 8) & CLIENT_HASH_MASK;
+	return opaque_hashval(name.data, 8) & CLIENT_HASH_MASK;
 }
 
 /*
@@ -2046,11 +2046,6 @@ compare_blob(const struct xdr_netobj *o1, const struct xdr_netobj *o2)
 	if (o1->len > o2->len)
 		return 1;
 	return memcmp(o1->data, o2->data, o1->len);
-}
-
-static int same_name(const char *n1, const char *n2)
-{
-	return 0 == memcmp(n1, n2, HEXDIR_LEN);
 }
 
 static int
@@ -6457,7 +6452,7 @@ alloc_reclaim(void)
 }
 
 bool
-nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn)
+nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn)
 {
 	struct nfs4_client_reclaim *crp;
 
@@ -6467,20 +6462,24 @@ nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn)
 
 /*
  * failure => all reset bets are off, nfserr_no_grace...
+ *
+ * The caller is responsible for freeing name.data if NULL is returned (it
+ * will be freed in nfs4_remove_reclaim_record in the normal case).
  */
 struct nfs4_client_reclaim *
-nfs4_client_to_reclaim(const char *name, struct nfsd_net *nn)
+nfs4_client_to_reclaim(struct xdr_netobj name, struct nfsd_net *nn)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp;
 
-	dprintk("NFSD nfs4_client_to_reclaim NAME: %.*s\n", HEXDIR_LEN, name);
+	dprintk("NFSD nfs4_client_to_reclaim NAME: %.*s\n", name.len, name.data);
 	crp = alloc_reclaim();
 	if (crp) {
 		strhashval = clientstr_hashval(name);
 		INIT_LIST_HEAD(&crp->cr_strhash);
 		list_add(&crp->cr_strhash, &nn->reclaim_str_hashtbl[strhashval]);
-		memcpy(crp->cr_recdir, name, HEXDIR_LEN);
+		crp->cr_name.data = name.data;
+		crp->cr_name.len = name.len;
 		crp->cr_clp = NULL;
 		nn->reclaim_str_hashtbl_size++;
 	}
@@ -6491,6 +6490,7 @@ void
 nfs4_remove_reclaim_record(struct nfs4_client_reclaim *crp, struct nfsd_net *nn)
 {
 	list_del(&crp->cr_strhash);
+	kfree(crp->cr_name.data);
 	kfree(crp);
 	nn->reclaim_str_hashtbl_size--;
 }
@@ -6514,16 +6514,16 @@ nfs4_release_reclaim(struct nfsd_net *nn)
 /*
  * called from OPEN, CLAIM_PREVIOUS with a new clientid. */
 struct nfs4_client_reclaim *
-nfsd4_find_reclaim_client(const char *recdir, struct nfsd_net *nn)
+nfsd4_find_reclaim_client(struct xdr_netobj name, struct nfsd_net *nn)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp = NULL;
 
-	dprintk("NFSD: nfs4_find_reclaim_client for recdir %s\n", recdir);
+	dprintk("NFSD: nfs4_find_reclaim_client for name %.*s\n", name.len, name.data);
 
-	strhashval = clientstr_hashval(recdir);
+	strhashval = clientstr_hashval(name);
 	list_for_each_entry(crp, &nn->reclaim_str_hashtbl[strhashval], cr_strhash) {
-		if (same_name(crp->cr_recdir, recdir)) {
+		if (compare_blob(&crp->cr_name, &name) == 0) {
 			return crp;
 		}
 	}

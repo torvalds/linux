@@ -170,12 +170,33 @@ legacy_recdir_name_error(struct nfs4_client *clp, int error)
 }
 
 static void
+__nfsd4_create_reclaim_record_grace(struct nfs4_client *clp,
+		const char *dname, int len, struct nfsd_net *nn)
+{
+	struct xdr_netobj name;
+	struct nfs4_client_reclaim *crp;
+
+	name.data = kmemdup(dname, len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		return;
+	}
+	name.len = len;
+	crp = nfs4_client_to_reclaim(name, nn);
+	if (!crp) {
+		kfree(name.data);
+		return;
+	}
+	crp->cr_clp = clp;
+}
+
+static void
 nfsd4_create_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
 	char dname[HEXDIR_LEN];
 	struct dentry *dir, *dentry;
-	struct nfs4_client_reclaim *crp;
 	int status;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
@@ -221,11 +242,9 @@ out_put:
 out_unlock:
 	inode_unlock(d_inode(dir));
 	if (status == 0) {
-		if (nn->in_grace) {
-			crp = nfs4_client_to_reclaim(dname, nn);
-			if (crp)
-				crp->cr_clp = clp;
-		}
+		if (nn->in_grace)
+			__nfsd4_create_reclaim_record_grace(clp, dname,
+					HEXDIR_LEN, nn);
 		vfs_fsync(nn->rec_file, 0);
 	} else {
 		printk(KERN_ERR "NFSD: failed to write recovery record"
@@ -346,10 +365,29 @@ out_unlock:
 }
 
 static void
+__nfsd4_remove_reclaim_record_grace(const char *dname, int len,
+		struct nfsd_net *nn)
+{
+	struct xdr_netobj name;
+	struct nfs4_client_reclaim *crp;
+
+	name.data = kmemdup(dname, len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		return;
+	}
+	name.len = len;
+	crp = nfsd4_find_reclaim_client(name, nn);
+	kfree(name.data);
+	if (crp)
+		nfs4_remove_reclaim_record(crp, nn);
+}
+
+static void
 nfsd4_remove_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
-	struct nfs4_client_reclaim *crp;
 	char dname[HEXDIR_LEN];
 	int status;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
@@ -374,12 +412,9 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	nfs4_reset_creds(original_cred);
 	if (status == 0) {
 		vfs_fsync(nn->rec_file, 0);
-		if (nn->in_grace) {
-			/* remove reclaim record */
-			crp = nfsd4_find_reclaim_client(dname, nn);
-			if (crp)
-				nfs4_remove_reclaim_record(crp, nn);
-		}
+		if (nn->in_grace)
+			__nfsd4_remove_reclaim_record_grace(dname,
+					HEXDIR_LEN, nn);
 	}
 out_drop_write:
 	mnt_drop_write_file(nn->rec_file);
@@ -393,14 +428,31 @@ static int
 purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	int status;
+	struct xdr_netobj name;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name, nn))
+	if (child->d_name.len != HEXDIR_LEN - 1) {
+		printk("%s: illegal name %pd in recovery directory\n",
+				__func__, child);
+		/* Keep trying; maybe the others are OK: */
 		return 0;
+	}
+	name.data = kmemdup_nul(child->d_name.name, child->d_name.len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		goto out;
+	}
+	name.len = HEXDIR_LEN;
+	if (nfs4_has_reclaimed_state(name, nn))
+		goto out_free;
 
 	status = vfs_rmdir(d_inode(parent), child);
 	if (status)
 		printk("failed to remove client recovery directory %pd\n",
 				child);
+out_free:
+	kfree(name.data);
+out:
 	/* Keep trying, success or failure: */
 	return 0;
 }
@@ -430,13 +482,24 @@ out:
 static int
 load_recdir(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
+	struct xdr_netobj name;
+
 	if (child->d_name.len != HEXDIR_LEN - 1) {
-		printk("nfsd4: illegal name %pd in recovery directory\n",
-				child);
+		printk("%s: illegal name %pd in recovery directory\n",
+				__func__, child);
 		/* Keep trying; maybe the others are OK: */
 		return 0;
 	}
-	nfs4_client_to_reclaim(child->d_name.name, nn);
+	name.data = kmemdup_nul(child->d_name.name, child->d_name.len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		goto out;
+	}
+	name.len = HEXDIR_LEN;
+	if (!nfs4_client_to_reclaim(name, nn))
+		kfree(name.data);
+out:
 	return 0;
 }
 
@@ -616,6 +679,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	char dname[HEXDIR_LEN];
 	struct nfs4_client_reclaim *crp;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct xdr_netobj name;
 
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -628,13 +692,22 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	}
 
 	/* look for it in the reclaim hashtable otherwise */
-	crp = nfsd4_find_reclaim_client(dname, nn);
+	name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		goto out_enoent;
+	}
+	name.len = HEXDIR_LEN;
+	crp = nfsd4_find_reclaim_client(name, nn);
+	kfree(name.data);
 	if (crp) {
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 		crp->cr_clp = clp;
 		return 0;
 	}
 
+out_enoent:
 	return -ENOENT;
 }
 
