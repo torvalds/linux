@@ -684,6 +684,18 @@ static const char *const rk3228_critical_clocks[] __initconst = {
 	"hclk_rkvdec_noc",
 };
 
+static void __iomem *rk3228_cru_base;
+
+static void rk3228_dump_cru(void)
+{
+	if (rk3228_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3228_cru_base,
+			       0x1f8, false);
+	}
+}
+
 static void __init rk3228_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -721,5 +733,10 @@ static void __init rk3228_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RK3228_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru) {
+		rk3228_cru_base = reg_base;
+		rk_dump_cru = rk3228_dump_cru;
+	}
 }
 CLK_OF_DECLARE(rk3228_cru, "rockchip,rk3228-cru", rk3228_clk_init);
