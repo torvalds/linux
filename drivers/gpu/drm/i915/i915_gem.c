@@ -622,14 +622,15 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 static int
 i915_gem_create(struct drm_file *file,
 		struct drm_i915_private *dev_priv,
-		u64 size,
+		u64 *size_p,
 		u32 *handle_p)
 {
 	struct drm_i915_gem_object *obj;
-	int ret;
 	u32 handle;
+	u64 size;
+	int ret;
 
-	size = roundup(size, PAGE_SIZE);
+	size = round_up(*size_p, PAGE_SIZE);
 	if (size == 0)
 		return -EINVAL;
 
@@ -645,6 +646,7 @@ i915_gem_create(struct drm_file *file,
 		return ret;
 
 	*handle_p = handle;
+	*size_p = obj->base.size;
 	return 0;
 }
 
@@ -657,7 +659,7 @@ i915_gem_dumb_create(struct drm_file *file,
 	args->pitch = ALIGN(args->width * DIV_ROUND_UP(args->bpp, 8), 64);
 	args->size = args->pitch * args->height;
 	return i915_gem_create(file, to_i915(dev),
-			       args->size, &args->handle);
+			       &args->size, &args->handle);
 }
 
 static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
@@ -682,7 +684,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	i915_gem_flush_free_objects(dev_priv);
 
 	return i915_gem_create(file, dev_priv,
-			       args->size, &args->handle);
+			       &args->size, &args->handle);
 }
 
 static inline enum fb_op_origin
