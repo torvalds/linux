@@ -899,6 +899,18 @@ static const char *const rk3368_critical_clocks[] __initconst = {
 	"aclk_dmac_bus",
 };
 
+static void __iomem *rk3368_cru_base;
+
+static void rk3368_dump_cru(void)
+{
+	if (rk3368_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3368_cru_base,
+			       0x41c, false);
+	}
+}
+
 static void __init rk3368_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -950,5 +962,10 @@ static void __init rk3368_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RK3368_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru) {
+		rk3368_cru_base = reg_base;
+		rk_dump_cru = rk3368_dump_cru;
+	}
 }
 CLK_OF_DECLARE(rk3368_cru, "rockchip,rk3368-cru", rk3368_clk_init);
