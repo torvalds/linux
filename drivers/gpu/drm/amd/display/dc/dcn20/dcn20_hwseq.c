@@ -1255,7 +1255,7 @@ static void dcn20_pipe_control_lock(
 	if (lock && pipe->bottom_pipe != NULL)
 		if ((flip_immediate && pipe->stream_res.gsl_group == 0) ||
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
-			dcn20_setup_gsl_group_as_lock(dc, pipe);
+			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
 
 	if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
 		if (lock)
@@ -1890,14 +1890,15 @@ static int find_free_gsl_group(const struct dc *dc)
  */
 void dcn20_setup_gsl_group_as_lock(
 		const struct dc *dc,
-		struct pipe_ctx *pipe_ctx)
+		struct pipe_ctx *pipe_ctx,
+		bool flip_immediate)
 {
 	struct gsl_params gsl;
 	int group_idx;
 
 	memset(&gsl, 0, sizeof(struct gsl_params));
 
-	if (pipe_ctx->plane_state->flip_immediate) {
+	if (flip_immediate) {
 		/* return if group already assigned since GSL was set up
 		 * for vsync flip, we would unassign so it can't be "left over"
 		 */
@@ -1964,7 +1965,7 @@ void dcn20_setup_gsl_group_as_lock(
 
 		pipe_ctx->stream_res.tg->funcs->set_gsl_source_select(
 			pipe_ctx->stream_res.tg, group_idx,
-			pipe_ctx->plane_state->flip_immediate ? 4 : 0);
+			flip_immediate ? 4 : 0);
 	} else
 		BREAK_TO_DEBUGGER();
 }
