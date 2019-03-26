@@ -282,8 +282,17 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		if (!rx_buf->page)
 			continue;
 
-		dma_unmap_page(dev, rx_buf->dma, PAGE_SIZE, DMA_FROM_DEVICE);
-		__free_pages(rx_buf->page, 0);
+		/* Invalidate cache lines that may have been written to by
+		 * device so that we avoid corrupting memory.
+		 */
+		dma_sync_single_range_for_cpu(dev, rx_buf->dma,
+					      rx_buf->page_offset,
+					      ICE_RXBUF_2048, DMA_FROM_DEVICE);
+
+		/* free resources associated with mapping */
+		dma_unmap_page_attrs(dev, rx_buf->dma, PAGE_SIZE,
+				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
+		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 
 		rx_buf->page = NULL;
 		rx_buf->page_offset = 0;
@@ -409,7 +418,8 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 	}
 
 	/* map page for use */
-	dma = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0, PAGE_SIZE,
+				 DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
 
 	/* if mapping failed free memory back to system since
 	 * there isn't much point in holding memory we can't use
@@ -423,6 +433,8 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 	bi->dma = dma;
 	bi->page = page;
 	bi->page_offset = 0;
+	page_ref_add(page, USHRT_MAX - 1);
+	bi->pagecnt_bias = USHRT_MAX;
 
 	return true;
 }
@@ -451,6 +463,12 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 	do {
 		if (!ice_alloc_mapped_page(rx_ring, bi))
 			goto no_bufs;
+
+		/* sync the buffer for use by the device */
+		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
+						 bi->page_offset,
+						 ICE_RXBUF_2048,
+						 DMA_FROM_DEVICE);
 
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
@@ -497,61 +515,43 @@ static bool ice_page_is_reserved(struct page *page)
 }
 
 /**
- * ice_add_rx_frag - Add contents of Rx buffer to sk_buff
- * @rx_buf: buffer containing page to add
- * @rx_desc: descriptor containing length of buffer written by hardware
- * @skb: sk_buf to place the data into
+ * ice_rx_buf_adjust_pg_offset - Prepare Rx buffer for reuse
+ * @rx_buf: Rx buffer to adjust
+ * @size: Size of adjustment
  *
- * This function will add the data contained in rx_buf->page to the skb.
- * This is done either through a direct copy if the data in the buffer is
- * less than the skb header size, otherwise it will just attach the page as
- * a frag to the skb.
- *
- * The function will then update the page offset if necessary and return
- * true if the buffer can be reused by the adapter.
+ * Update the offset within page so that Rx buf will be ready to be reused.
+ * For systems with PAGE_SIZE < 8192 this function will flip the page offset
+ * so the second half of page assigned to Rx buffer will be used, otherwise
+ * the offset is moved by the @size bytes
  */
-static bool
-ice_add_rx_frag(struct ice_rx_buf *rx_buf, union ice_32b_rx_flex_desc *rx_desc,
-		struct sk_buff *skb)
+static void
+ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
 {
 #if (PAGE_SIZE < 8192)
-	unsigned int truesize = ICE_RXBUF_2048;
+	/* flip page offset to other buffer */
+	rx_buf->page_offset ^= size;
 #else
-	unsigned int last_offset = PAGE_SIZE - ICE_RXBUF_2048;
-	unsigned int truesize;
-#endif /* PAGE_SIZE < 8192) */
+	/* move offset up to the next cache line */
+	rx_buf->page_offset += size;
+#endif
+}
 
-	struct page *page;
-	unsigned int size;
-
-	size = le16_to_cpu(rx_desc->wb.pkt_len) &
-		ICE_RX_FLX_DESC_PKT_LEN_M;
-
-	page = rx_buf->page;
-
+/**
+ * ice_can_reuse_rx_page - Determine if page can be reused for another Rx
+ * @rx_buf: buffer containing the page
+ *
+ * If page is reusable, we have a green light for calling ice_reuse_rx_page,
+ * which will assign the current buffer to the buffer that next_to_alloc is
+ * pointing to; otherwise, the DMA mapping needs to be destroyed and
+ * page freed
+ */
+static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
+{
 #if (PAGE_SIZE >= 8192)
-	truesize = ALIGN(size, L1_CACHE_BYTES);
-#endif /* PAGE_SIZE >= 8192) */
-
-	/* will the data fit in the skb we allocated? if so, just
-	 * copy it as it is pretty small anyway
-	 */
-	if (size <= ICE_RX_HDR_SIZE && !skb_is_nonlinear(skb)) {
-		unsigned char *va = page_address(page) + rx_buf->page_offset;
-
-		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
-
-		/* page is not reserved, we can reuse buffer as-is */
-		if (likely(!ice_page_is_reserved(page)))
-			return true;
-
-		/* this page cannot be reused so discard it */
-		__free_pages(page, 0);
-		return false;
-	}
-
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buf->page_offset, size, truesize);
+	unsigned int last_offset = PAGE_SIZE - ICE_RXBUF_2048;
+#endif
+	unsigned int pagecnt_bias = rx_buf->pagecnt_bias;
+	struct page *page = rx_buf->page;
 
 	/* avoid re-using remote pages */
 	if (unlikely(ice_page_is_reserved(page)))
@@ -559,25 +559,50 @@ ice_add_rx_frag(struct ice_rx_buf *rx_buf, union ice_32b_rx_flex_desc *rx_desc,
 
 #if (PAGE_SIZE < 8192)
 	/* if we are only owner of page we can reuse it */
-	if (unlikely(page_count(page) != 1))
+	if (unlikely((page_count(page) - pagecnt_bias) > 1))
 		return false;
-
-	/* flip page offset to other buffer */
-	rx_buf->page_offset ^= truesize;
 #else
-	/* move offset up to the next cache line */
-	rx_buf->page_offset += truesize;
-
 	if (rx_buf->page_offset > last_offset)
 		return false;
 #endif /* PAGE_SIZE < 8192) */
 
-	/* Even if we own the page, we are not allowed to use atomic_set()
-	 * This would break get_page_unless_zero() users.
+	/* If we have drained the page fragment pool we need to update
+	 * the pagecnt_bias and page count so that we fully restock the
+	 * number of references the driver holds.
 	 */
-	get_page(rx_buf->page);
+	if (unlikely(pagecnt_bias == 1)) {
+		page_ref_add(page, USHRT_MAX - 1);
+		rx_buf->pagecnt_bias = USHRT_MAX;
+	}
 
 	return true;
+}
+
+/**
+ * ice_add_rx_frag - Add contents of Rx buffer to sk_buff as a frag
+ * @rx_buf: buffer containing page to add
+ * @skb: sk_buff to place the data into
+ * @size: packet length from rx_desc
+ *
+ * This function will add the data contained in rx_buf->page to the skb.
+ * It will just attach the page as a frag to the skb.
+ * The function will then update the page offset.
+ */
+static void
+ice_add_rx_frag(struct ice_rx_buf *rx_buf, struct sk_buff *skb,
+		unsigned int size)
+{
+#if (PAGE_SIZE >= 8192)
+	unsigned int truesize = SKB_DATA_ALIGN(size);
+#else
+	unsigned int truesize = ICE_RXBUF_2048;
+#endif
+
+	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buf->page,
+			rx_buf->page_offset, size, truesize);
+
+	/* page is being used so we must update the page offset */
+	ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
 }
 
 /**
@@ -599,121 +624,132 @@ ice_reuse_rx_page(struct ice_ring *rx_ring, struct ice_rx_buf *old_buf)
 	nta++;
 	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
 
-	/* transfer page from old buffer to new buffer */
-	*new_buf = *old_buf;
+	/* Transfer page from old buffer to new buffer.
+	 * Move each member individually to avoid possible store
+	 * forwarding stalls and unnecessary copy of skb.
+	 */
+	new_buf->dma = old_buf->dma;
+	new_buf->page = old_buf->page;
+	new_buf->page_offset = old_buf->page_offset;
+	new_buf->pagecnt_bias = old_buf->pagecnt_bias;
 }
 
 /**
- * ice_fetch_rx_buf - Allocate skb and populate it
+ * ice_get_rx_buf - Fetch Rx buffer and synchronize data for use
  * @rx_ring: Rx descriptor ring to transact packets on
- * @rx_desc: descriptor containing info written by hardware
+ * @skb: skb to be used
+ * @size: size of buffer to add to skb
  *
- * This function allocates an skb on the fly, and populates it with the page
- * data from the current receive descriptor, taking care to set up the skb
- * correctly, as well as handling calling the page recycle function if
- * necessary.
+ * This function will pull an Rx buffer from the ring and synchronize it
+ * for use by the CPU.
  */
-static struct sk_buff *
-ice_fetch_rx_buf(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc)
+static struct ice_rx_buf *
+ice_get_rx_buf(struct ice_ring *rx_ring, struct sk_buff **skb,
+	       const unsigned int size)
 {
 	struct ice_rx_buf *rx_buf;
-	struct sk_buff *skb;
-	struct page *page;
 
 	rx_buf = &rx_ring->rx_buf[rx_ring->next_to_clean];
-	page = rx_buf->page;
-	prefetchw(page);
+	prefetchw(rx_buf->page);
+	*skb = rx_buf->skb;
 
-	skb = rx_buf->skb;
+	/* we are reusing so sync this buffer for CPU use */
+	dma_sync_single_range_for_cpu(rx_ring->dev, rx_buf->dma,
+				      rx_buf->page_offset, size,
+				      DMA_FROM_DEVICE);
 
-	if (likely(!skb)) {
-		u8 *page_addr = page_address(page) + rx_buf->page_offset;
+	/* We have pulled a buffer for use, so decrement pagecnt_bias */
+	rx_buf->pagecnt_bias--;
 
-		/* prefetch first cache line of first page */
-		prefetch(page_addr);
+	return rx_buf;
+}
+
+/**
+ * ice_construct_skb - Allocate skb and populate it
+ * @rx_ring: Rx descriptor ring to transact packets on
+ * @rx_buf: Rx buffer to pull data from
+ * @size: the length of the packet
+ *
+ * This function allocates an skb. It then populates it with the page
+ * data from the current receive descriptor, taking care to set up the
+ * skb correctly.
+ */
+static struct sk_buff *
+ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+		  unsigned int size)
+{
+	void *va = page_address(rx_buf->page) + rx_buf->page_offset;
+	unsigned int headlen;
+	struct sk_buff *skb;
+
+	/* prefetch first cache line of first page */
+	prefetch(va);
 #if L1_CACHE_BYTES < 128
-		prefetch((void *)(page_addr + L1_CACHE_BYTES));
+	prefetch((u8 *)va + L1_CACHE_BYTES);
 #endif /* L1_CACHE_BYTES */
 
-		/* allocate a skb to store the frags */
-		skb = __napi_alloc_skb(&rx_ring->q_vector->napi,
-				       ICE_RX_HDR_SIZE,
-				       GFP_ATOMIC | __GFP_NOWARN);
-		if (unlikely(!skb)) {
-			rx_ring->rx_stats.alloc_buf_failed++;
-			return NULL;
-		}
+	/* allocate a skb to store the frags */
+	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, ICE_RX_HDR_SIZE,
+			       GFP_ATOMIC | __GFP_NOWARN);
+	if (unlikely(!skb))
+		return NULL;
 
-		/* we will be copying header into skb->data in
-		 * pskb_may_pull so it is in our interest to prefetch
-		 * it now to avoid a possible cache miss
+	skb_record_rx_queue(skb, rx_ring->q_index);
+	/* Determine available headroom for copy */
+	headlen = size;
+	if (headlen > ICE_RX_HDR_SIZE)
+		headlen = eth_get_headlen(va, ICE_RX_HDR_SIZE);
+
+	/* align pull length to size of long to optimize memcpy performance */
+	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
+
+	/* if we exhaust the linear part then add what is left as a frag */
+	size -= headlen;
+	if (size) {
+#if (PAGE_SIZE >= 8192)
+		unsigned int truesize = SKB_DATA_ALIGN(size);
+#else
+		unsigned int truesize = ICE_RXBUF_2048;
+#endif
+		skb_add_rx_frag(skb, 0, rx_buf->page,
+				rx_buf->page_offset + headlen, size, truesize);
+		/* buffer is used by skb, update page_offset */
+		ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
+	} else {
+		/* buffer is unused, reset bias back to rx_buf; data was copied
+		 * onto skb's linear part so there's no need for adjusting
+		 * page offset and we can reuse this buffer as-is
 		 */
-		prefetchw(skb->data);
-
-		skb_record_rx_queue(skb, rx_ring->q_index);
-	} else {
-		/* we are reusing so sync this buffer for CPU use */
-		dma_sync_single_range_for_cpu(rx_ring->dev, rx_buf->dma,
-					      rx_buf->page_offset,
-					      ICE_RXBUF_2048,
-					      DMA_FROM_DEVICE);
-
-		rx_buf->skb = NULL;
+		rx_buf->pagecnt_bias++;
 	}
-
-	/* pull page into skb */
-	if (ice_add_rx_frag(rx_buf, rx_desc, skb)) {
-		/* hand second half of page back to the ring */
-		ice_reuse_rx_page(rx_ring, rx_buf);
-		rx_ring->rx_stats.page_reuse_count++;
-	} else {
-		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page(rx_ring->dev, rx_buf->dma, PAGE_SIZE,
-			       DMA_FROM_DEVICE);
-	}
-
-	/* clear contents of buffer_info */
-	rx_buf->page = NULL;
 
 	return skb;
 }
 
 /**
- * ice_pull_tail - ice specific version of skb_pull_tail
- * @skb: pointer to current skb being adjusted
+ * ice_put_rx_buf - Clean up used buffer and either recycle or free
+ * @rx_ring: Rx descriptor ring to transact packets on
+ * @rx_buf: Rx buffer to pull data from
  *
- * This function is an ice specific version of __pskb_pull_tail. The
- * main difference between this version and the original function is that
- * this function can make several assumptions about the state of things
- * that allow for significant optimizations versus the standard function.
- * As a result we can do things like drop a frag and maintain an accurate
- * truesize for the skb.
+ * This function will  clean up the contents of the rx_buf. It will
+ * either recycle the buffer or unmap it and free the associated resources.
  */
-static void ice_pull_tail(struct sk_buff *skb)
+static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 {
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
-	unsigned int pull_len;
-	unsigned char *va;
+		/* hand second half of page back to the ring */
+	if (ice_can_reuse_rx_page(rx_buf)) {
+		ice_reuse_rx_page(rx_ring, rx_buf);
+		rx_ring->rx_stats.page_reuse_count++;
+	} else {
+		/* we are not reusing the buffer so unmap it */
+		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma, PAGE_SIZE,
+				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
+		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
+	}
 
-	/* it is valid to use page_address instead of kmap since we are
-	 * working with pages allocated out of the lomem pool per
-	 * alloc_page(GFP_ATOMIC)
-	 */
-	va = skb_frag_address(frag);
-
-	/* we need the header to contain the greater of either ETH_HLEN or
-	 * 60 bytes if the skb->len is less than 60 for skb_pad.
-	 */
-	pull_len = eth_get_headlen(va, ICE_RX_HDR_SIZE);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
-
-	/* update all of the pointers */
-	skb_frag_size_sub(frag, pull_len);
-	frag->page_offset += pull_len;
-	skb->data_len -= pull_len;
-	skb->tail += pull_len;
+	/* clear contents of buffer_info */
+	rx_buf->page = NULL;
+	rx_buf->skb = NULL;
 }
 
 /**
@@ -730,10 +766,6 @@ static void ice_pull_tail(struct sk_buff *skb)
  */
 static bool ice_cleanup_headers(struct sk_buff *skb)
 {
-	/* place header in linear portion of buffer */
-	if (skb_is_nonlinear(skb))
-		ice_pull_tail(skb);
-
 	/* if eth_skb_pad returns an error the skb was freed */
 	if (eth_skb_pad(skb))
 		return true;
@@ -963,7 +995,9 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	/* start the loop to process RX packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
 		union ice_32b_rx_flex_desc *rx_desc;
+		struct ice_rx_buf *rx_buf;
 		struct sk_buff *skb;
+		unsigned int size;
 		u16 stat_err_bits;
 		u16 vlan_tag = 0;
 		u8 rx_ptype;
@@ -993,11 +1027,24 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
-		/* allocate (if needed) and populate skb */
-		skb = ice_fetch_rx_buf(rx_ring, rx_desc);
-		if (!skb)
-			break;
+		size = le16_to_cpu(rx_desc->wb.pkt_len) &
+			ICE_RX_FLX_DESC_PKT_LEN_M;
 
+		rx_buf = ice_get_rx_buf(rx_ring, &skb, size);
+		/* allocate (if needed) and populate skb */
+		if (skb)
+			ice_add_rx_frag(rx_buf, skb, size);
+		else
+			skb = ice_construct_skb(rx_ring, rx_buf, size);
+
+		/* exit if we failed to retrieve a buffer */
+		if (!skb) {
+			rx_ring->rx_stats.alloc_buf_failed++;
+			rx_buf->pagecnt_bias++;
+			break;
+		}
+
+		ice_put_rx_buf(rx_ring, rx_buf);
 		cleaned_count++;
 
 		/* skip if it is NOP desc */

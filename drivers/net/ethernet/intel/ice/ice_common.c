@@ -262,7 +262,7 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
  *
  * Get Link Status (0x607). Returns the link status of the adapter.
  */
-static enum ice_status
+enum ice_status
 ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 		     struct ice_link_status *link, struct ice_sq_cd *cd)
 {
@@ -358,22 +358,22 @@ static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
 	 */
 	case ICE_RXDID_FLEX_NIC:
 	case ICE_RXDID_FLEX_NIC_2:
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_PKT_FRG,
-				   ICE_RXFLG_UDP_GRE, ICE_RXFLG_PKT_DSI,
-				   ICE_RXFLG_FIN, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_FRG,
+				   ICE_FLG_UDP_GRE, ICE_FLG_PKT_DSI,
+				   ICE_FLG_FIN, idx++);
 		/* flex flag 1 is not used for flexi-flag programming, skipping
 		 * these four FLG64 bits.
 		 */
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_SYN, ICE_RXFLG_RST,
-				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_PKT_DSI,
-				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_EVLAN_x8100,
-				   ICE_RXFLG_EVLAN_x9100, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_VLAN_x8100,
-				   ICE_RXFLG_TNL_VLAN, ICE_RXFLG_TNL_MAC,
-				   ICE_RXFLG_TNL0, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_TNL1, ICE_RXFLG_TNL2,
-				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_SYN, ICE_FLG_RST,
+				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_DSI,
+				   ICE_FLG_PKT_DSI, ICE_FLG_EVLAN_x8100,
+				   ICE_FLG_EVLAN_x9100, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_VLAN_x8100,
+				   ICE_FLG_TNL_VLAN, ICE_FLG_TNL_MAC,
+				   ICE_FLG_TNL0, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_TNL1, ICE_FLG_TNL2,
+				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx);
 		break;
 
 	default:
@@ -2151,6 +2151,32 @@ ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 }
 
 /**
+ * ice_aq_set_event_mask
+ * @hw: pointer to the HW struct
+ * @port_num: port number of the physical function
+ * @mask: event mask to be set
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set event mask (0x0613)
+ */
+enum ice_status
+ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
+		      struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_event_mask *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_event_mask;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_event_mask);
+
+	cmd->lport_num = port_num;
+
+	cmd->event_mask = cpu_to_le16(mask);
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
  * ice_aq_set_port_id_led
  * @pi: pointer to the port information
  * @is_orig_mode: is this LED set to original mode (by the net-list)
@@ -2923,7 +2949,7 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 
 	mutex_lock(&pi->sched_lock);
 
-	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+	ice_for_each_traffic_class(i) {
 		/* configuration is possible only if TC node is present */
 		if (!ice_sched_get_tc_node(pi, i))
 			continue;

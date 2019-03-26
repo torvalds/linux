@@ -478,8 +478,14 @@ static void ice_reset_subtask(struct ice_pf *pf)
 	 * for the reset now), poll for reset done, rebuild and return.
 	 */
 	if (test_bit(__ICE_RESET_OICR_RECV, pf->state)) {
-		clear_bit(__ICE_GLOBR_RECV, pf->state);
-		clear_bit(__ICE_CORER_RECV, pf->state);
+		/* Perform the largest reset requested */
+		if (test_and_clear_bit(__ICE_CORER_RECV, pf->state))
+			reset_type = ICE_RESET_CORER;
+		if (test_and_clear_bit(__ICE_GLOBR_RECV, pf->state))
+			reset_type = ICE_RESET_GLOBR;
+		/* return if no valid reset type requested */
+		if (reset_type == ICE_RESET_INVAL)
+			return;
 		if (!test_bit(__ICE_PREPARED_FOR_RESET, pf->state))
 			ice_prepare_for_reset(pf);
 
@@ -698,9 +704,6 @@ static void ice_watchdog_subtask(struct ice_pf *pf)
 
 	pf->serv_tmr_prev = jiffies;
 
-	if (ice_link_event(pf, pf->hw.port_info))
-		dev_dbg(&pf->pdev->dev, "ice_link_event failed\n");
-
 	/* Update the stats for active netdevs so the network stack
 	 * can look at updated numbers whenever it cares to
 	 */
@@ -708,6 +711,60 @@ static void ice_watchdog_subtask(struct ice_pf *pf)
 	ice_for_each_vsi(pf, i)
 		if (pf->vsi[i] && pf->vsi[i]->netdev)
 			ice_update_vsi_stats(pf->vsi[i]);
+}
+
+/**
+ * ice_init_link_events - enable/initialize link events
+ * @pi: pointer to the port_info instance
+ *
+ * Returns -EIO on failure, 0 on success
+ */
+static int ice_init_link_events(struct ice_port_info *pi)
+{
+	u16 mask;
+
+	mask = ~((u16)(ICE_AQ_LINK_EVENT_UPDOWN | ICE_AQ_LINK_EVENT_MEDIA_NA |
+		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL));
+
+	if (ice_aq_set_event_mask(pi->hw, pi->lport, mask, NULL)) {
+		dev_dbg(ice_hw_to_dev(pi->hw),
+			"Failed to set link event mask for port %d\n",
+			pi->lport);
+		return -EIO;
+	}
+
+	if (ice_aq_get_link_info(pi, true, NULL, NULL)) {
+		dev_dbg(ice_hw_to_dev(pi->hw),
+			"Failed to enable link events for port %d\n",
+			pi->lport);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
+ * ice_handle_link_event - handle link event via ARQ
+ * @pf: pf that the link event is associated with
+ *
+ * Return -EINVAL if port_info is null
+ * Return status on success
+ */
+static int ice_handle_link_event(struct ice_pf *pf)
+{
+	struct ice_port_info *port_info;
+	int status;
+
+	port_info = pf->hw.port_info;
+	if (!port_info)
+		return -EINVAL;
+
+	status = ice_link_event(pf, port_info);
+	if (status)
+		dev_dbg(&pf->pdev->dev,
+			"Could not process link event, error %d\n", status);
+
+	return status;
 }
 
 /**
@@ -813,6 +870,11 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		opcode = le16_to_cpu(event.desc.opcode);
 
 		switch (opcode) {
+		case ice_aqc_opc_get_link_status:
+			if (ice_handle_link_event(pf))
+				dev_err(&pf->pdev->dev,
+					"Could not handle link event\n");
+			break;
 		case ice_mbx_opc_send_msg_to_pf:
 			ice_vc_process_vf_msg(pf, &event);
 			break;
@@ -1248,10 +1310,9 @@ static int ice_vsi_req_irq_msix(struct ice_vsi *vsi, char *basename)
 			/* skip this unused q_vector */
 			continue;
 		}
-		err = devm_request_irq(&pf->pdev->dev,
-				       pf->msix_entries[base + vector].vector,
-				       vsi->irq_handler, 0, q_vector->name,
-				       q_vector);
+		err = devm_request_irq(&pf->pdev->dev, irq_num,
+				       vsi->irq_handler, 0,
+				       q_vector->name, q_vector);
 		if (err) {
 			netdev_err(vsi->netdev,
 				   "MSIX request_irq failed, error: %d\n", err);
@@ -2267,6 +2328,12 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	/* since everything is good, start the service timer */
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
+
+	err = ice_init_link_events(pf->hw.port_info);
+	if (err) {
+		dev_err(dev, "ice_init_link_events failed: %d\n", err);
+		goto err_alloc_sw_unroll;
+	}
 
 	ice_verify_cacheline_size(pf);
 

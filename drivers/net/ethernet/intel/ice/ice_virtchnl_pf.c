@@ -457,8 +457,10 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 	vsi->hw_base_vector += 1;
 
 	/* Check if port VLAN exist before, and restore it accordingly */
-	if (vf->port_vlan_id)
+	if (vf->port_vlan_id) {
 		ice_vsi_manage_pvid(vsi, vf->port_vlan_id, true);
+		ice_vsi_add_vlan(vsi, vf->port_vlan_id & ICE_VLAN_M);
+	}
 
 	eth_broadcast_addr(broadcast);
 
@@ -1925,6 +1927,9 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 	 */
 	vsi->num_txq = qci->num_queue_pairs;
 	vsi->num_rxq = qci->num_queue_pairs;
+	/* All queues of VF VSI are in TC 0 */
+	vsi->tc_cfg.tc_info[0].qcount_tx = qci->num_queue_pairs;
+	vsi->tc_cfg.tc_info[0].qcount_rx = qci->num_queue_pairs;
 
 	if (!ice_vsi_cfg_lan_txqs(vsi) && !ice_vsi_cfg_rxqs(vsi))
 		aq_ret = 0;

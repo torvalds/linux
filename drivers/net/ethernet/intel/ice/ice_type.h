@@ -210,6 +210,9 @@ struct ice_nvm_info {
 #define ICE_MAX_TRAFFIC_CLASS 8
 #define ICE_TXSCHED_MAX_BRANCHES ICE_MAX_TRAFFIC_CLASS
 
+#define ice_for_each_traffic_class(_i)	\
+	for ((_i) = 0; (_i) < ICE_MAX_TRAFFIC_CLASS; (_i)++)
+
 struct ice_sched_node {
 	struct ice_sched_node *parent;
 	struct ice_sched_node *sibling; /* next sibling in the same layer */

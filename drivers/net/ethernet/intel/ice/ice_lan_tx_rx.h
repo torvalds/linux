@@ -208,23 +208,23 @@ enum ice_flex_rx_mdid {
 	ICE_RX_MDID_HASH_HIGH,
 };
 
-/* Rx Flag64 packet flag bits */
-enum ice_rx_flg64_bits {
-	ICE_RXFLG_PKT_DSI	= 0,
-	ICE_RXFLG_EVLAN_x8100	= 15,
-	ICE_RXFLG_EVLAN_x9100,
-	ICE_RXFLG_VLAN_x8100,
-	ICE_RXFLG_TNL_MAC	= 22,
-	ICE_RXFLG_TNL_VLAN,
-	ICE_RXFLG_PKT_FRG,
-	ICE_RXFLG_FIN		= 32,
-	ICE_RXFLG_SYN,
-	ICE_RXFLG_RST,
-	ICE_RXFLG_TNL0		= 38,
-	ICE_RXFLG_TNL1,
-	ICE_RXFLG_TNL2,
-	ICE_RXFLG_UDP_GRE,
-	ICE_RXFLG_RSVD		= 63
+/* RX/TX Flag64 packet flag bits */
+enum ice_flg64_bits {
+	ICE_FLG_PKT_DSI		= 0,
+	ICE_FLG_EVLAN_x8100	= 15,
+	ICE_FLG_EVLAN_x9100,
+	ICE_FLG_VLAN_x8100,
+	ICE_FLG_TNL_MAC		= 22,
+	ICE_FLG_TNL_VLAN,
+	ICE_FLG_PKT_FRG,
+	ICE_FLG_FIN		= 32,
+	ICE_FLG_SYN,
+	ICE_FLG_RST,
+	ICE_FLG_TNL0		= 38,
+	ICE_FLG_TNL1,
+	ICE_FLG_TNL2,
+	ICE_FLG_UDP_GRE,
+	ICE_FLG_RSVD		= 63
 };
 
 /* for ice_32byte_rx_flex_desc.ptype_flexi_flags0 member */

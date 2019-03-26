@@ -1269,42 +1269,6 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 }
 
 /**
- * ice_sched_rm_vsi_child_nodes - remove VSI child nodes from the tree
- * @pi: port information structure
- * @vsi_node: pointer to the VSI node
- * @num_nodes: pointer to the num nodes that needs to be removed per layer
- * @owner: node owner (lan or rdma)
- *
- * This function removes the VSI child nodes from the tree. It gets called for
- * lan and rdma separately.
- */
-static void
-ice_sched_rm_vsi_child_nodes(struct ice_port_info *pi,
-			     struct ice_sched_node *vsi_node, u16 *num_nodes,
-			     u8 owner)
-{
-	struct ice_sched_node *node, *next;
-	u8 i, qgl, vsil;
-	u16 num;
-
-	qgl = ice_sched_get_qgrp_layer(pi->hw);
-	vsil = ice_sched_get_vsi_layer(pi->hw);
-
-	for (i = qgl; i > vsil; i--) {
-		num = num_nodes[i];
-		node = ice_sched_get_first_node(pi->hw, vsi_node, i);
-		while (node && num) {
-			next = node->sibling;
-			if (node->owner == owner && !node->num_children) {
-				ice_free_sched_node(pi, node);
-				num--;
-			}
-			node = next;
-		}
-	}
-}
-
-/**
  * ice_sched_calc_vsi_support_nodes - calculate number of VSI support nodes
  * @hw: pointer to the hw struct
  * @tc_node: pointer to TC node
@@ -1444,7 +1408,6 @@ static enum ice_status
 ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 				 u8 tc, u16 new_numqs, u8 owner)
 {
-	u16 prev_num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	u16 new_num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	struct ice_sched_node *vsi_node;
 	struct ice_sched_node *tc_node;
@@ -1452,7 +1415,6 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	u16 prev_numqs;
-	u8 i;
 
 	tc_node = ice_sched_get_tc_node(pi, tc);
 	if (!tc_node)
@@ -1471,33 +1433,22 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 	else
 		return ICE_ERR_PARAM;
 
-	/* num queues are not changed */
-	if (prev_numqs == new_numqs)
+	/* num queues are not changed or less than the previous number */
+	if (new_numqs <= prev_numqs)
 		return status;
-
-	/* calculate number of nodes based on prev/new number of qs */
-	if (prev_numqs)
-		ice_sched_calc_vsi_child_nodes(hw, prev_numqs, prev_num_nodes);
-
 	if (new_numqs)
 		ice_sched_calc_vsi_child_nodes(hw, new_numqs, new_num_nodes);
-
-	if (prev_numqs > new_numqs) {
-		for (i = 0; i < ICE_AQC_TOPO_MAX_LEVEL_NUM; i++)
-			new_num_nodes[i] = prev_num_nodes[i] - new_num_nodes[i];
-
-		ice_sched_rm_vsi_child_nodes(pi, vsi_node, new_num_nodes,
-					     owner);
-	} else {
-		for (i = 0; i < ICE_AQC_TOPO_MAX_LEVEL_NUM; i++)
-			new_num_nodes[i] -= prev_num_nodes[i];
-
-		status = ice_sched_add_vsi_child_nodes(pi, vsi_handle, tc_node,
-						       new_num_nodes, owner);
-		if (status)
-			return status;
-	}
-
+	/* Keep the max number of queue configuration all the time. Update the
+	 * tree only if number of queues > previous number of queues. This may
+	 * leave some extra nodes in the tree if number of queues < previous
+	 * number but that wouldn't harm anything. Removing those extra nodes
+	 * may complicate the code if those nodes are part of SRL or
+	 * individually rate limited.
+	 */
+	status = ice_sched_add_vsi_child_nodes(pi, vsi_handle, tc_node,
+					       new_num_nodes, owner);
+	if (status)
+		return status;
 	vsi_ctx->sched.max_lanq[tc] = new_numqs;
 
 	return 0;
@@ -1655,7 +1606,7 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 	if (!vsi_ctx)
 		goto exit_sched_rm_vsi_cfg;
 
-	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+	ice_for_each_traffic_class(i) {
 		struct ice_sched_node *vsi_node, *tc_node;
 		u8 j = 0;
 
