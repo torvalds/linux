@@ -91,6 +91,8 @@ void dsc2_construct(struct dcn20_dsc *dsc,
 	dsc->dsc_regs = dsc_regs;
 	dsc->dsc_shift = dsc_shift;
 	dsc->dsc_mask = dsc_mask;
+
+	dsc->max_image_width = 5184;
 }
 
 
@@ -160,6 +162,9 @@ static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_ds
 static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
 {
 	struct dsc_optc_config dsc_optc_cfg;
+
+	if (dsc_cfg->pic_width > TO_DCN20_DSC(dsc)->max_image_width)
+		return false;
 
 	return dsc_prepare_config(dsc, dsc_cfg, &dsc_optc_cfg);
 }

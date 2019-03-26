@@ -1869,6 +1869,38 @@ void dcn20_set_mcif_arb_params(
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+static bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
+{
+	int i;
+
+	/* Validate DSC config, dsc count validation is already done */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
+		struct dc_stream_state *stream = pipe_ctx->stream;
+		struct dsc_config dsc_cfg;
+
+		/* Only need to validate top pipe */
+		if (pipe_ctx->top_pipe || !stream || !stream->timing.flags.DSC)
+			continue;
+
+		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left
+				+ stream->timing.h_border_right;
+		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top
+				+ stream->timing.v_border_bottom;
+		if (dc_res_get_odm_bottom_pipe(pipe_ctx))
+			dsc_cfg.pic_width /= 2;
+		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
+		dsc_cfg.color_depth = stream->timing.display_color_depth;
+		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
+
+		if (!pipe_ctx->stream_res.dsc->funcs->dsc_validate_stream(pipe_ctx->stream_res.dsc, &dsc_cfg))
+			return false;
+	}
+	return true;
+}
+#endif
+
 bool dcn20_validate_bandwidth(struct dc *dc,
 			      struct dc_state *context,
 			      bool fast_validate)
@@ -1877,6 +1909,9 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 	int pipe_split_from[MAX_PIPES];
 	bool odm_capable = context->bw_ctx.dml.ip.odm_capable;
 	bool force_split = false;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool failed_non_odm_dsc = false;
+#endif
 	int split_threshold = dc->res_pool->pipe_count / 2;
 	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
@@ -1919,6 +1954,15 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 	context->bw_ctx.dml.ip.odm_capable = 0;
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 	context->bw_ctx.dml.ip.odm_capable = odm_capable;
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	/* 1 dsc per stream dsc validation */
+	if (vlevel <= context->bw_ctx.dml.soc.num_states)
+		if (!dcn20_validate_dsc(dc, context)) {
+			failed_non_odm_dsc = true;
+			vlevel = context->bw_ctx.dml.soc.num_states + 1;
+		}
+#endif
 
 	if (vlevel > context->bw_ctx.dml.soc.num_states && odm_capable)
 		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
@@ -2052,6 +2096,14 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 			ASSERT(0);
 		}
 	}
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	/* Actual dsc count per stream dsc validation*/
+	if (failed_non_odm_dsc && !dcn20_validate_dsc(dc, context)) {
+		context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states] =
+				DML_FAIL_DSC_VALIDATION_FAILURE;
+		goto validate_fail;
+	}
+#endif
 
 	for (i = 0, pipe_idx = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
@@ -2190,44 +2242,6 @@ validate_fail:
 	return false;
 }
 
-enum dc_status dcn20_validate_global(struct dc *dc,	struct dc_state *new_ctx)
-{
-	enum dc_status result = DC_OK;
-	int i, j;
-
-	/* Validate DSC */
-	for (i = 0; i < new_ctx->stream_count; i++) {
-		struct dc_stream_state *stream = new_ctx->streams[i];
-
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[j];
-
-			if (pipe_ctx->stream != stream)
-				continue;
-
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-			if (stream->timing.flags.DSC) {
-				if (pipe_ctx->stream_res.dsc != NULL) {
-					struct dsc_config dsc_cfg;
-
-					dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-					dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
-					dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
-					dsc_cfg.color_depth = stream->timing.display_color_depth;
-					dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
-
-					if (!pipe_ctx->stream_res.dsc->funcs->dsc_validate_stream(pipe_ctx->stream_res.dsc, &dsc_cfg))
-						result = DC_FAIL_DSC_VALIDATE;
-				} else
-					result = DC_FAIL_DSC_VALIDATE; // DSC enabled for this stream, but no free DSCs available
-			}
-#endif
-		}
-	}
-
-	return result;
-}
-
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
 		struct dc_state *state,
 		const struct resource_pool *pool,
@@ -2302,7 +2316,6 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.destroy = dcn20_destroy_resource_pool,
 	.link_enc_create = dcn20_link_encoder_create,
 	.validate_bandwidth = dcn20_validate_bandwidth,
-	.validate_global = dcn20_validate_global,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,

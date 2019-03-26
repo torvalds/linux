@@ -558,6 +558,8 @@ struct dcn20_dsc {
 	const struct dcn20_dsc_mask *dsc_mask;
 
 	struct dsc_reg_values reg_vals;
+
+	int max_image_width;
 };
 
 

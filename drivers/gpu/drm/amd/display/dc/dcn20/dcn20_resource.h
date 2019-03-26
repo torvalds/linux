@@ -118,7 +118,6 @@ void dcn20_set_mcif_arb_params(
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
 
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream);
-enum dc_status dcn20_validate_global(struct dc *dc,	struct dc_state *new_ctx);
 enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream);
 enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream);
 enum dc_status dcn20_get_default_swizzle_mode(struct dc_plane_state *plane_state);
