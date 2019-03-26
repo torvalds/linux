@@ -164,10 +164,6 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 	clk[IMX5_CLK_CKIH1]		= imx_obtain_fixed_clock("ckih1", 0);
 	clk[IMX5_CLK_CKIH2]		= imx_obtain_fixed_clock("ckih2", 0);
 
-	clk[IMX5_CLK_PERIPH_APM]	= imx_clk_mux("periph_apm", MXC_CCM_CBCMR, 12, 2,
-						periph_apm_sel, ARRAY_SIZE(periph_apm_sel));
-	clk[IMX5_CLK_MAIN_BUS]		= imx_clk_mux("main_bus", MXC_CCM_CBCDR, 25, 1,
-						main_bus_sel, ARRAY_SIZE(main_bus_sel));
 	clk[IMX5_CLK_PER_LP_APM]	= imx_clk_mux("per_lp_apm", MXC_CCM_CBCMR, 1, 1,
 						per_lp_apm_sel, ARRAY_SIZE(per_lp_apm_sel));
 	clk[IMX5_CLK_PER_PRED1]		= imx_clk_divider("per_pred1", "per_lp_apm", MXC_CCM_CBCDR, 6, 2);
@@ -342,6 +338,13 @@ static void __init mx50_clocks_init(struct device_node *np)
 
 	mx5_clocks_common_init(ccm_base);
 
+	/*
+	 * This clock is called periph_clk in the i.MX50 Reference Manual, but
+	 * it comes closest in scope to the main_bus_clk of i.MX51 and i.MX53
+	 */
+	clk[IMX5_CLK_MAIN_BUS]          = imx_clk_mux("main_bus", MXC_CCM_CBCDR, 25, 2,
+						standard_pll_sel, ARRAY_SIZE(standard_pll_sel));
+
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 10, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
 	clk[IMX5_CLK_ESDHC1_PER_GATE]	= imx_clk_gate2("esdhc1_per_gate", "esdhc_a_podf", MXC_CCM_CCGR3, 2);
@@ -410,6 +413,10 @@ static void __init mx51_clocks_init(struct device_node *np)
 
 	mx5_clocks_common_init(ccm_base);
 
+	clk[IMX5_CLK_PERIPH_APM]	= imx_clk_mux("periph_apm", MXC_CCM_CBCMR, 12, 2,
+						periph_apm_sel, ARRAY_SIZE(periph_apm_sel));
+	clk[IMX5_CLK_MAIN_BUS]		= imx_clk_mux("main_bus", MXC_CCM_CBCDR, 25, 1,
+						main_bus_sel, ARRAY_SIZE(main_bus_sel));
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 9, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
 	clk[IMX5_CLK_IPU_DI0_SEL]	= imx_clk_mux_flags("ipu_di0_sel", MXC_CCM_CSCMR2, 26, 3,
@@ -506,6 +513,10 @@ static void __init mx53_clocks_init(struct device_node *np)
 
 	mx5_clocks_common_init(ccm_base);
 
+	clk[IMX5_CLK_PERIPH_APM]	= imx_clk_mux("periph_apm", MXC_CCM_CBCMR, 12, 2,
+						periph_apm_sel, ARRAY_SIZE(periph_apm_sel));
+	clk[IMX5_CLK_MAIN_BUS]		= imx_clk_mux("main_bus", MXC_CCM_CBCDR, 25, 1,
+						main_bus_sel, ARRAY_SIZE(main_bus_sel));
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 10, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
 	clk[IMX5_CLK_LDB_DI1_DIV_3_5]	= imx_clk_fixed_factor("ldb_di1_div_3_5", "ldb_di1_sel", 2, 7);
