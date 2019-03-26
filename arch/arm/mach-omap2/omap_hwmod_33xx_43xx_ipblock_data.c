@@ -16,7 +16,6 @@
 
 #include <linux/types.h>
 
-#include <linux/platform_data/hsmmc-omap.h>
 #include "omap_hwmod.h"
 #include "i2c.h"
 #include "wd_timer.h"
@@ -760,76 +759,6 @@ struct omap_hwmod am33xx_mcasp1_hwmod = {
 	},
 };
 
-/* 'mmc' class */
-static struct omap_hwmod_class_sysconfig am33xx_mmc_sysc = {
-	.rev_offs	= 0x2fc,
-	.sysc_offs	= 0x110,
-	.syss_offs	= 0x114,
-	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
-			  SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			  SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class am33xx_mmc_hwmod_class = {
-	.name		= "mmc",
-	.sysc		= &am33xx_mmc_sysc,
-};
-
-/* mmc0 */
-static struct omap_hsmmc_dev_attr am33xx_mmc0_dev_attr = {
-	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
-};
-
-struct omap_hwmod am33xx_mmc0_hwmod = {
-	.name		= "mmc1",
-	.class		= &am33xx_mmc_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "mmc_clk",
-	.prcm		= {
-		.omap4	= {
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-	.dev_attr	= &am33xx_mmc0_dev_attr,
-};
-
-/* mmc1 */
-static struct omap_hsmmc_dev_attr am33xx_mmc1_dev_attr = {
-	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
-};
-
-struct omap_hwmod am33xx_mmc1_hwmod = {
-	.name		= "mmc2",
-	.class		= &am33xx_mmc_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "mmc_clk",
-	.prcm		= {
-		.omap4	= {
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-	.dev_attr	= &am33xx_mmc1_dev_attr,
-};
-
-/* mmc2 */
-static struct omap_hsmmc_dev_attr am33xx_mmc2_dev_attr = {
-	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
-};
-struct omap_hwmod am33xx_mmc2_hwmod = {
-	.name		= "mmc3",
-	.class		= &am33xx_mmc_hwmod_class,
-	.clkdm_name	= "l3s_clkdm",
-	.main_clk	= "mmc_clk",
-	.prcm		= {
-		.omap4	= {
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-	.dev_attr	= &am33xx_mmc2_dev_attr,
-};
-
 /*
  * 'rtc' class
  * rtc subsystem
@@ -1282,8 +1211,6 @@ static void omap_hwmod_am33xx_clkctrl(void)
 	CLKCTRL(am33xx_mailbox_hwmod, AM33XX_CM_PER_MAILBOX0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_mcasp0_hwmod, AM33XX_CM_PER_MCASP0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_mcasp1_hwmod, AM33XX_CM_PER_MCASP1_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mmc0_hwmod, AM33XX_CM_PER_MMC0_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mmc1_hwmod, AM33XX_CM_PER_MMC1_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_spi0_hwmod, AM33XX_CM_PER_SPI0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_spi1_hwmod, AM33XX_CM_PER_SPI1_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_spinlock_hwmod, AM33XX_CM_PER_SPINLOCK_CLKCTRL_OFFSET);
@@ -1303,7 +1230,6 @@ static void omap_hwmod_am33xx_clkctrl(void)
 	CLKCTRL(am33xx_wd_timer1_hwmod, AM33XX_CM_WKUP_WDT1_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_rtc_hwmod, AM33XX_CM_RTC_RTC_CLKCTRL_OFFSET);
 	PRCM_FLAGS(am33xx_rtc_hwmod, HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mmc2_hwmod, AM33XX_CM_PER_MMC2_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_gpmc_hwmod, AM33XX_CM_PER_GPMC_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_ls_hwmod, AM33XX_CM_PER_L4LS_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_wkup_hwmod, AM33XX_CM_WKUP_L4WKUP_CLKCTRL_OFFSET);
@@ -1357,8 +1283,6 @@ static void omap_hwmod_am43xx_clkctrl(void)
 	CLKCTRL(am33xx_mailbox_hwmod, AM43XX_CM_PER_MAILBOX0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_mcasp0_hwmod, AM43XX_CM_PER_MCASP0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_mcasp1_hwmod, AM43XX_CM_PER_MCASP1_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mmc0_hwmod, AM43XX_CM_PER_MMC0_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mmc1_hwmod, AM43XX_CM_PER_MMC1_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_spi0_hwmod, AM43XX_CM_PER_SPI0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_spi1_hwmod, AM43XX_CM_PER_SPI1_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_spinlock_hwmod, AM43XX_CM_PER_SPINLOCK_CLKCTRL_OFFSET);
@@ -1377,7 +1301,6 @@ static void omap_hwmod_am43xx_clkctrl(void)
 	CLKCTRL(am33xx_i2c1_hwmod, AM43XX_CM_WKUP_I2C0_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_wd_timer1_hwmod, AM43XX_CM_WKUP_WDT1_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_rtc_hwmod, AM43XX_CM_RTC_RTC_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mmc2_hwmod, AM43XX_CM_PER_MMC2_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_gpmc_hwmod, AM43XX_CM_PER_GPMC_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_ls_hwmod, AM43XX_CM_PER_L4LS_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_wkup_hwmod, AM43XX_CM_WKUP_L4WKUP_CLKCTRL_OFFSET);
