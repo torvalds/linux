@@ -448,6 +448,18 @@ static const char *const rk3036_critical_clocks[] __initconst = {
 	"pclk_ddrupctl",
 };
 
+static void __iomem *rk3036_cru_base;
+
+static void rk3036_dump_cru(void)
+{
+	if (rk3036_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3036_cru_base,
+			       0x1f8, false);
+	}
+}
+
 static void __init rk3036_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -498,5 +510,10 @@ static void __init rk3036_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RK2928_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru) {
+		rk3036_cru_base = reg_base;
+		rk_dump_cru = rk3036_dump_cru;
+	}
 }
 CLK_OF_DECLARE(rk3036_cru, "rockchip,rk3036-cru", rk3036_clk_init);
