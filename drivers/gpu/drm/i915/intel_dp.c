@@ -2107,6 +2107,29 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
+bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	const struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
+		/*
+		 * See:
+		 * CEA-861-E - 5.1 Default Encoding Parameters
+		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
+		 */
+		return crtc_state->pipe_bpp != 18 &&
+			drm_default_rgb_quant_range(adjusted_mode) ==
+			HDMI_QUANTIZATION_RANGE_LIMITED;
+	} else {
+		return intel_conn_state->broadcast_rgb ==
+			INTEL_BROADCAST_RGB_LIMITED;
+	}
+}
+
 int
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -2175,20 +2198,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (ret < 0)
 		return ret;
 
-	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
-		/*
-		 * See:
-		 * CEA-861-E - 5.1 Default Encoding Parameters
-		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
-		 */
-		pipe_config->limited_color_range =
-			pipe_config->pipe_bpp != 18 &&
-			drm_default_rgb_quant_range(adjusted_mode) ==
-			HDMI_QUANTIZATION_RANGE_LIMITED;
-	} else {
-		pipe_config->limited_color_range =
-			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
-	}
+	pipe_config->limited_color_range =
+		intel_dp_limited_color_range(pipe_config, conn_state);
 
 	if (!pipe_config->dsc_params.compression_enable)
 		intel_link_compute_m_n(pipe_config->pipe_bpp,

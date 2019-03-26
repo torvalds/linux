@@ -77,6 +77,9 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port))
 		pipe_config->has_audio = true;
 
+	pipe_config->limited_color_range =
+		intel_dp_limited_color_range(pipe_config, conn_state);
+
 	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 	pipe_config->pbn = mst_pbn;
 
@@ -117,7 +120,11 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	struct drm_crtc *new_crtc = new_conn_state->crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_dp_mst_topology_mgr *mgr;
-	int ret = 0;
+	int ret;
+
+	ret = intel_digital_connector_atomic_check(connector, new_conn_state);
+	if (ret)
+		return ret;
 
 	if (!old_conn_state->crtc)
 		return 0;
@@ -354,11 +361,13 @@ intel_dp_mst_detect(struct drm_connector *connector, bool force)
 static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static int intel_dp_mst_get_modes(struct drm_connector *connector)
@@ -486,6 +495,8 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	ret = drm_connector_set_path_property(connector, pathprop);
 	if (ret)
 		goto err;
+
+	intel_attach_broadcast_rgb_property(connector);
 
 	return connector;
 
