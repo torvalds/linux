@@ -557,3 +557,25 @@ bool tb_path_is_invalid(struct tb_path *path)
 	}
 	return false;
 }
+
+/**
+ * tb_path_switch_on_path() - Does the path go through certain switch
+ * @path: Path to check
+ * @sw: Switch to check
+ *
+ * Goes over all hops on path and checks if @sw is any of them.
+ * Direction does not matter.
+ */
+bool tb_path_switch_on_path(const struct tb_path *path,
+			    const struct tb_switch *sw)
+{
+	int i;
+
+	for (i = 0; i < path->path_length; i++) {
+		if (path->hops[i].in_port->sw == sw ||
+		    path->hops[i].out_port->sw == sw)
+			return true;
+	}
+
+	return false;
+}

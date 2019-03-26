@@ -279,11 +279,138 @@ static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
 	return -ETIMEDOUT;
 }
 
+static inline u32 tb_dp_cap_get_rate(u32 val)
+{
+	u32 rate = (val & DP_COMMON_CAP_RATE_MASK) >> DP_COMMON_CAP_RATE_SHIFT;
+
+	switch (rate) {
+	case DP_COMMON_CAP_RATE_RBR:
+		return 1620;
+	case DP_COMMON_CAP_RATE_HBR:
+		return 2700;
+	case DP_COMMON_CAP_RATE_HBR2:
+		return 5400;
+	case DP_COMMON_CAP_RATE_HBR3:
+		return 8100;
+	default:
+		return 0;
+	}
+}
+
+static inline u32 tb_dp_cap_set_rate(u32 val, u32 rate)
+{
+	val &= ~DP_COMMON_CAP_RATE_MASK;
+	switch (rate) {
+	default:
+		WARN(1, "invalid rate %u passed, defaulting to 1620 MB/s\n", rate);
+		/* Fallthrough */
+	case 1620:
+		val |= DP_COMMON_CAP_RATE_RBR << DP_COMMON_CAP_RATE_SHIFT;
+		break;
+	case 2700:
+		val |= DP_COMMON_CAP_RATE_HBR << DP_COMMON_CAP_RATE_SHIFT;
+		break;
+	case 5400:
+		val |= DP_COMMON_CAP_RATE_HBR2 << DP_COMMON_CAP_RATE_SHIFT;
+		break;
+	case 8100:
+		val |= DP_COMMON_CAP_RATE_HBR3 << DP_COMMON_CAP_RATE_SHIFT;
+		break;
+	}
+	return val;
+}
+
+static inline u32 tb_dp_cap_get_lanes(u32 val)
+{
+	u32 lanes = (val & DP_COMMON_CAP_LANES_MASK) >> DP_COMMON_CAP_LANES_SHIFT;
+
+	switch (lanes) {
+	case DP_COMMON_CAP_1_LANE:
+		return 1;
+	case DP_COMMON_CAP_2_LANES:
+		return 2;
+	case DP_COMMON_CAP_4_LANES:
+		return 4;
+	default:
+		return 0;
+	}
+}
+
+static inline u32 tb_dp_cap_set_lanes(u32 val, u32 lanes)
+{
+	val &= ~DP_COMMON_CAP_LANES_MASK;
+	switch (lanes) {
+	default:
+		WARN(1, "invalid number of lanes %u passed, defaulting to 1\n",
+		     lanes);
+		/* Fallthrough */
+	case 1:
+		val |= DP_COMMON_CAP_1_LANE << DP_COMMON_CAP_LANES_SHIFT;
+		break;
+	case 2:
+		val |= DP_COMMON_CAP_2_LANES << DP_COMMON_CAP_LANES_SHIFT;
+		break;
+	case 4:
+		val |= DP_COMMON_CAP_4_LANES << DP_COMMON_CAP_LANES_SHIFT;
+		break;
+	}
+	return val;
+}
+
+static unsigned int tb_dp_bandwidth(unsigned int rate, unsigned int lanes)
+{
+	/* Tunneling removes the DP 8b/10b encoding */
+	return rate * lanes * 8 / 10;
+}
+
+static int tb_dp_reduce_bandwidth(int max_bw, u32 in_rate, u32 in_lanes,
+				  u32 out_rate, u32 out_lanes, u32 *new_rate,
+				  u32 *new_lanes)
+{
+	static const u32 dp_bw[][2] = {
+		/* Mb/s, lanes */
+		{ 8100, 4 }, /* 25920 Mb/s */
+		{ 5400, 4 }, /* 17280 Mb/s */
+		{ 8100, 2 }, /* 12960 Mb/s */
+		{ 2700, 4 }, /* 8640 Mb/s */
+		{ 5400, 2 }, /* 8640 Mb/s */
+		{ 8100, 1 }, /* 6480 Mb/s */
+		{ 1620, 4 }, /* 5184 Mb/s */
+		{ 5400, 1 }, /* 4320 Mb/s */
+		{ 2700, 2 }, /* 4320 Mb/s */
+		{ 1620, 2 }, /* 2592 Mb/s */
+		{ 2700, 1 }, /* 2160 Mb/s */
+		{ 1620, 1 }, /* 1296 Mb/s */
+	};
+	unsigned int i;
+
+	/*
+	 * Find a combination that can fit into max_bw and does not
+	 * exceed the maximum rate and lanes supported by the DP OUT and
+	 * DP IN adapters.
+	 */
+	for (i = 0; i < ARRAY_SIZE(dp_bw); i++) {
+		if (dp_bw[i][0] > out_rate || dp_bw[i][1] > out_lanes)
+			continue;
+
+		if (dp_bw[i][0] > in_rate || dp_bw[i][1] > in_lanes)
+			continue;
+
+		if (tb_dp_bandwidth(dp_bw[i][0], dp_bw[i][1]) <= max_bw) {
+			*new_rate = dp_bw[i][0];
+			*new_lanes = dp_bw[i][1];
+			return 0;
+		}
+	}
+
+	return -ENOSR;
+}
+
 static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 {
+	u32 out_dp_cap, out_rate, out_lanes, in_dp_cap, in_rate, in_lanes, bw;
 	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
-	u32 in_dp_cap, out_dp_cap;
 	int ret;
 
 	/*
@@ -317,6 +444,44 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 			    out->cap_adap + DP_REMOTE_CAP, 1);
 	if (ret)
 		return ret;
+
+	in_rate = tb_dp_cap_get_rate(in_dp_cap);
+	in_lanes = tb_dp_cap_get_lanes(in_dp_cap);
+	tb_port_dbg(in, "maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
+		    in_rate, in_lanes, tb_dp_bandwidth(in_rate, in_lanes));
+
+	/*
+	 * If the tunnel bandwidth is limited (max_bw is set) then see
+	 * if we need to reduce bandwidth to fit there.
+	 */
+	out_rate = tb_dp_cap_get_rate(out_dp_cap);
+	out_lanes = tb_dp_cap_get_lanes(out_dp_cap);
+	bw = tb_dp_bandwidth(out_rate, out_lanes);
+	tb_port_dbg(out, "maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
+		    out_rate, out_lanes, bw);
+
+	if (tunnel->max_bw && bw > tunnel->max_bw) {
+		u32 new_rate, new_lanes, new_bw;
+
+		ret = tb_dp_reduce_bandwidth(tunnel->max_bw, in_rate, in_lanes,
+					     out_rate, out_lanes, &new_rate,
+					     &new_lanes);
+		if (ret) {
+			tb_port_info(out, "not enough bandwidth for DP tunnel\n");
+			return ret;
+		}
+
+		new_bw = tb_dp_bandwidth(new_rate, new_lanes);
+		tb_port_dbg(out, "bandwidth reduced to %u Mb/s x%u = %u Mb/s\n",
+			    new_rate, new_lanes, new_bw);
+
+		/*
+		 * Set new rate and number of lanes before writing it to
+		 * the IN port remote caps.
+		 */
+		out_dp_cap = tb_dp_cap_set_rate(out_dp_cap, new_rate);
+		out_dp_cap = tb_dp_cap_set_lanes(out_dp_cap, new_lanes);
+	}
 
 	return tb_port_write(in, &out_dp_cap, TB_CFG_PORT,
 			     in->cap_adap + DP_REMOTE_CAP, 1);
@@ -357,6 +522,56 @@ static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
 		return tb_dp_port_enable(tunnel->dst_port, active);
 
 	return 0;
+}
+
+static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
+{
+	struct tb_port *in = tunnel->src_port;
+	const struct tb_switch *sw = in->sw;
+	u32 val, rate = 0, lanes = 0;
+	int ret;
+
+	if (tb_switch_is_titan_ridge(sw)) {
+		int timeout = 10;
+
+		/*
+		 * Wait for DPRX done. Normally it should be already set
+		 * for active tunnel.
+		 */
+		do {
+			ret = tb_port_read(in, &val, TB_CFG_PORT,
+					   in->cap_adap + DP_COMMON_CAP, 1);
+			if (ret)
+				return ret;
+
+			if (val & DP_COMMON_CAP_DPRX_DONE) {
+				rate = tb_dp_cap_get_rate(val);
+				lanes = tb_dp_cap_get_lanes(val);
+				break;
+			}
+			msleep(250);
+		} while (timeout--);
+
+		if (!timeout)
+			return -ETIMEDOUT;
+	} else if (sw->generation >= 2) {
+		/*
+		 * Read from the copied remote cap so that we take into
+		 * account if capabilities were reduced during exchange.
+		 */
+		ret = tb_port_read(in, &val, TB_CFG_PORT,
+				   in->cap_adap + DP_REMOTE_CAP, 1);
+		if (ret)
+			return ret;
+
+		rate = tb_dp_cap_get_rate(val);
+		lanes = tb_dp_cap_get_lanes(val);
+	} else {
+		/* No bandwidth management for legacy devices  */
+		return 0;
+	}
+
+	return tb_dp_bandwidth(rate, lanes);
 }
 
 static void tb_dp_init_aux_path(struct tb_path *path)
@@ -423,6 +638,7 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
 
 	tunnel->init = tb_dp_xchg_caps;
 	tunnel->activate = tb_dp_activate;
+	tunnel->consumed_bandwidth = tb_dp_consumed_bandwidth;
 	tunnel->src_port = in;
 
 	path = tb_path_discover(in, TB_DP_VIDEO_HOPID, NULL, -1,
@@ -481,6 +697,7 @@ err_free:
  * @tb: Pointer to the domain structure
  * @in: DP in adapter port
  * @out: DP out adapter port
+ * @max_bw: Maximum available bandwidth for the DP tunnel (%0 if not limited)
  *
  * Allocates a tunnel between @in and @out that is capable of tunneling
  * Display Port traffic.
@@ -488,7 +705,7 @@ err_free:
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
-				     struct tb_port *out)
+				     struct tb_port *out, int max_bw)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path **paths;
@@ -503,8 +720,10 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 
 	tunnel->init = tb_dp_xchg_caps;
 	tunnel->activate = tb_dp_activate;
+	tunnel->consumed_bandwidth = tb_dp_consumed_bandwidth;
 	tunnel->src_port = in;
 	tunnel->dst_port = out;
+	tunnel->max_bw = max_bw;
 
 	paths = tunnel->paths;
 
@@ -750,4 +969,63 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
 		if (tunnel->paths[i] && tunnel->paths[i]->activated)
 			tb_path_deactivate(tunnel->paths[i]);
 	}
+}
+
+/**
+ * tb_tunnel_switch_on_path() - Does the tunnel go through switch
+ * @tunnel: Tunnel to check
+ * @sw: Switch to check
+ *
+ * Returns true if @tunnel goes through @sw (direction does not matter),
+ * false otherwise.
+ */
+bool tb_tunnel_switch_on_path(const struct tb_tunnel *tunnel,
+			      const struct tb_switch *sw)
+{
+	int i;
+
+	for (i = 0; i < tunnel->npaths; i++) {
+		if (!tunnel->paths[i])
+			continue;
+		if (tb_path_switch_on_path(tunnel->paths[i], sw))
+			return true;
+	}
+
+	return false;
+}
+
+static bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
+{
+	int i;
+
+	for (i = 0; i < tunnel->npaths; i++) {
+		if (!tunnel->paths[i])
+			return false;
+		if (!tunnel->paths[i]->activated)
+			return false;
+	}
+
+	return true;
+}
+
+/**
+ * tb_tunnel_consumed_bandwidth() - Return bandwidth consumed by the tunnel
+ * @tunnel: Tunnel to check
+ *
+ * Returns bandwidth currently consumed by @tunnel and %0 if the @tunnel
+ * is not active or does consume bandwidth.
+ */
+int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel)
+{
+	if (!tb_tunnel_is_active(tunnel))
+		return 0;
+
+	if (tunnel->consumed_bandwidth) {
+		int ret = tunnel->consumed_bandwidth(tunnel);
+
+		tb_tunnel_dbg(tunnel, "consumed bandwidth %d Mb/s\n", ret);
+		return ret;
+	}
+
+	return 0;
 }

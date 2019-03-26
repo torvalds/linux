@@ -422,11 +422,51 @@ out:
 	return tb_find_unused_port(sw, TB_TYPE_PCIE_DOWN);
 }
 
+static int tb_available_bw(struct tb_cm *tcm, struct tb_port *in,
+			   struct tb_port *out)
+{
+	struct tb_switch *sw = out->sw;
+	struct tb_tunnel *tunnel;
+	int bw, available_bw = 40000;
+
+	while (sw && sw != in->sw) {
+		bw = sw->link_speed * sw->link_width * 1000; /* Mb/s */
+		/* Leave 10% guard band */
+		bw -= bw / 10;
+
+		/*
+		 * Check for any active DP tunnels that go through this
+		 * switch and reduce their consumed bandwidth from
+		 * available.
+		 */
+		list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+			int consumed_bw;
+
+			if (!tb_tunnel_switch_on_path(tunnel, sw))
+				continue;
+
+			consumed_bw = tb_tunnel_consumed_bandwidth(tunnel);
+			if (consumed_bw < 0)
+				return consumed_bw;
+
+			bw -= consumed_bw;
+		}
+
+		if (bw < available_bw)
+			available_bw = bw;
+
+		sw = tb_switch_parent(sw);
+	}
+
+	return available_bw;
+}
+
 static void tb_tunnel_dp(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_port *port, *in, *out;
 	struct tb_tunnel *tunnel;
+	int available_bw;
 
 	/*
 	 * Find pair of inactive DP IN and DP OUT adapters and then
@@ -464,7 +504,17 @@ static void tb_tunnel_dp(struct tb *tb)
 		return;
 	}
 
-	tunnel = tb_tunnel_alloc_dp(tb, in, out);
+	/* Calculate available bandwidth between in and out */
+	available_bw = tb_available_bw(tcm, in, out);
+	if (available_bw < 0) {
+		tb_warn(tb, "failed to determine available bandwidth\n");
+		return;
+	}
+
+	tb_dbg(tb, "available bandwidth for new DP tunnel %u Mb/s\n",
+	       available_bw);
+
+	tunnel = tb_tunnel_alloc_dp(tb, in, out, available_bw);
 	if (!tunnel) {
 		tb_port_dbg(out, "could not allocate DP tunnel\n");
 		goto dealloc_dp;

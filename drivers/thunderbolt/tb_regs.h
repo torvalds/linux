@@ -255,6 +255,23 @@ struct tb_regs_port_header {
 #define DP_STATUS_CTRL				0x06
 #define DP_STATUS_CTRL_CMHS			BIT(25)
 #define DP_STATUS_CTRL_UF			BIT(26)
+#define DP_COMMON_CAP				0x07
+/*
+ * DP_COMMON_CAP offsets work also for DP_LOCAL_CAP and DP_REMOTE_CAP
+ * with exception of DPRX done.
+ */
+#define DP_COMMON_CAP_RATE_MASK			GENMASK(11, 8)
+#define DP_COMMON_CAP_RATE_SHIFT		8
+#define DP_COMMON_CAP_RATE_RBR			0x0
+#define DP_COMMON_CAP_RATE_HBR			0x1
+#define DP_COMMON_CAP_RATE_HBR2			0x2
+#define DP_COMMON_CAP_RATE_HBR3			0x3
+#define DP_COMMON_CAP_LANES_MASK		GENMASK(14, 12)
+#define DP_COMMON_CAP_LANES_SHIFT		12
+#define DP_COMMON_CAP_1_LANE			0x0
+#define DP_COMMON_CAP_2_LANES			0x1
+#define DP_COMMON_CAP_4_LANES			0x2
+#define DP_COMMON_CAP_DPRX_DONE			BIT(31)
 
 /* PCIe adapter registers */
 #define ADP_PCIE_CS_0				0x00
