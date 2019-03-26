@@ -2065,10 +2065,13 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 			  io_req->xid);
 		return SUCCESS;
 	}
+	set_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags);
 
 	/* Ensure room on SQ */
 	if (!atomic_read(&fcport->free_sqes)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "No SQ entries available\n");
+		/* Need to make sure we clear the flag since it was set */
+		clear_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags);
 		return FAILED;
 	}
 
@@ -2094,7 +2097,7 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 
 	task = qedf_get_task_mem(&qedf->tasks, xid);
 
-	init_completion(&io_req->tm_done);
+	init_completion(&io_req->cleanup_done);
 
 	spin_lock_irqsave(&fcport->rport_lock, flags);
 
@@ -2108,8 +2111,8 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
-	tmo = wait_for_completion_timeout(&io_req->tm_done,
-	    QEDF_CLEANUP_TIMEOUT * HZ);
+	tmo = wait_for_completion_timeout(&io_req->cleanup_done,
+					  QEDF_CLEANUP_TIMEOUT * HZ);
 
 	if (!tmo) {
 		rc = FAILED;
@@ -2153,7 +2156,7 @@ void qedf_process_cleanup_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	clear_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags);
 
 	/* Complete so we can finish cleaning up the I/O */
-	complete(&io_req->tm_done);
+	complete(&io_req->cleanup_done);
 }
 
 static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,

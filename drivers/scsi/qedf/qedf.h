@@ -128,6 +128,7 @@ struct qedf_ioreq {
 	struct delayed_work timeout_work;
 	struct completion tm_done;
 	struct completion abts_done;
+	struct completion cleanup_done;
 	struct e4_fcoe_task_context *task;
 	struct fcoe_task_params *task_params;
 	struct scsi_sgl_task_params *sgl_task_params;
