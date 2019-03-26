@@ -2356,7 +2356,7 @@ int qedf_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
 	struct qedf_rport *fcport = (struct qedf_rport *)&rp[1];
 	struct qedf_ctx *qedf;
-	struct fc_lport *lport;
+	struct fc_lport *lport = shost_priv(sc_cmd->device->host);
 	int rc = SUCCESS;
 	int rval;
 	struct qedf_ioreq *io_req = NULL;
@@ -2409,8 +2409,6 @@ int qedf_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 		rc = FAILED;
 		goto tmf_err;
 	}
-
-	lport = qedf->lport;
 
 	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
 		QEDF_ERR(&qedf->dbg_ctx, "Connection is getting uploaded.\n");
