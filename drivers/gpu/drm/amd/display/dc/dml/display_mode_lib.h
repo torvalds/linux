@@ -27,7 +27,9 @@
 
 
 #include "dml_common_defs.h"
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #include "display_mode_vba.h"
+#endif
 
 enum dml_project {
 	DML_PROJECT_UNDEFINED,
@@ -36,6 +38,8 @@ enum dml_project {
 	DML_PROJECT_NAVI10,
 #endif
 };
+
+struct display_mode_lib;
 
 struct dml_funcs {
 	void (*rq_dlg_get_dlg_reg)(

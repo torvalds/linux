@@ -23,6 +23,8 @@
  *
  */
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+
 #ifndef __DML2_DISPLAY_MODE_VBA_H__
 #define __DML2_DISPLAY_MODE_VBA_H__
 
@@ -847,3 +849,4 @@ double CalculateWriteBackDISPCLK(
 		unsigned int WritebackChromaLineBufferWidth);
 
 #endif /* _DML2_DISPLAY_MODE_VBA_H_ */
+#endif
