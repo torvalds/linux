@@ -262,6 +262,7 @@ struct amd_svm_iommu_ir {
 };
 
 #define AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK	(0xFF)
+#define AVIC_LOGICAL_ID_ENTRY_VALID_BIT			31
 #define AVIC_LOGICAL_ID_ENTRY_VALID_MASK		(1 << 31)
 
 #define AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK	(0xFFULL)
@@ -4607,7 +4608,7 @@ static void avic_invalidate_logical_id_entry(struct kvm_vcpu *vcpu)
 	u32 *entry = avic_get_logical_id_entry(vcpu, svm->ldr_reg, flat);
 
 	if (entry)
-		WRITE_ONCE(*entry, (u32) ~AVIC_LOGICAL_ID_ENTRY_VALID_MASK);
+		clear_bit(AVIC_LOGICAL_ID_ENTRY_VALID_BIT, (unsigned long *)entry);
 }
 
 static int avic_handle_ldr_update(struct kvm_vcpu *vcpu)
