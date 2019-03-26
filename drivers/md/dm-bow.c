@@ -266,7 +266,8 @@ static struct bow_range *find_free_range(struct bow_context *bc)
 
 static sector_t sector_to_page(struct bow_context const *bc, sector_t sector)
 {
-	WARN_ON(sector % (bc->block_size / SECTOR_SIZE) != 0);
+	WARN_ON((sector & (((sector_t)1 << (bc->block_shift - SECTOR_SHIFT)) - 1))
+		!= 0);
 	return sector >> (bc->block_shift - SECTOR_SHIFT);
 }
 
@@ -291,7 +292,8 @@ static int copy_data(struct bow_context const *bc,
 
 		read = dm_bufio_read(bc->bufio, page, &read_buffer);
 		if (IS_ERR(read)) {
-			DMERR("Cannot read page %lu", page);
+			DMERR("Cannot read page %llu",
+			      (unsigned long long)page);
 			return PTR_ERR(read);
 		}
 
@@ -952,8 +954,9 @@ static int add_trim(struct bow_context *bc, struct bio *bio)
 	struct bow_range *br;
 	struct bvec_iter bi_iter = bio->bi_iter;
 
-	DMDEBUG("add_trim: %lu, %u",
-		bio->bi_iter.bi_sector, bio->bi_iter.bi_size);
+	DMDEBUG("add_trim: %llu, %u",
+		(unsigned long long)bio->bi_iter.bi_sector,
+		bio->bi_iter.bi_size);
 
 	do {
 		br = find_first_overlapping_range(&bc->ranges, &bi_iter);
@@ -990,8 +993,9 @@ static int remove_trim(struct bow_context *bc, struct bio *bio)
 	struct bow_range *br;
 	struct bvec_iter bi_iter = bio->bi_iter;
 
-	DMDEBUG("remove_trim: %lu, %u",
-		bio->bi_iter.bi_sector, bio->bi_iter.bi_size);
+	DMDEBUG("remove_trim: %llu, %u",
+		(unsigned long long)bio->bi_iter.bi_sector,
+		bio->bi_iter.bi_size);
 
 	do {
 		br = find_first_overlapping_range(&bc->ranges, &bi_iter);
@@ -1116,8 +1120,9 @@ static void dm_bow_tablestatus(struct dm_target *ti, char *result,
 	for (i = rb_first(&bc->ranges); i; i = rb_next(i)) {
 		struct bow_range *br = container_of(i, struct bow_range, node);
 
-		result += scnprintf(result, end - result, "%s: %lu",
-				    readable_type[br->type], br->sector);
+		result += scnprintf(result, end - result, "%s: %llu",
+				    readable_type[br->type],
+				    (unsigned long long)br->sector);
 		if (result >= end)
 			return;
 
