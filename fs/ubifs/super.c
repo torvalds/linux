@@ -2146,9 +2146,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_UBIFS_FS_XATTR
 	sb->s_xattr = ubifs_xattr_handlers;
 #endif
-#ifdef CONFIG_FS_ENCRYPTION
-	sb->s_cop = &ubifs_crypt_operations;
-#endif
+	fscrypt_set_ops(sb, &ubifs_crypt_operations);
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
