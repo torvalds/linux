@@ -18,6 +18,7 @@
 /**
  * struct tb_cm - Simple Thunderbolt connection manager
  * @tunnel_list: List of active tunnels
+ * @dp_resources: List of available DP resources for DP tunneling
  * @hotplug_active: tb_handle_hotplug will stop progressing plug
  *		    events and exit if this is not set (it needs to
  *		    acquire the lock one more time). Used to drain wq
@@ -25,6 +26,7 @@
  */
 struct tb_cm {
 	struct list_head tunnel_list;
+	struct list_head dp_resources;
 	bool hotplug_active;
 };
 
@@ -55,6 +57,42 @@ static void tb_queue_hotplug(struct tb *tb, u64 route, u8 port, bool unplug)
 }
 
 /* enumeration & hot plug handling */
+
+static void tb_add_dp_resources(struct tb_switch *sw)
+{
+	struct tb_cm *tcm = tb_priv(sw->tb);
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_is_dpin(port))
+			continue;
+
+		if (!tb_switch_query_dp_resource(sw, port))
+			continue;
+
+		list_add_tail(&port->list, &tcm->dp_resources);
+		tb_port_dbg(port, "DP IN resource available\n");
+	}
+}
+
+static void tb_remove_dp_resources(struct tb_switch *sw)
+{
+	struct tb_cm *tcm = tb_priv(sw->tb);
+	struct tb_port *port, *tmp;
+
+	/* Clear children resources first */
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_has_remote(port))
+			tb_remove_dp_resources(port->remote->sw);
+	}
+
+	list_for_each_entry_safe(port, tmp, &tcm->dp_resources, list) {
+		if (port->sw == sw) {
+			tb_port_dbg(port, "DP OUT resource unavailable\n");
+			list_del_init(&port->list);
+		}
+	}
+}
 
 static void tb_discover_tunnels(struct tb_switch *sw)
 {
@@ -223,8 +261,9 @@ static void tb_scan_port(struct tb_port *port)
 	tb_scan_switch(sw);
 }
 
-static int tb_free_tunnel(struct tb *tb, enum tb_tunnel_type type,
-			  struct tb_port *src_port, struct tb_port *dst_port)
+static struct tb_tunnel *tb_find_tunnel(struct tb *tb, enum tb_tunnel_type type,
+					struct tb_port *src_port,
+					struct tb_port *dst_port)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_tunnel *tunnel;
@@ -233,14 +272,32 @@ static int tb_free_tunnel(struct tb *tb, enum tb_tunnel_type type,
 		if (tunnel->type == type &&
 		    ((src_port && src_port == tunnel->src_port) ||
 		     (dst_port && dst_port == tunnel->dst_port))) {
-			tb_tunnel_deactivate(tunnel);
-			list_del(&tunnel->list);
-			tb_tunnel_free(tunnel);
-			return 0;
+			return tunnel;
 		}
 	}
 
-	return -ENODEV;
+	return NULL;
+}
+
+static void tb_deactivate_and_free_tunnel(struct tb_tunnel *tunnel)
+{
+	if (!tunnel)
+		return;
+
+	tb_tunnel_deactivate(tunnel);
+	list_del(&tunnel->list);
+
+	/*
+	 * In case of DP tunnel make sure the DP IN resource is deallocated
+	 * properly.
+	 */
+	if (tb_tunnel_is_dp(tunnel)) {
+		struct tb_port *in = tunnel->src_port;
+
+		tb_switch_dealloc_dp_resource(in->sw, in);
+	}
+
+	tb_tunnel_free(tunnel);
 }
 
 /**
@@ -253,11 +310,8 @@ static void tb_free_invalid_tunnels(struct tb *tb)
 	struct tb_tunnel *n;
 
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
-		if (tb_tunnel_is_invalid(tunnel)) {
-			tb_tunnel_deactivate(tunnel);
-			list_del(&tunnel->list);
-			tb_tunnel_free(tunnel);
-		}
+		if (tb_tunnel_is_invalid(tunnel))
+			tb_deactivate_and_free_tunnel(tunnel);
 	}
 }
 
@@ -273,6 +327,7 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 			continue;
 
 		if (port->remote->sw->is_unplugged) {
+			tb_remove_dp_resources(port->remote->sw);
 			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
@@ -367,42 +422,112 @@ out:
 	return tb_find_unused_port(sw, TB_TYPE_PCIE_DOWN);
 }
 
-static int tb_tunnel_dp(struct tb *tb, struct tb_port *out)
+static void tb_tunnel_dp(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_switch *sw = out->sw;
+	struct tb_port *port, *in, *out;
 	struct tb_tunnel *tunnel;
-	struct tb_port *in;
 
-	if (tb_port_is_enabled(out))
-		return 0;
+	/*
+	 * Find pair of inactive DP IN and DP OUT adapters and then
+	 * establish a DP tunnel between them.
+	 */
+	tb_dbg(tb, "looking for DP IN <-> DP OUT pairs:\n");
 
-	do {
-		sw = tb_to_switch(sw->dev.parent);
-		if (!sw)
-			return 0;
-		in = tb_find_unused_port(sw, TB_TYPE_DP_HDMI_IN);
-	} while (!in);
+	in = NULL;
+	out = NULL;
+	list_for_each_entry(port, &tcm->dp_resources, list) {
+		if (tb_port_is_enabled(port)) {
+			tb_port_dbg(port, "in use\n");
+			continue;
+		}
+
+		tb_port_dbg(port, "available\n");
+
+		if (!in && tb_port_is_dpin(port))
+			in = port;
+		else if (!out && tb_port_is_dpout(port))
+			out = port;
+	}
+
+	if (!in) {
+		tb_dbg(tb, "no suitable DP IN adapter available, not tunneling\n");
+		return;
+	}
+	if (!out) {
+		tb_dbg(tb, "no suitable DP OUT adapter available, not tunneling\n");
+		return;
+	}
+
+	if (tb_switch_alloc_dp_resource(in->sw, in)) {
+		tb_port_dbg(in, "no resource available for DP IN, not tunneling\n");
+		return;
+	}
 
 	tunnel = tb_tunnel_alloc_dp(tb, in, out);
 	if (!tunnel) {
-		tb_port_dbg(out, "DP tunnel allocation failed\n");
-		return -ENOMEM;
+		tb_port_dbg(out, "could not allocate DP tunnel\n");
+		goto dealloc_dp;
 	}
 
 	if (tb_tunnel_activate(tunnel)) {
 		tb_port_info(out, "DP tunnel activation failed, aborting\n");
 		tb_tunnel_free(tunnel);
-		return -EIO;
+		goto dealloc_dp;
 	}
 
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
-	return 0;
+	return;
+
+dealloc_dp:
+	tb_switch_dealloc_dp_resource(in->sw, in);
 }
 
-static void tb_teardown_dp(struct tb *tb, struct tb_port *out)
+static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port)
 {
-	tb_free_tunnel(tb, TB_TUNNEL_DP, NULL, out);
+	struct tb_port *in, *out;
+	struct tb_tunnel *tunnel;
+
+	if (tb_port_is_dpin(port)) {
+		tb_port_dbg(port, "DP IN resource unavailable\n");
+		in = port;
+		out = NULL;
+	} else {
+		tb_port_dbg(port, "DP OUT resource unavailable\n");
+		in = NULL;
+		out = port;
+	}
+
+	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, out);
+	tb_deactivate_and_free_tunnel(tunnel);
+	list_del_init(&port->list);
+
+	/*
+	 * See if there is another DP OUT port that can be used for
+	 * to create another tunnel.
+	 */
+	tb_tunnel_dp(tb);
+}
+
+static void tb_dp_resource_available(struct tb *tb, struct tb_port *port)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *p;
+
+	if (tb_port_is_enabled(port))
+		return;
+
+	list_for_each_entry(p, &tcm->dp_resources, list) {
+		if (p == port)
+			return;
+	}
+
+	tb_port_dbg(port, "DP %s resource available\n",
+		    tb_port_is_dpin(port) ? "IN" : "OUT");
+	list_add_tail(&port->list, &tcm->dp_resources);
+
+	/* Look for suitable DP IN <-> DP OUT pairs now */
+	tb_tunnel_dp(tb);
 }
 
 static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
@@ -477,6 +602,7 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 {
 	struct tb_port *dst_port;
+	struct tb_tunnel *tunnel;
 	struct tb_switch *sw;
 
 	sw = tb_to_switch(xd->dev.parent);
@@ -487,7 +613,8 @@ static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	 * case of cable disconnect) so it is fine if we cannot find it
 	 * here anymore.
 	 */
-	tb_free_tunnel(tb, TB_TUNNEL_DMA, NULL, dst_port);
+	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DMA, NULL, dst_port);
+	tb_deactivate_and_free_tunnel(tunnel);
 }
 
 static int tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
@@ -542,11 +669,14 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_port_dbg(port, "switch unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
+			tb_remove_dp_resources(port->remote->sw);
 			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
 				port->dual_link_port->remote = NULL;
+			/* Maybe we can create another DP tunnel */
+			tb_tunnel_dp(tb);
 		} else if (port->xdomain) {
 			struct tb_xdomain *xd = tb_xdomain_get(port->xdomain);
 
@@ -563,8 +693,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			port->xdomain = NULL;
 			__tb_disconnect_xdomain_paths(tb, xd);
 			tb_xdomain_put(xd);
-		} else if (tb_port_is_dpout(port)) {
-			tb_teardown_dp(tb, port);
+		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
+			tb_dp_resource_unavailable(tb, port);
 		} else {
 			tb_port_dbg(port,
 				   "got unplug event for disconnected port, ignoring\n");
@@ -577,8 +707,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_scan_port(port);
 			if (!port->remote)
 				tb_port_dbg(port, "hotplug: no switch found\n");
-		} else if (tb_port_is_dpout(port)) {
-			tb_tunnel_dp(tb, port);
+		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
+			tb_dp_resource_available(tb, port);
 		}
 	}
 
@@ -691,6 +821,8 @@ static int tb_start(struct tb *tb)
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
 	tb_discover_tunnels(tb->root_switch);
+	/* Add DP IN resources for the root switch */
+	tb_add_dp_resources(tb->root_switch);
 	/* Make the discovered switches available to the userspace */
 	device_for_each_child(&tb->root_switch->dev, NULL,
 			      tb_scan_finalize_switch);
@@ -820,6 +952,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 
 	tcm = tb_priv(tb);
 	INIT_LIST_HEAD(&tcm->tunnel_list);
+	INIT_LIST_HEAD(&tcm->dp_resources);
 
 	return tb;
 }

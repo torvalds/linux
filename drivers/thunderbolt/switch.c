@@ -645,6 +645,7 @@ static int tb_init_port(struct tb_port *port)
 		ida_init(&port->out_hopids);
 	}
 
+	INIT_LIST_HEAD(&port->list);
 	return 0;
 
 }
@@ -2331,6 +2332,49 @@ void tb_switch_suspend(struct tb_switch *sw)
 	}
 
 	tb_lc_set_sleep(sw);
+}
+
+/**
+ * tb_switch_query_dp_resource() - Query availability of DP resource
+ * @sw: Switch whose DP resource is queried
+ * @in: DP IN port
+ *
+ * Queries availability of DP resource for DP tunneling using switch
+ * specific means. Returns %true if resource is available.
+ */
+bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
+{
+	return tb_lc_dp_sink_query(sw, in);
+}
+
+/**
+ * tb_switch_alloc_dp_resource() - Allocate available DP resource
+ * @sw: Switch whose DP resource is allocated
+ * @in: DP IN port
+ *
+ * Allocates DP resource for DP tunneling. The resource must be
+ * available for this to succeed (see tb_switch_query_dp_resource()).
+ * Returns %0 in success and negative errno otherwise.
+ */
+int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
+{
+	return tb_lc_dp_sink_alloc(sw, in);
+}
+
+/**
+ * tb_switch_dealloc_dp_resource() - De-allocate DP resource
+ * @sw: Switch whose DP resource is de-allocated
+ * @in: DP IN port
+ *
+ * De-allocates DP resource that was previously allocated for DP
+ * tunneling.
+ */
+void tb_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
+{
+	if (tb_lc_dp_sink_dealloc(sw, in)) {
+		tb_sw_warn(sw, "failed to de-allocate DP resource for port %d\n",
+			   in->port);
+	}
 }
 
 struct tb_sw_lookup {

@@ -137,6 +137,7 @@ struct tb_switch {
  * @link_nr: Is this primary or secondary port on the dual_link.
  * @in_hopids: Currently allocated input HopIDs
  * @out_hopids: Currently allocated output HopIDs
+ * @list: Used to link ports to DP resources list
  */
 struct tb_port {
 	struct tb_regs_port_header config;
@@ -152,6 +153,7 @@ struct tb_port {
 	u8 link_nr:1;
 	struct ida in_hopids;
 	struct ida out_hopids;
+	struct list_head list;
 };
 
 /**
@@ -650,6 +652,10 @@ static inline bool tb_switch_is_icm(const struct tb_switch *sw)
 int tb_switch_lane_bonding_enable(struct tb_switch *sw);
 void tb_switch_lane_bonding_disable(struct tb_switch *sw);
 
+bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
+int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
+void tb_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
+
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_set_initial_credits(struct tb_port *port, u32 credits);
@@ -694,6 +700,9 @@ int tb_lc_configure_link(struct tb_switch *sw);
 void tb_lc_unconfigure_link(struct tb_switch *sw);
 int tb_lc_set_sleep(struct tb_switch *sw);
 bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
+bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in);
+int tb_lc_dp_sink_alloc(struct tb_switch *sw, struct tb_port *in);
+int tb_lc_dp_sink_dealloc(struct tb_switch *sw, struct tb_port *in);
 
 static inline int tb_route_length(u64 route)
 {

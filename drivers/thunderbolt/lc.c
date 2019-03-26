@@ -205,3 +205,164 @@ bool tb_lc_lane_bonding_possible(struct tb_switch *sw)
 
 	return !!(val & TB_LC_PORT_ATTR_BE);
 }
+
+static int tb_lc_dp_sink_from_port(const struct tb_switch *sw,
+				   struct tb_port *in)
+{
+	struct tb_port *port;
+
+	/* The first DP IN port is sink 0 and second is sink 1 */
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_is_dpin(port))
+			return in != port;
+	}
+
+	return -EINVAL;
+}
+
+static int tb_lc_dp_sink_available(struct tb_switch *sw, int sink)
+{
+	u32 val, alloc;
+	int ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->cap_lc + TB_LC_SNK_ALLOCATION, 1);
+	if (ret)
+		return ret;
+
+	/*
+	 * Sink is available for CM/SW to use if the allocation valie is
+	 * either 0 or 1.
+	 */
+	if (!sink) {
+		alloc = val & TB_LC_SNK_ALLOCATION_SNK0_MASK;
+		if (!alloc || alloc == TB_LC_SNK_ALLOCATION_SNK0_CM)
+			return 0;
+	} else {
+		alloc = (val & TB_LC_SNK_ALLOCATION_SNK1_MASK) >>
+			TB_LC_SNK_ALLOCATION_SNK1_SHIFT;
+		if (!alloc || alloc == TB_LC_SNK_ALLOCATION_SNK1_CM)
+			return 0;
+	}
+
+	return -EBUSY;
+}
+
+/**
+ * tb_lc_dp_sink_query() - Is DP sink available for DP IN port
+ * @sw: Switch whose DP sink is queried
+ * @in: DP IN port to check
+ *
+ * Queries through LC SNK_ALLOCATION registers whether DP sink is available
+ * for the given DP IN port or not.
+ */
+bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in)
+{
+	int sink;
+
+	/*
+	 * For older generations sink is always available as there is no
+	 * allocation mechanism.
+	 */
+	if (sw->generation < 3)
+		return true;
+
+	sink = tb_lc_dp_sink_from_port(sw, in);
+	if (sink < 0)
+		return false;
+
+	return !tb_lc_dp_sink_available(sw, sink);
+}
+
+/**
+ * tb_lc_dp_sink_alloc() - Allocate DP sink
+ * @sw: Switch whose DP sink is allocated
+ * @in: DP IN port the DP sink is allocated for
+ *
+ * Allocate DP sink for @in via LC SNK_ALLOCATION registers. If the
+ * resource is available and allocation is successful returns %0. In all
+ * other cases returs negative errno. In particular %-EBUSY is returned if
+ * the resource was not available.
+ */
+int tb_lc_dp_sink_alloc(struct tb_switch *sw, struct tb_port *in)
+{
+	int ret, sink;
+	u32 val;
+
+	if (sw->generation < 3)
+		return 0;
+
+	sink = tb_lc_dp_sink_from_port(sw, in);
+	if (sink < 0)
+		return sink;
+
+	ret = tb_lc_dp_sink_available(sw, sink);
+	if (ret)
+		return ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->cap_lc + TB_LC_SNK_ALLOCATION, 1);
+	if (ret)
+		return ret;
+
+	if (!sink) {
+		val &= ~TB_LC_SNK_ALLOCATION_SNK0_MASK;
+		val |= TB_LC_SNK_ALLOCATION_SNK0_CM;
+	} else {
+		val &= ~TB_LC_SNK_ALLOCATION_SNK1_MASK;
+		val |= TB_LC_SNK_ALLOCATION_SNK1_CM <<
+			TB_LC_SNK_ALLOCATION_SNK1_SHIFT;
+	}
+
+	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			  sw->cap_lc + TB_LC_SNK_ALLOCATION, 1);
+
+	if (ret)
+		return ret;
+
+	tb_port_dbg(in, "sink %d allocated\n", sink);
+	return 0;
+}
+
+/**
+ * tb_lc_dp_sink_dealloc() - De-allocate DP sink
+ * @sw: Switch whose DP sink is de-allocated
+ * @in: DP IN port whose DP sink is de-allocated
+ *
+ * De-allocate DP sink from @in using LC SNK_ALLOCATION registers.
+ */
+int tb_lc_dp_sink_dealloc(struct tb_switch *sw, struct tb_port *in)
+{
+	int ret, sink;
+	u32 val;
+
+	if (sw->generation < 3)
+		return 0;
+
+	sink = tb_lc_dp_sink_from_port(sw, in);
+	if (sink < 0)
+		return sink;
+
+	/* Needs to be owned by CM/SW */
+	ret = tb_lc_dp_sink_available(sw, sink);
+	if (ret)
+		return ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->cap_lc + TB_LC_SNK_ALLOCATION, 1);
+	if (ret)
+		return ret;
+
+	if (!sink)
+		val &= ~TB_LC_SNK_ALLOCATION_SNK0_MASK;
+	else
+		val &= ~TB_LC_SNK_ALLOCATION_SNK1_MASK;
+
+	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			  sw->cap_lc + TB_LC_SNK_ALLOCATION, 1);
+	if (ret)
+		return ret;
+
+	tb_port_dbg(in, "sink %d de-allocated\n", sink);
+	return 0;
+}
