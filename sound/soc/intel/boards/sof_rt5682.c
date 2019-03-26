@@ -310,9 +310,15 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 
 	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
 			     (1 + dmic_num + hdmi_num), GFP_KERNEL);
+	if (!links)
+		goto devm_err;
+
 	/* SSP */
 	links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 					"SSP%d-Codec", ssp_port);
+	if (!links[id].name)
+		goto devm_err;
+
 	links[id].id = id;
 	links[id].codecs = rt5682_component;
 	links[id].num_codecs = ARRAY_SIZE(rt5682_component);
@@ -327,6 +333,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	if (is_legacy_cpu) {
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"ssp%d-port", ssp_port);
+		if (!links[id].cpu_dai_name)
+			goto devm_err;
 	} else {
 		/*
 		 * Currently, On SKL+ platforms MCLK will be turned off in sof
@@ -340,6 +348,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].ignore_pmdown_time = 1;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"SSP%d Pin", ssp_port);
+		if (!links[id].cpu_dai_name)
+			goto devm_err;
 	}
 	id++;
 
@@ -347,9 +357,15 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	for (i = 1; i <= dmic_num; i++) {
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 						"dmic%02d", i);
+		if (!links[id].name)
+			goto devm_err;
+
 		links[id].id = id;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"DMIC%02d Pin", i);
+		if (!links[id].cpu_dai_name)
+			goto devm_err;
+
 		links[id].codecs = dmic_component;
 		links[id].num_codecs = ARRAY_SIZE(dmic_component);
 		links[id].platforms = platform_component;
@@ -365,17 +381,28 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		idisp_components = devm_kzalloc(dev,
 				   sizeof(struct snd_soc_dai_link_component) *
 				   hdmi_num, GFP_KERNEL);
+		if (!idisp_components)
+			goto devm_err;
 	}
 	for (i = 1; i <= hdmi_num; i++) {
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 						"iDisp%d", i);
+		if (!links[id].name)
+			goto devm_err;
+
 		links[id].id = id;
 		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							"iDisp%d Pin", i);
+		if (!links[id].cpu_dai_name)
+			goto devm_err;
+
 		idisp_components[i-1].name = "ehdaudio0D2";
 		idisp_components[i-1].dai_name = devm_kasprintf(dev, GFP_KERNEL,
 								"intel-hdmi-"
 								"hifi%d", i);
+		if (!idisp_components[i-1].dai_name)
+			goto devm_err;
+
 		links[id].codecs = &idisp_components[i-1];
 		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
@@ -387,6 +414,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	}
 
 	return links;
+
+devm_err:
+	return NULL;
 }
 
 static int sof_audio_probe(struct platform_device *pdev)
@@ -420,6 +450,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 	dai_links = sof_card_dai_links_create(&pdev->dev, sof_rt5682_quirk &
 					      SOF_RT5682_SSP_MASK,
 					      dmic_num, hdmi_num);
+	if (!dai_links)
+		return -ENOMEM;
+
 	sof_audio_card_rt5682.dai_link = dai_links;
 	sof_audio_card_rt5682.num_links = 1 + dmic_num + hdmi_num;
 
