@@ -380,10 +380,16 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 		QEDF_ERR(&(fcport->qedf->dbg_ctx),
 		    "LOGO port_id=%x.\n", port_id);
 		fc_rport_logoff(rdata);
+		mutex_lock(&lport->disc.disc_mutex);
 		/* Recreate the rport and log back in */
 		rdata = fc_rport_create(lport, port_id);
-		if (rdata)
+		if (rdata) {
+			mutex_unlock(&lport->disc.disc_mutex);
 			fc_rport_login(rdata);
+			fcport->rdata = rdata;
+		} else {
+			mutex_unlock(&lport->disc.disc_mutex);
+		}
 	}
 	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 }
