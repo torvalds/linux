@@ -1305,18 +1305,13 @@ struct pipe_ctx *dc_res_get_odm_bottom_pipe(struct pipe_ctx *pipe_ctx)
 bool dc_res_is_odm_head_pipe(struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *top_pipe = pipe_ctx->top_pipe;
-	bool result = false;
 
+	if (!top_pipe)
+		return false;
 	if (top_pipe && top_pipe->stream_res.opp == pipe_ctx->stream_res.opp)
 		return false;
 
-	while (top_pipe) {
-		if (!top_pipe->top_pipe && top_pipe->stream_res.opp != pipe_ctx->stream_res.opp)
-			result = true;
-		top_pipe = top_pipe->top_pipe;
-	}
-
-	return result;
+	return true;
 }
 
 bool dc_remove_plane_from_context(
