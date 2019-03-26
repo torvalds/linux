@@ -32,7 +32,7 @@ module_param(fb_bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 module_param(fb_defio, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
 struct udl_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct udl_framebuffer ufb;
 	int fb_count;
 };
@@ -392,7 +392,6 @@ static int udlfb_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out_gfree;
 	}
-	info->par = ufbdev;
 
 	ret = udl_framebuffer_init(dev, &ufbdev->ufb, &mode_cmd, obj);
 	if (ret)
@@ -402,15 +401,12 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	ufbdev->helper.fb = fb;
 
-	strcpy(info->fix.id, "udldrmfb");
-
 	info->screen_base = ufbdev->ufb.obj->vmapping;
 	info->fix.smem_len = size;
 	info->fix.smem_start = (unsigned long)ufbdev->ufb.obj->vmapping;
 
 	info->fbops = &udlfb_ops;
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, &ufbdev->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &ufbdev->helper, sizes);
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
 		      fb->width, fb->height,
