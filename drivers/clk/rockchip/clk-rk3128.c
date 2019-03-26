@@ -597,6 +597,16 @@ void rkclk_cpuclk_div_setting(int div)
 			       rk312x_reg_base +  RK2928_CLKSEL_CON(0));
 }
 
+static void rk3128_dump_cru(void)
+{
+	if (rk312x_reg_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk312x_reg_base,
+			       0x1f8, false);
+	}
+}
+
 static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -631,6 +641,9 @@ static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
 	rockchip_register_restart_notifier(ctx, RK2928_GLB_SRST_FST, NULL);
+
+	if (!rk_dump_cru)
+		rk_dump_cru = rk3128_dump_cru;
 
 	return ctx;
 }
