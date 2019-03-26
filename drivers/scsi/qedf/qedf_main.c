@@ -124,21 +124,24 @@ static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 {
 	int rc;
 
-	if (atomic_read(&qedf->link_state) != QEDF_LINK_UP) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Link not up.\n");
-		return  false;
-	}
-
 	while (qedf->fipvlan_retries--) {
+		/* This is to catch if link goes down during fipvlan retries */
+		if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN) {
+			QEDF_ERR(&qedf->dbg_ctx, "Link not up.\n");
+			return false;
+		}
+
 		if (qedf->vlan_id > 0)
 			return true;
+
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			   "Retry %d.\n", qedf->fipvlan_retries);
 		init_completion(&qedf->fipvlan_compl);
 		qedf_fcoe_send_vlan_req(qedf);
 		rc = wait_for_completion_timeout(&qedf->fipvlan_compl,
 		    1 * HZ);
-		if (rc > 0) {
+		if (rc > 0 &&
+		    (atomic_read(&qedf->link_state) == QEDF_LINK_UP)) {
 			fcoe_ctlr_link_up(&qedf->ctlr);
 			return true;
 		}
@@ -159,6 +162,12 @@ static void qedf_handle_link_update(struct work_struct *work)
 		rc = qedf_initiate_fipvlan_req(qedf);
 		if (rc)
 			return;
+
+		if (atomic_read(&qedf->link_state) != QEDF_LINK_UP) {
+			qedf->vlan_id = 0;
+			return;
+		}
+
 		/*
 		 * If we get here then we never received a repsonse to our
 		 * fip vlan request so set the vlan_id to the default and
@@ -2412,6 +2421,13 @@ static int qedf_ll2_rx(void *cookie, struct sk_buff *skb,
 {
 	struct qedf_ctx *qedf = (struct qedf_ctx *)cookie;
 	struct qedf_skb_work *skb_work;
+
+	if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_LL2,
+			  "Dropping frame as link state is down.\n");
+		kfree_skb(skb);
+		return 0;
+	}
 
 	skb_work = kzalloc(sizeof(struct qedf_skb_work), GFP_ATOMIC);
 	if (!skb_work) {

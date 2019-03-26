@@ -95,6 +95,12 @@ static void qedf_fcoe_process_vlan_resp(struct qedf_ctx *qedf,
 		rlen -= dlen;
 	}
 
+	if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+			  "Dropping VLAN response as link is down.\n");
+		return;
+	}
+
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "VLAN response, "
 		   "vid=0x%x.\n", vid);
 
