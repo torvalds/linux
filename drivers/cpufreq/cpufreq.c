@@ -2370,6 +2370,22 @@ unlock:
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
+/**
+ * cpufreq_update_limits - Update policy limits for a given CPU.
+ * @cpu: CPU to update the policy limits for.
+ *
+ * Invoke the driver's ->update_limits callback if present or call
+ * cpufreq_update_policy() for @cpu.
+ */
+void cpufreq_update_limits(unsigned int cpu)
+{
+	if (cpufreq_driver->update_limits)
+		cpufreq_driver->update_limits(cpu);
+	else
+		cpufreq_update_policy(cpu);
+}
+EXPORT_SYMBOL_GPL(cpufreq_update_limits);
+
 /*********************************************************************
  *               BOOST						     *
  *********************************************************************/
