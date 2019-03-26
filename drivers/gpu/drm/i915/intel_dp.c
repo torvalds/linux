@@ -2111,7 +2111,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		to_intel_digital_connector_state(conn_state);
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_CONSTANT_N);
-	int ret;
+	int ret, output_bpp;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -2166,25 +2166,22 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
 
-	if (!pipe_config->dsc_params.compression_enable)
-		intel_link_compute_m_n(pipe_config->pipe_bpp,
-				       pipe_config->lane_count,
-				       adjusted_mode->crtc_clock,
-				       pipe_config->port_clock,
-				       &pipe_config->dp_m_n,
-				       constant_n);
+	if (pipe_config->dsc_params.compression_enable)
+		output_bpp = pipe_config->dsc_params.compressed_bpp;
 	else
-		intel_link_compute_m_n(pipe_config->dsc_params.compressed_bpp,
-				       pipe_config->lane_count,
-				       adjusted_mode->crtc_clock,
-				       pipe_config->port_clock,
-				       &pipe_config->dp_m_n,
-				       constant_n);
+		output_bpp = pipe_config->pipe_bpp;
+
+	intel_link_compute_m_n(output_bpp,
+			       pipe_config->lane_count,
+			       adjusted_mode->crtc_clock,
+			       pipe_config->port_clock,
+			       &pipe_config->dp_m_n,
+			       constant_n);
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
 			pipe_config->has_drrs = true;
-			intel_link_compute_m_n(pipe_config->pipe_bpp,
+			intel_link_compute_m_n(output_bpp,
 					       pipe_config->lane_count,
 					       intel_connector->panel.downclock_mode->clock,
 					       pipe_config->port_clock,
