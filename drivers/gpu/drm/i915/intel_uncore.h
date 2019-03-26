@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <linux/hrtimer.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "i915_reg.h"
 
