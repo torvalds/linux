@@ -394,14 +394,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__timer1 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 wkup -> uart1 */
-static struct omap_hwmod_ocp_if am33xx_l4_wkup__uart1 = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am33xx_uart1_hwmod,
-	.clk		= "dpll_core_m4_div2_ck",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 wkup -> wd_timer1 */
 static struct omap_hwmod_ocp_if am33xx_l4_wkup__wd_timer1 = {
 	.master		= &am33xx_l4_wkup_hwmod,
@@ -439,7 +431,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__control,
 	&am33xx_l4_wkup__smartreflex0,
 	&am33xx_l4_wkup__smartreflex1,
-	&am33xx_l4_wkup__uart1,
 	&am33xx_l4_wkup__timer1,
 	&am33xx_l4_wkup__rtc,
 	&am33xx_l4_wkup__adc_tsc,
@@ -457,11 +448,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_ls__timer6,
 	&am33xx_l4_ls__timer7,
 	&am33xx_l3_main__tpcc,
-	&am33xx_l4_ls__uart2,
-	&am33xx_l4_ls__uart3,
-	&am33xx_l4_ls__uart4,
-	&am33xx_l4_ls__uart5,
-	&am33xx_l4_ls__uart6,
 	&am33xx_l4_ls__spinlock,
 	&am33xx_l4_ls__elm,
 	&am33xx_l4_ls__epwmss0,
