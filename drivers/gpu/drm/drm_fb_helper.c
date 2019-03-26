@@ -2128,6 +2128,9 @@ void drm_fb_helper_fill_info(struct fb_info *info,
 	drm_fb_helper_fill_var(info, fb_helper,
 			       sizes->fb_width, sizes->fb_height);
 
+	snprintf(info->fix.id, sizeof(info->fix.id), "%sdrmfb",
+		 fb_helper->dev->driver->name);
+
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_info);
 
@@ -3189,8 +3192,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 		fbi->fix.smem_start =
 			page_to_phys(virt_to_page(fbi->screen_buffer));
 #endif
-	strcpy(fbi->fix.id, "DRM emulated");
-
 	drm_fb_helper_fill_info(fbi, fb_helper, sizes);
 
 	if (fb->funcs->dirty) {
