@@ -1871,6 +1871,9 @@ static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	u8 dsc_max_bpc;
 	int pipe_bpp;
 
+	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
+		intel_dp_supports_fec(intel_dp, pipe_config);
+
 	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
 		return false;
 
@@ -2096,9 +2099,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
-
-	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
-				  intel_dp_supports_fec(intel_dp, pipe_config);
 
 	if (!intel_dp_compute_link_config(encoder, pipe_config, conn_state))
 		return false;
