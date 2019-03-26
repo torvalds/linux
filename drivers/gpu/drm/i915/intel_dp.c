@@ -1723,12 +1723,6 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 	}
 }
 
-struct link_config_limits {
-	int min_clock, max_clock;
-	int min_lane_count, max_lane_count;
-	int min_bpp, max_bpp;
-};
-
 static bool intel_dp_source_supports_fec(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *pipe_config)
 {
@@ -1791,7 +1785,7 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 }
 
 /* Adjust link config limits based on compliance test requests. */
-static void
+void
 intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  struct link_config_limits *limits)

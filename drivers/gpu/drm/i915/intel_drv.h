@@ -1908,6 +1908,14 @@ void intel_csr_ucode_suspend(struct drm_i915_private *);
 void intel_csr_ucode_resume(struct drm_i915_private *);
 
 /* intel_dp.c */
+struct link_config_limits {
+	int min_clock, max_clock;
+	int min_lane_count, max_lane_count;
+	int min_bpp, max_bpp;
+};
+void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
+				       struct intel_crtc_state *pipe_config,
+				       struct link_config_limits *limits);
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
 bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
