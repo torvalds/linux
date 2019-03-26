@@ -982,7 +982,8 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 	/* rport and tgt are allocated together, so tgt should be non-NULL */
 	fcport = (struct qedf_rport *)&rp[1];
 
-	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
+	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
 		/*
 		 * Session is not offloaded yet. Let SCSI-ml retry
 		 * the command.
@@ -2400,6 +2401,12 @@ int qedf_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 	}
 
 	lport = qedf->lport;
+
+	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&qedf->dbg_ctx, "Connection is getting uploaded.\n");
+		rc = SUCCESS;
+		goto tmf_err;
+	}
 
 	if (test_bit(QEDF_UNLOADING, &qedf->flags) ||
 	    test_bit(QEDF_DBG_STOP_IO, &qedf->flags)) {
