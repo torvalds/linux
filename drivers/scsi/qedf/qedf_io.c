@@ -773,10 +773,18 @@ void qedf_ring_doorbell(struct qedf_rport *fcport)
 	    FCOE_DB_DATA_AGG_VAL_SEL_SHIFT;
 
 	dbell.sq_prod = fcport->fw_sq_prod_idx;
-	writel(*(u32 *)&dbell, fcport->p_doorbell);
-	/* Make sure SQ index is updated so f/w prcesses requests in order */
+	/* wmb makes sure that the BDs data is updated before updating the
+	 * producer, otherwise FW may read old data from the BDs.
+	 */
 	wmb();
-	mmiowb();
+	barrier();
+	writel(*(u32 *)&dbell, fcport->p_doorbell);
+	/*
+	 * Fence required to flush the write combined buffer, since another
+	 * CPU may write to the same doorbell address and data may be lost
+	 * due to relaxed order nature of write combined bar.
+	 */
+	wmb();
 }
 
 static void qedf_trace_io(struct qedf_rport *fcport, struct qedf_ioreq *io_req,
