@@ -1100,7 +1100,7 @@ static void qedf_unmap_sg_list(struct qedf_ctx *qedf, struct qedf_ioreq *io_req)
 void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *io_req)
 {
-	u16 xid, rval;
+	u16 xid;
 	struct e4_fcoe_task_context *task_ctx;
 	struct scsi_cmnd *sc_cmd;
 	struct fcoe_cqe_rsp_info *fcp_rsp;
@@ -1199,14 +1199,6 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 			sc_cmd->result = (DID_ERROR << 16) | io_req->cdb_status;
 		else
 			sc_cmd->result = (DID_OK << 16) | io_req->cdb_status;
-
-		/* Abort the command since we did not get all the data */
-		init_completion(&io_req->abts_done);
-		rval = qedf_initiate_abts(io_req, true);
-		if (rval) {
-			QEDF_ERR(&(qedf->dbg_ctx), "Failed to queue ABTS.\n");
-			sc_cmd->result = (DID_ERROR << 16) | io_req->cdb_status;
-		}
 
 		/*
 		 * Set resid to the whole buffer length so we won't try to resue
