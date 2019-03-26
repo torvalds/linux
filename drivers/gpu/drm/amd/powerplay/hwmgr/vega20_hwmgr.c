@@ -3819,15 +3819,14 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
 	int workload_type, result = 0;
+	uint32_t power_profile_mode = input[size];
 
-	hwmgr->power_profile_mode = input[size];
-
-	if (hwmgr->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", hwmgr->power_profile_mode);
+	if (power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", power_profile_mode);
 		return -EINVAL;
 	}
 
-	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		if (size < 10)
 			return -EINVAL;
 
@@ -3895,9 +3894,11 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type =
-		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
+		conv_power_profile_to_pplib_workload(power_profile_mode);
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
 						1 << workload_type);
+
+	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
 }

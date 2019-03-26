@@ -4904,13 +4904,12 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 	uint8_t FPS;
 	uint8_t use_rlc_busy;
 	uint8_t min_active_level;
-
-	hwmgr->power_profile_mode = input[size];
+	uint32_t power_profile_mode = input[size];
 
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
-						1<<hwmgr->power_profile_mode);
+						1 << power_profile_mode);
 
-	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		if (size == 0 || size > 4)
 			return -EINVAL;
 
@@ -4923,6 +4922,8 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 					busy_set_point | FPS<<8 |
 					use_rlc_busy << 16 | min_active_level<<24);
 	}
+
+	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
 }
