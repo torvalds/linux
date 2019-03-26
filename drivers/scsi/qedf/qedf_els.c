@@ -378,12 +378,18 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
 	rdata = fcport->rdata;
-	if (rdata) {
+	if (rdata && !kref_get_unless_zero(&rdata->kref)) {
+		fcport->rdata = NULL;
+		rdata = NULL;
+	}
+
+	if (rdata && rdata->rp_state == RPORT_ST_READY) {
 		lport = fcport->qedf->lport;
 		port_id = rdata->ids.port_id;
 		QEDF_ERR(&(fcport->qedf->dbg_ctx),
 		    "LOGO port_id=%x.\n", port_id);
 		fc_rport_logoff(rdata);
+		kref_put(&rdata->kref, fc_rport_destroy);
 		mutex_lock(&lport->disc.disc_mutex);
 		/* Recreate the rport and log back in */
 		rdata = fc_rport_create(lport, port_id);
@@ -393,6 +399,7 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 			fcport->rdata = rdata;
 		} else {
 			mutex_unlock(&lport->disc.disc_mutex);
+			fcport->rdata = NULL;
 		}
 	}
 	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
