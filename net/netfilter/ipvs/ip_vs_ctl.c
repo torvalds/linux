@@ -831,6 +831,10 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	conn_flags = udest->conn_flags & IP_VS_CONN_F_DEST_MASK;
 	conn_flags |= IP_VS_CONN_F_INACTIVE;
 
+	/* set the tunnel info */
+	dest->tun_type = udest->tun_type;
+	dest->tun_port = udest->tun_port;
+
 	/* set the IP_VS_CONN_F_NOOUTPUT flag if not masquerading/NAT */
 	if ((conn_flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ) {
 		conn_flags |= IP_VS_CONN_F_NOOUTPUT;
@@ -987,6 +991,13 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 		return -ERANGE;
 	}
 
+	if (udest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) {
+		if (udest->tun_port == 0) {
+			pr_err("%s(): tunnel port is zero\n", __func__);
+			return -EINVAL;
+		}
+	}
+
 	ip_vs_addr_copy(udest->af, &daddr, &udest->addr);
 
 	/* We use function that requires RCU lock */
@@ -1049,6 +1060,13 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 		pr_err("%s(): lower threshold is higher than upper threshold\n",
 			__func__);
 		return -ERANGE;
+	}
+
+	if (udest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) {
+		if (udest->tun_port == 0) {
+			pr_err("%s(): tunnel port is zero\n", __func__);
+			return -EINVAL;
+		}
 	}
 
 	ip_vs_addr_copy(udest->af, &daddr, &udest->addr);
@@ -2333,6 +2351,7 @@ static void ip_vs_copy_udest_compat(struct ip_vs_dest_user_kern *udest,
 	udest->u_threshold	= udest_compat->u_threshold;
 	udest->l_threshold	= udest_compat->l_threshold;
 	udest->af		= AF_INET;
+	udest->tun_type		= IP_VS_CONN_F_TUNNEL_TYPE_IPIP;
 }
 
 static int
@@ -2890,6 +2909,8 @@ static const struct nla_policy ip_vs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 	[IPVS_DEST_ATTR_PERSIST_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_STATS]		= { .type = NLA_NESTED },
 	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
+	[IPVS_DEST_ATTR_TUN_TYPE]	= { .type = NLA_U8 },
+	[IPVS_DEST_ATTR_TUN_PORT]	= { .type = NLA_U16 },
 };
 
 static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
@@ -3193,6 +3214,10 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 			 IP_VS_CONN_F_FWD_MASK)) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_WEIGHT,
 			atomic_read(&dest->weight)) ||
+	    nla_put_u8(skb, IPVS_DEST_ATTR_TUN_TYPE,
+		       dest->tun_type) ||
+	    nla_put_be16(skb, IPVS_DEST_ATTR_TUN_PORT,
+			 dest->tun_port) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_U_THRESH, dest->u_threshold) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_L_THRESH, dest->l_threshold) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_ACTIVE_CONNS,
@@ -3315,12 +3340,14 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 	/* If a full entry was requested, check for the additional fields */
 	if (full_entry) {
 		struct nlattr *nla_fwd, *nla_weight, *nla_u_thresh,
-			      *nla_l_thresh;
+			      *nla_l_thresh, *nla_tun_type, *nla_tun_port;
 
 		nla_fwd		= attrs[IPVS_DEST_ATTR_FWD_METHOD];
 		nla_weight	= attrs[IPVS_DEST_ATTR_WEIGHT];
 		nla_u_thresh	= attrs[IPVS_DEST_ATTR_U_THRESH];
 		nla_l_thresh	= attrs[IPVS_DEST_ATTR_L_THRESH];
+		nla_tun_type	= attrs[IPVS_DEST_ATTR_TUN_TYPE];
+		nla_tun_port	= attrs[IPVS_DEST_ATTR_TUN_PORT];
 
 		if (!(nla_fwd && nla_weight && nla_u_thresh && nla_l_thresh))
 			return -EINVAL;
@@ -3330,6 +3357,12 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 		udest->weight = nla_get_u32(nla_weight);
 		udest->u_threshold = nla_get_u32(nla_u_thresh);
 		udest->l_threshold = nla_get_u32(nla_l_thresh);
+
+		if (nla_tun_type)
+			udest->tun_type = nla_get_u8(nla_tun_type);
+
+		if (nla_tun_port)
+			udest->tun_port = nla_get_be16(nla_tun_port);
 	}
 
 	return 0;
