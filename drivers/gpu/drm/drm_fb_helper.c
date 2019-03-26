@@ -2128,6 +2128,7 @@ void drm_fb_helper_fill_info(struct fb_info *info,
 	drm_fb_helper_fill_var(info, fb_helper,
 			       sizes->fb_width, sizes->fb_height);
 
+	info->par = fb_helper;
 	snprintf(info->fix.id, sizeof(info->fix.id), "%sdrmfb",
 		 fb_helper->dev->driver->name);
 
@@ -3181,7 +3182,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	if (IS_ERR(fbi))
 		return PTR_ERR(fbi);
 
-	fbi->par = fb_helper;
 	fbi->fbops = &drm_fbdev_fb_ops;
 	fbi->screen_size = fb->height * fb->pitches[0];
 	fbi->fix.smem_len = fbi->screen_size;
