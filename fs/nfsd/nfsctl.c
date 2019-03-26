@@ -1242,6 +1242,7 @@ static __net_init int nfsd_init_net(struct net *net)
 	nn->nfsd4_lease = 90;	/* default lease time */
 	nn->nfsd4_grace = 90;
 	nn->somebody_reclaimed = false;
+	nn->track_reclaim_completes = false;
 	nn->clverifier_counter = prandom_u32();
 	nn->clientid_counter = prandom_u32();
 	nn->s2s_cp_cl_id = nn->clientid_counter++;

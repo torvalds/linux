@@ -104,6 +104,9 @@ struct nfsd_net {
 	time_t nfsd4_grace;
 	bool somebody_reclaimed;
 
+	bool track_reclaim_completes;
+	atomic_t nr_reclaim_complete;
+
 	bool nfsd_net_up;
 	bool lockd_up;
 

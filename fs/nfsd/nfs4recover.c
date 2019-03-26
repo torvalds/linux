@@ -1270,6 +1270,8 @@ nfs4_cld_state_init(struct net *net)
 	for (i = 0; i < CLIENT_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&nn->reclaim_str_hashtbl[i]);
 	nn->reclaim_str_hashtbl_size = 0;
+	nn->track_reclaim_completes = true;
+	atomic_set(&nn->nr_reclaim_complete, 0);
 
 	return 0;
 }
@@ -1279,6 +1281,7 @@ nfs4_cld_state_shutdown(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
+	nn->track_reclaim_completes = false;
 	kfree(nn->reclaim_str_hashtbl);
 }
 
