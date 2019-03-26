@@ -469,7 +469,7 @@ static inline u32 linkmode_adv_to_lcl_adv_t(unsigned long *advertising)
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_CAP;
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_ASYM;
 
