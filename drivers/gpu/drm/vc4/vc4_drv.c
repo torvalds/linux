@@ -277,11 +277,13 @@ static int vc4_drm_bind(struct device *dev)
 
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
-	ret = drm_dev_register(drm, 0);
+	ret = vc4_kms_load(drm);
 	if (ret < 0)
 		goto unbind_all;
 
-	vc4_kms_load(drm);
+	ret = drm_dev_register(drm, 0);
+	if (ret < 0)
+		goto unbind_all;
 
 	drm_fbdev_generic_setup(drm, 16);
 
