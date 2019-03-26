@@ -1003,19 +1003,19 @@
 
 			/omit-if-no-ref/
 			uart1_cts_rts_pa_pins: uart1-cts-rts-pa-pins {
-				pins = "PA12", "PIA13";
-				function = "uart2";
+				pins = "PA12", "PA13";
+				function = "uart1";
 			};
 
 			/omit-if-no-ref/
 			uart2_pa_pins: uart2-pa-pins {
-				pins = "PIA2", "PIA3";
+				pins = "PA2", "PA3";
 				function = "uart2";
 			};
 
 			/omit-if-no-ref/
 			uart2_cts_rts_pa_pins: uart2-cts-rts-pa-pins {
-				pins = "PA0", "PIA1";
+				pins = "PA0", "PA1";
 				function = "uart2";
 			};
 
