@@ -105,20 +105,19 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 	/* Check if page can be recycled */
 	if (page) {
 		ref_count = page_ref_count(page);
-		/* Check if this page has been used once i.e 'put_page'
-		 * called after packet transmission i.e internal ref_count
-		 * and page's ref_count are equal i.e page can be recycled.
+		/* This page can be recycled if internal ref_count and page's
+		 * ref_count are equal, indicating that the page has been used
+		 * once for packet transmission. For non-XDP mode, internal
+		 * ref_count is always '1'.
 		 */
-		if (rbdr->is_xdp && (ref_count == pgcache->ref_count))
-			pgcache->ref_count--;
-		else
+		if (rbdr->is_xdp) {
+			if (ref_count == pgcache->ref_count)
+				pgcache->ref_count--;
+			else
+				page = NULL;
+		} else if (ref_count != 1) {
 			page = NULL;
-
-		/* In non-XDP mode, page's ref_count needs to be '1' for it
-		 * to be recycled.
-		 */
-		if (!rbdr->is_xdp && (ref_count != 1))
-			page = NULL;
+		}
 	}
 
 	if (!page) {
