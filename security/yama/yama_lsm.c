@@ -206,7 +206,7 @@ static void yama_ptracer_del(struct task_struct *tracer,
  * yama_task_free - check for task_pid to remove from exception list
  * @task: task being removed
  */
-void yama_task_free(struct task_struct *task)
+static void yama_task_free(struct task_struct *task)
 {
 	yama_ptracer_del(task, task);
 }
@@ -401,7 +401,7 @@ static int yama_ptrace_access_check(struct task_struct *child,
  *
  * Returns 0 if following the ptrace is allowed, -ve on error.
  */
-int yama_ptrace_traceme(struct task_struct *parent)
+static int yama_ptrace_traceme(struct task_struct *parent)
 {
 	int rc = 0;
 
@@ -452,7 +452,7 @@ static int yama_dointvec_minmax(struct ctl_table *table, int write,
 static int zero;
 static int max_scope = YAMA_SCOPE_NO_ATTACH;
 
-struct ctl_path yama_sysctl_path[] = {
+static struct ctl_path yama_sysctl_path[] = {
 	{ .procname = "kernel", },
 	{ .procname = "yama", },
 	{ }
