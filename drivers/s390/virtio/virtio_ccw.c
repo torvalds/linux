@@ -66,7 +66,6 @@ struct virtio_ccw_device {
 	bool device_lost;
 	unsigned int config_ready;
 	void *airq_info;
-	u64 dma_mask;
 };
 
 struct vq_info_block_legacy {
@@ -1255,16 +1254,7 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 		ret = -ENOMEM;
 		goto out_free;
 	}
-
 	vcdev->vdev.dev.parent = &cdev->dev;
-	cdev->dev.dma_mask = &vcdev->dma_mask;
-	/* we are fine with common virtio infrastructure using 64 bit DMA */
-	ret = dma_set_mask_and_coherent(&cdev->dev, DMA_BIT_MASK(64));
-	if (ret) {
-		dev_warn(&cdev->dev, "Failed to enable 64-bit DMA.\n");
-		goto out_free;
-	}
-
 	vcdev->config_block = kzalloc(sizeof(*vcdev->config_block),
 				   GFP_DMA | GFP_KERNEL);
 	if (!vcdev->config_block) {
