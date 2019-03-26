@@ -792,6 +792,18 @@ static const char *const rv1108_critical_clocks[] __initconst = {
 	"pclk_pmu",
 };
 
+static void __iomem *rv1108_cru_base;
+
+static void rv1108_dump_cru(void)
+{
+	if (rv1108_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rv1108_cru_base,
+			       0x1f8, false);
+	}
+}
+
 static void __init rv1108_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -829,5 +841,10 @@ static void __init rv1108_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RV1108_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru) {
+		rv1108_cru_base = reg_base;
+		rk_dump_cru = rv1108_dump_cru;
+	}
 }
 CLK_OF_DECLARE(rv1108_cru, "rockchip,rv1108-cru", rv1108_clk_init);
