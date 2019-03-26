@@ -1324,7 +1324,7 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 
 	if (!virt_addr_valid(sc_cmd)) {
 		QEDF_ERR(&qedf->dbg_ctx, "sc_cmd=%p is not valid.", sc_cmd);
-		return;
+		goto bad_scsi_ptr;
 	}
 
 	if (!sc_cmd->SCp.ptr) {
@@ -1336,7 +1336,34 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	if (!sc_cmd->device) {
 		QEDF_ERR(&qedf->dbg_ctx, "Device for sc_cmd %p is NULL.\n",
 			 sc_cmd);
-		return;
+		goto bad_scsi_ptr;
+	}
+
+	if (!virt_addr_valid(sc_cmd->device)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Device pointer for sc_cmd %p is bad.\n", sc_cmd);
+		goto bad_scsi_ptr;
+	}
+
+	if (!sc_cmd->sense_buffer) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "sc_cmd->sense_buffer for sc_cmd %p is NULL.\n",
+			 sc_cmd);
+		goto bad_scsi_ptr;
+	}
+
+	if (!virt_addr_valid(sc_cmd->sense_buffer)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "sc_cmd->sense_buffer for sc_cmd %p is bad.\n",
+			 sc_cmd);
+		goto bad_scsi_ptr;
+	}
+
+	if (!sc_cmd->scsi_done) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "sc_cmd->scsi_done for sc_cmd %p is NULL.\n",
+			 sc_cmd);
+		goto bad_scsi_ptr;
 	}
 
 	qedf_unmap_sg_list(qedf, io_req);
@@ -1365,6 +1392,14 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	sc_cmd->SCp.ptr = NULL;
 	sc_cmd->scsi_done(sc_cmd);
 	kref_put(&io_req->refcount, qedf_release_cmd);
+
+bad_scsi_ptr:
+	/*
+	 * Clear the io_req->sc_cmd backpointer so we don't try to process
+	 * this again
+	 */
+	io_req->sc_cmd = NULL;
+	kref_put(&io_req->refcount, qedf_release_cmd);  /* ID: 001 */
 }
 
 /*
