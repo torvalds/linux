@@ -131,6 +131,26 @@ static int rk1608_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int rk1608_enum_frame_sizes(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct rk1608_dphy *pdata = to_state(sd);
+
+	if (fse->index > 0)
+		return -EINVAL;
+
+	if (fse->code != pdata->mf.code)
+		return -EINVAL;
+
+	fse->min_width  = pdata->mf.width;
+	fse->max_width  = pdata->mf.width;
+	fse->max_height = pdata->mf.height;
+	fse->min_height = pdata->mf.height;
+
+	return 0;
+}
+
 static int rk1608_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
@@ -413,6 +433,7 @@ static const struct v4l2_subdev_video_ops rk1608_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops rk1608_subdev_pad_ops = {
 	.enum_mbus_code	= rk1608_enum_mbus_code,
+	.enum_frame_size = rk1608_enum_frame_sizes,
 	.get_fmt	= rk1608_get_fmt,
 	.set_fmt	= rk1608_set_fmt,
 };
