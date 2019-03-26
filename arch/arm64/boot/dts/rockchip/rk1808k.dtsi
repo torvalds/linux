@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+&cpu0_opp_table {
+	rockchip,high-temp = <85000>;
+	rockchip,high-temp-max-freq = <1008000>;
+};
+
+&dmc {
+	status = "okay";
+	center-supply = <&vdd_log>;
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL       924000
+		SYS_STATUS_REBOOT       924000
+	>;
+};
+
+&dmc_opp_table {
+	rockchip,high-temp = <85000>;
+	rockchip,high-temp-max-freq = <664000>;
+	rockchip,thermal-zone = "soc-thermal";
+};
+
+&thermal_zones {
+	soc-thermal {
+		sustainable-power = <1224>;
+		k_pu = <27>;
+		k_po = <55>;
+		k_i = <0>;
+
+		trips {
+			trip-point-0 {
+				temperature = <85000>;
+			};
+			trip-point-1 {
+				temperature = <100000>;
+			};
+		};
+		/delete-node/ cooling-maps;
+		cooling-maps {
+			map0 {
+				trip = <&target>;
+				cooling-device =
+					<&npu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+		};
+	};
+};
