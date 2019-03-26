@@ -2174,7 +2174,8 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	/* If it TASK MGMT handle it, reference will be decreased
 	 * in qedf_execute_tmf
 	 */
-	if (io_req->cmd_type == QEDF_TASK_MGMT_CMD) {
+	if (io_req->tm_flags  == FCP_TMF_LUN_RESET ||
+	    io_req->tm_flags == FCP_TMF_TGT_RESET) {
 		clear_bit(QEDF_CMD_OUTSTANDING, &io_req->flags);
 		io_req->sc_cmd = NULL;
 		complete(&io_req->tm_done);
