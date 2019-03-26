@@ -214,13 +214,20 @@ static inline void __iomem *cpu_boot_reg(int cpu)
  */
 void exynos_core_restart(u32 core_id)
 {
+	unsigned int timeout = 16;
 	u32 val;
 
 	if (!of_machine_is_compatible("samsung,exynos3250"))
 		return;
 
-	while (!pmu_raw_readl(S5P_PMU_SPARE2))
+	while (timeout && !pmu_raw_readl(S5P_PMU_SPARE2)) {
+		timeout--;
 		udelay(10);
+	}
+	if (timeout == 0) {
+		pr_err("cpu core %u restart failed\n", core_id);
+		return;
+	}
 	udelay(10);
 
 	val = pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(core_id));
