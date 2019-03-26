@@ -29,6 +29,18 @@
 	qcom,controlled-remotely;
 };
 
+&pms405_spmi_regulators {
+	vdd_s3-supply = <&pms405_s3>;
+
+	pms405_s3: s3 {
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "vdd_apc";
+		regulator-min-microvolt = <1048000>;
+		regulator-max-microvolt = <1352000>;
+	};
+};
+
 &remoteproc_adsp {
 	status = "ok";
 };
