@@ -301,7 +301,8 @@ struct drm_display_info {
 	/**
 	 * @width_mm: Physical width in mm.
 	 */
-        unsigned int width_mm;
+	unsigned int width_mm;
+
 	/**
 	 * @height_mm: Physical height in mm.
 	 */
