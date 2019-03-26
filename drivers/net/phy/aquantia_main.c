@@ -58,8 +58,30 @@
 #define MDIO_AN_RX_LP_STAT1			0xe820
 #define MDIO_AN_RX_LP_STAT1_1000BASET_FULL	BIT(15)
 #define MDIO_AN_RX_LP_STAT1_1000BASET_HALF	BIT(14)
+#define MDIO_AN_RX_LP_STAT1_SHORT_REACH		BIT(13)
+#define MDIO_AN_RX_LP_STAT1_AQRATE_DOWNSHIFT	BIT(12)
+#define MDIO_AN_RX_LP_STAT1_AQ_PHY		BIT(2)
+
+#define MDIO_AN_RX_LP_STAT4			0xe823
+#define MDIO_AN_RX_LP_STAT4_FW_MAJOR		GENMASK(15, 8)
+#define MDIO_AN_RX_LP_STAT4_FW_MINOR		GENMASK(7, 0)
+
+#define MDIO_AN_RX_VEND_STAT3			0xe832
+#define MDIO_AN_RX_VEND_STAT3_AFR		BIT(0)
 
 /* Vendor specific 1, MDIO_MMD_VEND1 */
+#define VEND1_GLOBAL_FW_ID			0x0020
+#define VEND1_GLOBAL_FW_ID_MAJOR		GENMASK(15, 8)
+#define VEND1_GLOBAL_FW_ID_MINOR		GENMASK(7, 0)
+
+#define VEND1_GLOBAL_RSVD_STAT1			0xc885
+#define VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID	GENMASK(7, 4)
+#define VEND1_GLOBAL_RSVD_STAT1_PROV_ID		GENMASK(3, 0)
+
+#define VEND1_GLOBAL_RSVD_STAT9			0xc88d
+#define VEND1_GLOBAL_RSVD_STAT9_MODE		GENMASK(7, 0)
+#define VEND1_GLOBAL_RSVD_STAT9_1000BT2		0x23
+
 #define VEND1_GLOBAL_INT_STD_STATUS		0xfc00
 #define VEND1_GLOBAL_INT_VEND_STATUS		0xfc01
 
@@ -320,13 +342,63 @@ static int aqr107_set_tunable(struct phy_device *phydev,
 	}
 }
 
+/* If we configure settings whilst firmware is still initializing the chip,
+ * then these settings may be overwritten. Therefore make sure chip
+ * initialization has completed. Use presence of the firmware ID as
+ * indicator for initialization having completed.
+ * The chip also provides a "reset completed" bit, but it's cleared after
+ * read. Therefore function would time out if called again.
+ */
+static int aqr107_wait_reset_complete(struct phy_device *phydev)
+{
+	int val, retries = 100;
+
+	do {
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
+		if (val < 0)
+			return val;
+		msleep(20);
+	} while (!val && --retries);
+
+	return val ? 0 : -ETIMEDOUT;
+}
+
+static void aqr107_chip_info(struct phy_device *phydev)
+{
+	u8 fw_major, fw_minor, build_id, prov_id;
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
+	if (val < 0)
+		return;
+
+	fw_major = FIELD_GET(VEND1_GLOBAL_FW_ID_MAJOR, val);
+	fw_minor = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT1);
+	if (val < 0)
+		return;
+
+	build_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID, val);
+	prov_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val);
+
+	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u\n",
+		   fw_major, fw_minor, build_id, prov_id);
+}
+
 static int aqr107_config_init(struct phy_device *phydev)
 {
+	int ret;
+
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
 		return -ENODEV;
+
+	ret = aqr107_wait_reset_complete(phydev);
+	if (!ret)
+		aqr107_chip_info(phydev);
 
 	/* ensure that a latched downshift event is cleared */
 	aqr107_read_downshift_event(phydev);
@@ -343,6 +415,10 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
 		return -ENODEV;
 
+	ret = aqr107_wait_reset_complete(phydev);
+	if (!ret)
+		aqr107_chip_info(phydev);
+
 	/* AQCS109 belongs to a chip family partially supporting 10G and 5G.
 	 * PMA speed ability bits are the same for all members of the family,
 	 * AQCS109 however supports speeds up to 2.5G only.
@@ -355,6 +431,51 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	aqr107_read_downshift_event(phydev);
 
 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
+}
+
+static void aqr107_link_change_notify(struct phy_device *phydev)
+{
+	u8 fw_major, fw_minor;
+	bool downshift, short_reach, afr;
+	int mode, val;
+
+	if (phydev->state != PHY_RUNNING || phydev->autoneg == AUTONEG_DISABLE)
+		return;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT1);
+	/* call failed or link partner is no Aquantia PHY */
+	if (val < 0 || !(val & MDIO_AN_RX_LP_STAT1_AQ_PHY))
+		return;
+
+	short_reach = val & MDIO_AN_RX_LP_STAT1_SHORT_REACH;
+	downshift = val & MDIO_AN_RX_LP_STAT1_AQRATE_DOWNSHIFT;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT4);
+	if (val < 0)
+		return;
+
+	fw_major = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MAJOR, val);
+	fw_minor = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MINOR, val);
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_VEND_STAT3);
+	if (val < 0)
+		return;
+
+	afr = val & MDIO_AN_RX_VEND_STAT3_AFR;
+
+	phydev_dbg(phydev, "Link partner is Aquantia PHY, FW %u.%u%s%s%s\n",
+		   fw_major, fw_minor,
+		   short_reach ? ", short reach mode" : "",
+		   downshift ? ", fast-retrain downshift advertised" : "",
+		   afr ? ", fast reframe advertised" : "");
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT9);
+	if (val < 0)
+		return;
+
+	mode = FIELD_GET(VEND1_GLOBAL_RSVD_STAT9_MODE, val);
+	if (mode == VEND1_GLOBAL_RSVD_STAT9_1000BT2)
+		phydev_info(phydev, "Aquantia 1000Base-T2 mode active\n");
 }
 
 static struct phy_driver aqr_driver[] = {
@@ -411,6 +532,7 @@ static struct phy_driver aqr_driver[] = {
 	.read_status	= aqr107_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
+	.link_change_notify = aqr107_link_change_notify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
@@ -425,6 +547,7 @@ static struct phy_driver aqr_driver[] = {
 	.read_status	= aqr107_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
+	.link_change_notify = aqr107_link_change_notify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
