@@ -507,9 +507,9 @@ static struct platform_driver vpss_driver = {
 
 static void vpss_exit(void)
 {
+	platform_driver_unregister(&vpss_driver);
 	iounmap(oper_cfg.vpss_regs_base2);
 	release_mem_region(VPSS_CLK_CTRL, 4);
-	platform_driver_unregister(&vpss_driver);
 }
 
 static int __init vpss_init(void)
