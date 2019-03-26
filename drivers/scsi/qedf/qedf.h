@@ -102,7 +102,6 @@ struct qedf_ioreq {
 	struct list_head link;
 	uint16_t xid;
 	struct scsi_cmnd *sc_cmd;
-	bool use_slowpath; /* Use slow SGL for this I/O */
 #define QEDF_SCSI_CMD		1
 #define QEDF_TASK_MGMT_CMD	2
 #define QEDF_ABTS		3
@@ -152,9 +151,9 @@ struct qedf_ioreq {
 	int fp_idx;
 	unsigned int cpu;
 	unsigned int int_cpu;
-#define QEDF_IOREQ_SLOW_SGE		0
-#define QEDF_IOREQ_SINGLE_SGE		1
-#define QEDF_IOREQ_FAST_SGE		2
+#define QEDF_IOREQ_UNKNOWN_SGE		1
+#define QEDF_IOREQ_SLOW_SGE		2
+#define QEDF_IOREQ_FAST_SGE		3
 	u8 sge_type;
 	struct delayed_work rrq_work;
 
@@ -366,7 +365,6 @@ struct qedf_ctx {
 
 	u32 slow_sge_ios;
 	u32 fast_sge_ios;
-	u32 single_sge_ios;
 
 	uint8_t	*grcdump;
 	uint32_t grcdump_size;

@@ -428,29 +428,6 @@ void qedf_release_cmd(struct kref *ref)
 	clear_bit(QEDF_CMD_OUTSTANDING, &io_req->flags);
 }
 
-static int qedf_split_bd(struct qedf_ioreq *io_req, u64 addr, int sg_len,
-	int bd_index)
-{
-	struct scsi_sge *bd = io_req->bd_tbl->bd_tbl;
-	int frag_size, sg_frags;
-
-	sg_frags = 0;
-	while (sg_len) {
-		if (sg_len > QEDF_BD_SPLIT_SZ)
-			frag_size = QEDF_BD_SPLIT_SZ;
-		else
-			frag_size = sg_len;
-		bd[bd_index + sg_frags].sge_addr.lo = U64_LO(addr);
-		bd[bd_index + sg_frags].sge_addr.hi = U64_HI(addr);
-		bd[bd_index + sg_frags].sge_len = (uint16_t)frag_size;
-
-		addr += (u64)frag_size;
-		sg_frags++;
-		sg_len -= frag_size;
-	}
-	return sg_frags;
-}
-
 static int qedf_map_sg(struct qedf_ioreq *io_req)
 {
 	struct scsi_cmnd *sc = io_req->sc_cmd;
@@ -462,74 +439,44 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 	int byte_count = 0;
 	int sg_count = 0;
 	int bd_count = 0;
-	int sg_frags;
-	unsigned int sg_len;
+	u32 sg_len;
 	u64 addr, end_addr;
-	int i;
+	int i = 0;
 
 	sg_count = dma_map_sg(&qedf->pdev->dev, scsi_sglist(sc),
 	    scsi_sg_count(sc), sc->sc_data_direction);
-
 	sg = scsi_sglist(sc);
 
-	/*
-	 * New condition to send single SGE as cached-SGL with length less
-	 * than 64k.
-	 */
-	if ((sg_count == 1) && (sg_dma_len(sg) <=
-	    QEDF_MAX_SGLEN_FOR_CACHESGL)) {
-		sg_len = sg_dma_len(sg);
-		addr = (u64)sg_dma_address(sg);
+	io_req->sge_type = QEDF_IOREQ_UNKNOWN_SGE;
 
-		bd[bd_count].sge_addr.lo = (addr & 0xffffffff);
-		bd[bd_count].sge_addr.hi = (addr >> 32);
-		bd[bd_count].sge_len = (u16)sg_len;
-
-		return ++bd_count;
-	}
+	if (sg_count <= 8 || io_req->io_req_flags == QEDF_READ)
+		io_req->sge_type = QEDF_IOREQ_FAST_SGE;
 
 	scsi_for_each_sg(sc, sg, sg_count, i) {
-		sg_len = sg_dma_len(sg);
+		sg_len = (u32)sg_dma_len(sg);
 		addr = (u64)sg_dma_address(sg);
 		end_addr = (u64)(addr + sg_len);
 
 		/*
-		 * First s/g element in the list so check if the end_addr
-		 * is paged aligned. Also check to make sure the length is
-		 * at least page size.
-		 */
-		if ((i == 0) && (sg_count > 1) &&
-		    ((end_addr % QEDF_PAGE_SIZE) ||
-		    sg_len < QEDF_PAGE_SIZE))
-			io_req->use_slowpath = true;
-		/*
-		 * Last s/g element so check if the start address is paged
-		 * aligned.
-		 */
-		else if ((i == (sg_count - 1)) && (sg_count > 1) &&
-		    (addr % QEDF_PAGE_SIZE))
-			io_req->use_slowpath = true;
-		/*
 		 * Intermediate s/g element so check if start and end address
-		 * is page aligned.
+		 * is page aligned.  Only required for writes and only if the
+		 * number of scatter/gather elements is 8 or more.
 		 */
-		else if ((i != 0) && (i != (sg_count - 1)) &&
-		    ((addr % QEDF_PAGE_SIZE) || (end_addr % QEDF_PAGE_SIZE)))
-			io_req->use_slowpath = true;
+		if (io_req->sge_type == QEDF_IOREQ_UNKNOWN_SGE && (i) &&
+		    (i != (sg_count - 1)) && sg_len < QEDF_PAGE_SIZE)
+			io_req->sge_type = QEDF_IOREQ_SLOW_SGE;
 
-		if (sg_len > QEDF_MAX_BD_LEN) {
-			sg_frags = qedf_split_bd(io_req, addr, sg_len,
-			    bd_count);
-		} else {
-			sg_frags = 1;
-			bd[bd_count].sge_addr.lo = U64_LO(addr);
-			bd[bd_count].sge_addr.hi  = U64_HI(addr);
-			bd[bd_count].sge_len = (uint16_t)sg_len;
-		}
+		bd[bd_count].sge_addr.lo = cpu_to_le32(U64_LO(addr));
+		bd[bd_count].sge_addr.hi  = cpu_to_le32(U64_HI(addr));
+		bd[bd_count].sge_len = cpu_to_le32(sg_len);
 
-		bd_count += sg_frags;
+		bd_count++;
 		byte_count += sg_len;
 	}
+
+	/* To catch a case where FAST and SLOW nothing is set, set FAST */
+	if (io_req->sge_type == QEDF_IOREQ_UNKNOWN_SGE)
+		io_req->sge_type = QEDF_IOREQ_FAST_SGE;
 
 	if (byte_count != scsi_bufflen(sc))
 		QEDF_ERR(&(qedf->dbg_ctx), "byte_count = %d != "
@@ -655,8 +602,10 @@ static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
 		io_req->sgl_task_params->num_sges = bd_count;
 		io_req->sgl_task_params->total_buffer_size =
 		    scsi_bufflen(io_req->sc_cmd);
-		io_req->sgl_task_params->small_mid_sge =
-			io_req->use_slowpath;
+		if (io_req->sge_type == QEDF_IOREQ_SLOW_SGE)
+			io_req->sgl_task_params->small_mid_sge = 1;
+		else
+			io_req->sgl_task_params->small_mid_sge = 0;
 	}
 
 	/* Fill in physical address of sense buffer */
@@ -679,16 +628,10 @@ static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
 				    io_req->task_retry_identifier, fcp_cmnd);
 
 	/* Increment SGL type counters */
-	if (bd_count == 1) {
-		qedf->single_sge_ios++;
-		io_req->sge_type = QEDF_IOREQ_SINGLE_SGE;
-	} else if (io_req->use_slowpath) {
+	if (io_req->sge_type == QEDF_IOREQ_SLOW_SGE)
 		qedf->slow_sge_ios++;
-		io_req->sge_type = QEDF_IOREQ_SLOW_SGE;
-	} else {
+	else
 		qedf->fast_sge_ios++;
-		io_req->sge_type = QEDF_IOREQ_FAST_SGE;
-	}
 }
 
 void qedf_init_mp_task(struct qedf_ioreq *io_req,
@@ -770,9 +713,6 @@ void qedf_init_mp_task(struct qedf_ioreq *io_req,
 						     &task_fc_hdr,
 						     &tx_sgl_task_params,
 						     &rx_sgl_task_params, 0);
-
-	/* Midpath requests always consume 1 SGE */
-	qedf->single_sge_ios++;
 }
 
 /* Presumed that fcport->rport_lock is held */
@@ -872,7 +812,7 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	/* Initialize rest of io_req fileds */
 	io_req->data_xfer_len = scsi_bufflen(sc_cmd);
 	sc_cmd->SCp.ptr = (char *)io_req;
-	io_req->use_slowpath = false; /* Assume fast SGL by default */
+	io_req->sge_type = QEDF_IOREQ_FAST_SGE; /* Assume fast SGL by default */
 
 	/* Record which cpu this request is associated with */
 	io_req->cpu = smp_processor_id();
@@ -942,7 +882,17 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 	int rc = 0;
 	int rval;
 	unsigned long flags = 0;
+	int num_sgs = 0;
 
+	num_sgs = scsi_sg_count(sc_cmd);
+	if (scsi_sg_count(sc_cmd) > QEDF_MAX_BDS_PER_CMD) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Number of SG elements %d exceeds what hardware limitation of %d.\n",
+			 num_sgs, QEDF_MAX_BDS_PER_CMD);
+		sc_cmd->result = DID_ERROR;
+		sc_cmd->scsi_done(sc_cmd);
+		return 0;
+	}
 
 	if (test_bit(QEDF_UNLOADING, &qedf->flags) ||
 	    test_bit(QEDF_DBG_STOP_IO, &qedf->flags)) {

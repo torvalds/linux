@@ -303,7 +303,6 @@ qedf_driver_stats_show(struct seq_file *s, void *unused)
 	seq_printf(s, "cmg_mgr free io_reqs: %d\n",
 	    atomic_read(&qedf->cmd_mgr->free_list_cnt));
 	seq_printf(s, "slow SGEs: %d\n", qedf->slow_sge_ios);
-	seq_printf(s, "single SGEs: %d\n", qedf->single_sge_ios);
 	seq_printf(s, "fast SGEs: %d\n\n", qedf->fast_sge_ios);
 
 	seq_puts(s, "Offloaded ports:\n\n");
@@ -361,7 +360,6 @@ qedf_dbg_clear_stats_cmd_write(struct file *filp,
 
 	/* Clear stat counters exposed by 'stats' node */
 	qedf->slow_sge_ios = 0;
-	qedf->single_sge_ios = 0;
 	qedf->fast_sge_ios = 0;
 
 	return count;
