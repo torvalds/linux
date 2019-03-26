@@ -850,7 +850,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 	u32 reg;
 	unsigned int wm;
 
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
+	latency = intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					 dev_priv->is_ddr3,
 					 dev_priv->fsb_freq,
 					 dev_priv->mem_freq);
@@ -9589,7 +9589,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		dev_priv->display.initial_watermarks = g4x_initial_watermarks;
 		dev_priv->display.optimize_watermarks = g4x_optimize_watermarks;
 	} else if (IS_PINEVIEW(dev_priv)) {
-		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
+		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					    dev_priv->is_ddr3,
 					    dev_priv->fsb_freq,
 					    dev_priv->mem_freq)) {
