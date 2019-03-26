@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/proximity/devantech-srf04.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Devantech SRF04 ultrasonic range finder
+
+maintainers:
+  - Andreas Klinger <ak@it-klinger.de>
+
+description: |
+  Bit-banging driver using two GPIOs:
+  - trigger-gpio is raised by the driver to start sending out an ultrasonic
+    burst
+  - echo-gpio is held high by the sensor after sending ultrasonic burst
+    until it is received once again
+
+  Specifications about the driver can be found at:
+  http://www.robot-electronics.co.uk/htm/srf04tech.htm
+
+properties:
+  compatible:
+    items:
+      - const: devantech,srf04
+
+  trig-gpios:
+    description:
+      Definition of the GPIO for the triggering (output) This GPIO is set
+      for about 10 us by the driver to tell the device it should initiate
+      the measurement cycle.
+    maxItems: 1
+
+  echo-gpios:
+    description:
+      Definition of the GPIO for the echo (input)
+      This GPIO is set by the device as soon as an ultrasonic burst is sent
+      out and reset when the first echo is received.
+      Thus this GPIO is set while the ultrasonic waves are doing one round
+      trip.
+      It needs to be an GPIO which is able to deliver an interrupt because
+      the time between two interrupts is measured in the driver.
+      See Documentation/devicetree/bindings/gpio/gpio.txt for information
+      on how to specify a consumer gpio.
+    maxItems: 1
+
+required:
+  - compatible
+  - trig-gpios
+  - echo-gpios
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    proximity {
+        compatible = "devantech,srf04";
+        trig-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+        echo-gpios = <&gpio2  6 GPIO_ACTIVE_HIGH>;
+    };
