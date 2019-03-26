@@ -35,9 +35,6 @@
 #define QEDF_DESCR "QLogic FCoE Offload Driver"
 #define QEDF_MODULE_NAME "qedf"
 
-#define QEDF_MIN_XID		0
-#define QEDF_MAX_SCSI_XID	(NUM_TASKS_PER_CONNECTION - 1)
-#define QEDF_MAX_ELS_XID	4095
 #define QEDF_FLOGI_RETRY_CNT	3
 #define QEDF_RPORT_RETRY_CNT	255
 #define QEDF_MAX_SESSIONS	1024
@@ -295,8 +292,6 @@ struct qedf_ctx {
 #define QEDF_DCBX_PENDING	0
 #define QEDF_DCBX_DONE		1
 	atomic_t dcbx;
-	uint16_t max_scsi_xid;
-	uint16_t max_els_xid;
 #define QEDF_NULL_VLAN_ID	-1
 #define QEDF_FALLBACK_VLAN	1002
 #define QEDF_DEFAULT_PRIO	3

@@ -1501,8 +1501,8 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 	fcoe_libfc_config(lport, &qedf->ctlr, &qedf_lport_template, 0);
 
 	/* Allocate the exchange manager */
-	fc_exch_mgr_alloc(lport, FC_CLASS_3, qedf->max_scsi_xid + 1,
-	    qedf->max_els_xid, NULL);
+	fc_exch_mgr_alloc(lport, FC_CLASS_3, FCOE_PARAMS_NUM_TASKS,
+			  0xfffe, NULL);
 
 	if (fc_lport_init_stats(lport))
 		return -ENOMEM;
@@ -1625,7 +1625,7 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 	vport_qedf->wwpn = vn_port->wwpn;
 
 	vn_port->host->transportt = qedf_fc_vport_transport_template;
-	vn_port->host->can_queue = QEDF_MAX_ELS_XID;
+	vn_port->host->can_queue = FCOE_PARAMS_NUM_TASKS;
 	vn_port->host->max_lun = qedf_max_lun;
 	vn_port->host->sg_tablesize = QEDF_MAX_BDS_PER_CMD;
 	vn_port->host->max_cmd_len = QEDF_MAX_CDB_LEN;
@@ -3181,11 +3181,6 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	sprintf(host_buf, "host_%d", host->host_no);
 	qed_ops->common->set_name(qedf->cdev, host_buf);
 
-
-	/* Set xid max values */
-	qedf->max_scsi_xid = QEDF_MAX_SCSI_XID;
-	qedf->max_els_xid = QEDF_MAX_ELS_XID;
-
 	/* Allocate cmd mgr */
 	qedf->cmd_mgr = qedf_cmd_mgr_alloc(qedf);
 	if (!qedf->cmd_mgr) {
@@ -3196,9 +3191,9 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 
 	if (mode != QEDF_MODE_RECOVERY) {
 		host->transportt = qedf_fc_transport_template;
-		host->can_queue = QEDF_MAX_ELS_XID;
 		host->max_lun = qedf_max_lun;
 		host->max_cmd_len = QEDF_MAX_CDB_LEN;
+		host->can_queue = FCOE_PARAMS_NUM_TASKS;
 		rc = scsi_add_host(host, &pdev->dev);
 		if (rc)
 			goto err6;

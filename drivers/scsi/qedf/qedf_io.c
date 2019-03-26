@@ -103,7 +103,7 @@ void qedf_cmd_mgr_free(struct qedf_cmd_mgr *cmgr)
 	struct io_bdt *bdt_info;
 	struct qedf_ctx *qedf = cmgr->qedf;
 	size_t bd_tbl_sz;
-	u16 min_xid = QEDF_MIN_XID;
+	u16 min_xid = 0;
 	u16 max_xid = (FCOE_PARAMS_NUM_TASKS - 1);
 	int num_ios;
 	int i;
@@ -169,7 +169,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 	u16 xid;
 	int i;
 	int num_ios;
-	u16 min_xid = QEDF_MIN_XID;
+	u16 min_xid = 0;
 	u16 max_xid = (FCOE_PARAMS_NUM_TASKS - 1);
 
 	/* Make sure num_queues is already set before calling this function */
@@ -201,7 +201,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 	/*
 	 * Initialize I/O request fields.
 	 */
-	xid = QEDF_MIN_XID;
+	xid = 0;
 
 	for (i = 0; i < num_ios; i++) {
 		io_req = &cmgr->cmds[i];
