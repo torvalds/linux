@@ -24,6 +24,7 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/ipv6_frag.h>
@@ -73,6 +74,7 @@ struct ovs_conntrack_info {
 	u32 eventmask;              /* Mask of 1 << IPCT_*. */
 	struct md_mark mark;
 	struct md_labels labels;
+	char timeout[CTNL_TIMEOUT_NAME_MAX];
 #ifdef CONFIG_NF_NAT_NEEDED
 	struct nf_nat_range2 range;  /* Only present for SRC NAT and DST NAT. */
 #endif
@@ -1471,6 +1473,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 #endif
 	[OVS_CT_ATTR_EVENTMASK]	= { .minlen = sizeof(u32),
 				    .maxlen = sizeof(u32) },
+	[OVS_CT_ATTR_TIMEOUT] = { .minlen = 1,
+				  .maxlen = CTNL_TIMEOUT_NAME_MAX },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -1556,6 +1560,15 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			info->have_eventmask = true;
 			info->eventmask = nla_get_u32(a);
 			break;
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+		case OVS_CT_ATTR_TIMEOUT:
+			memcpy(info->timeout, nla_data(a), nla_len(a));
+			if (!memchr(info->timeout, '\0', nla_len(a))) {
+				OVS_NLERR(log, "Invalid conntrack helper");
+				return -EINVAL;
+			}
+			break;
+#endif
 
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
@@ -1637,6 +1650,14 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
 	}
+
+	if (ct_info.timeout[0]) {
+		if (nf_ct_set_timeout(net, ct_info.ct, family, key->ip.proto,
+				      ct_info.timeout))
+			pr_info_ratelimited("Failed to associated timeout "
+					    "policy `%s'\n", ct_info.timeout);
+	}
+
 	if (helper) {
 		err = ovs_ct_add_helper(&ct_info, helper, key, log);
 		if (err)
@@ -1757,6 +1778,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	if (ct_info->have_eventmask &&
 	    nla_put_u32(skb, OVS_CT_ATTR_EVENTMASK, ct_info->eventmask))
 		return -EMSGSIZE;
+	if (ct_info->timeout[0]) {
+		if (nla_put_string(skb, OVS_CT_ATTR_TIMEOUT, ct_info->timeout))
+			return -EMSGSIZE;
+	}
 
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (ct_info->nat && !ovs_ct_nat_to_attr(ct_info, skb))
@@ -1778,8 +1803,11 @@ static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 {
 	if (ct_info->helper)
 		nf_conntrack_helper_put(ct_info->helper);
-	if (ct_info->ct)
+	if (ct_info->ct) {
 		nf_ct_tmpl_free(ct_info->ct);
+		if (ct_info->timeout[0])
+			nf_ct_destroy_timeout(ct_info->ct);
+	}
 }
 
 #if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
