@@ -865,14 +865,9 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 {
 	struct sk_buff *skb;
 
-	skb = sk->sk_tx_skb_cache;
-	if (skb && !size) {
-		const struct sk_buff_fclones *fclones;
-
-		fclones = container_of(skb, struct sk_buff_fclones, skb1);
-		if (refcount_read(&fclones->fclone_ref) == 1) {
-			sk->sk_wmem_queued -= skb->truesize;
-			sk_mem_uncharge(sk, skb->truesize);
+	if (likely(!size)) {
+		skb = sk->sk_tx_skb_cache;
+		if (skb && !skb_cloned(skb)) {
 			skb->truesize -= skb->data_len;
 			sk->sk_tx_skb_cache = NULL;
 			pskb_trim(skb, 0);
@@ -2543,8 +2538,6 @@ void tcp_write_queue_purge(struct sock *sk)
 	tcp_rtx_queue_purge(sk);
 	skb = sk->sk_tx_skb_cache;
 	if (skb) {
-		sk->sk_wmem_queued -= skb->truesize;
-		sk_mem_uncharge(sk, skb->truesize);
 		__kfree_skb(skb);
 		sk->sk_tx_skb_cache = NULL;
 	}
