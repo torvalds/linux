@@ -490,7 +490,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
  * dsc_enc_caps        - DSC encoder capabilities
  *
  * target_bandwidth    - Target bandwidth to fit the stream into.
- *                       If 0, use maximum compression as per DSC policy.
+ *                       If 0, do not calculate target bpp.
  *
  * timing              - The stream timing to fit into 'target_bandwidth' or apply
  *                       maximum compression to, if 'target_badwidth == 0'
@@ -517,7 +517,6 @@ static bool setup_dsc_config(
 	int slice_width;
 	int target_bpp;
 	int sink_per_slice_throughput;
-	// TODO DSC: See if it makes sense to use 2.4% for SST
 	bool is_dsc_possible = false;
 	int num_slices_v;
 	int pic_height;
@@ -534,19 +533,10 @@ static bool setup_dsc_config(
 
 	if (target_bandwidth > 0) {
 		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_policy, &dsc_common_caps, target_bandwidth, timing, &target_bpp);
-	} else if (timing->pix_clk_100hz * 12 <= dc_bandwidth_in_kbps_from_timing(timing) * 10) {
-		/* use 12 target bpp for MST display
-		 * TODO: implement new MST DSC target bpp policy */
-		target_bpp = 16*12;
-		is_dsc_possible = true;
-	} else {
-		is_dsc_possible = false;
+		dsc_cfg->bits_per_pixel = target_bpp;
 	}
-
 	if (!is_dsc_possible)
 		goto done;
-
-	dsc_cfg->bits_per_pixel = target_bpp;
 
 	sink_per_slice_throughput = 0;
 
@@ -773,18 +763,13 @@ bool dc_dsc_compute_config(
 		struct dc_dsc_config *dsc_cfg)
 {
 	bool is_dsc_possible = false;
-
 	struct dsc_enc_caps dsc_enc_caps;
-	struct dsc_enc_caps dsc_common_caps;
 
 	get_dsc_enc_caps(dc, &dsc_enc_caps, timing->pix_clk_100hz);
-	is_dsc_possible = dc_intersect_dsc_caps(dsc_sink_caps, &dsc_enc_caps,
-			timing->pixel_encoding, &dsc_common_caps);
-	if (is_dsc_possible)
-		is_dsc_possible = setup_dsc_config(dsc_sink_caps,
-				&dsc_enc_caps,
-				target_bandwidth,
-				timing, dsc_cfg);
+	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
+			&dsc_enc_caps,
+			target_bandwidth,
+			timing, dsc_cfg);
 	return is_dsc_possible;
 }
 #endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */
