@@ -3524,6 +3524,8 @@ static void intel_ddi_update_pipe_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
+	intel_ddi_set_pipe_settings(crtc_state);
+
 	intel_psr_update(intel_dp, crtc_state);
 	intel_edp_drrs_enable(intel_dp, crtc_state);
 
