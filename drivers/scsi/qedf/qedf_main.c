@@ -971,8 +971,10 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		    "Dropping FCoE frame to %06x.\n", ntoh24(fh->fh_d_id));
 		kfree_skb(skb);
 		rdata = fc_rport_lookup(lport, ntoh24(fh->fh_d_id));
-		if (rdata)
+		if (rdata) {
 			rdata->retries = lport->max_rport_retry_count;
+			kref_put(&rdata->kref, fc_rport_destroy);
+		}
 		return -EINVAL;
 	}
 	/* End NPIV filtering */
