@@ -11,11 +11,6 @@
 #define __LINUX_RCU_H
 
 #include <trace/events/rcu.h>
-#ifdef CONFIG_RCU_TRACE
-#define RCU_TRACE(stmt) stmt
-#else /* #ifdef CONFIG_RCU_TRACE */
-#define RCU_TRACE(stmt)
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 /* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
 #define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
@@ -216,12 +211,12 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 
 	rcu_lock_acquire(&rcu_callback_map);
 	if (__is_kfree_rcu_offset(offset)) {
-		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset);)
+		trace_rcu_invoke_kfree_callback(rn, head, offset);
 		kfree((void *)head - offset);
 		rcu_lock_release(&rcu_callback_map);
 		return true;
 	} else {
-		RCU_TRACE(trace_rcu_invoke_callback(rn, head);)
+		trace_rcu_invoke_callback(rn, head);
 		f = head->func;
 		WRITE_ONCE(head->func, (rcu_callback_t)0L);
 		f(head);
