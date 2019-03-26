@@ -113,7 +113,7 @@ struct mga_framebuffer {
 };
 
 struct mga_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct mga_framebuffer mfb;
 	void *sysram;
 	int size;
