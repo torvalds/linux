@@ -1361,8 +1361,19 @@ static const struct edac_device_prv_data a10_l2ecc_data = {
 
 #ifdef CONFIG_EDAC_ALTERA_ETHERNET
 
+static int __init socfpga_init_ethernet_ecc(struct altr_edac_device_dev *dev)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-eth-mac-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(dev);
+}
+
 static const struct edac_device_prv_data a10_enetecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_ethernet_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1373,13 +1384,6 @@ static const struct edac_device_prv_data a10_enetecc_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
 	.inject_fops = &altr_edac_a10_device_inject2_fops,
 };
-
-static int __init socfpga_init_ethernet_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-eth-mac-ecc");
-}
-
-early_initcall(socfpga_init_ethernet_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_ETHERNET */
 
@@ -1387,8 +1391,19 @@ early_initcall(socfpga_init_ethernet_ecc);
 
 #ifdef CONFIG_EDAC_ALTERA_NAND
 
+static int __init socfpga_init_nand_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-nand-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_nandecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_nand_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1399,13 +1414,6 @@ static const struct edac_device_prv_data a10_nandecc_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
-
-static int __init socfpga_init_nand_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-nand-ecc");
-}
-
-early_initcall(socfpga_init_nand_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_NAND */
 
@@ -1413,8 +1421,19 @@ early_initcall(socfpga_init_nand_ecc);
 
 #ifdef CONFIG_EDAC_ALTERA_DMA
 
+static int __init socfpga_init_dma_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-dma-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_dmaecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_dma_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1426,21 +1445,25 @@ static const struct edac_device_prv_data a10_dmaecc_data = {
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
 
-static int __init socfpga_init_dma_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-dma-ecc");
-}
-
-early_initcall(socfpga_init_dma_ecc);
-
 #endif	/* CONFIG_EDAC_ALTERA_DMA */
 
 /********************** USB Device Functions **********************/
 
 #ifdef CONFIG_EDAC_ALTERA_USB
 
+static int __init socfpga_init_usb_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-usb-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_usbecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_usb_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1452,21 +1475,25 @@ static const struct edac_device_prv_data a10_usbecc_data = {
 	.inject_fops = &altr_edac_a10_device_inject2_fops,
 };
 
-static int __init socfpga_init_usb_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-usb-ecc");
-}
-
-early_initcall(socfpga_init_usb_ecc);
-
 #endif	/* CONFIG_EDAC_ALTERA_USB */
 
 /********************** QSPI Device Functions **********************/
 
 #ifdef CONFIG_EDAC_ALTERA_QSPI
 
+static int __init socfpga_init_qspi_ecc(struct altr_edac_device_dev *device)
+{
+	int ret;
+
+	ret = altr_init_a10_ecc_device_type("altr,socfpga-qspi-ecc");
+	if (ret)
+		return ret;
+
+	return altr_check_ecc_deps(device);
+}
+
 static const struct edac_device_prv_data a10_qspiecc_data = {
-	.setup = altr_check_ecc_deps,
+	.setup = socfpga_init_qspi_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1477,13 +1504,6 @@ static const struct edac_device_prv_data a10_qspiecc_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
-
-static int __init socfpga_init_qspi_ecc(void)
-{
-	return altr_init_a10_ecc_device_type("altr,socfpga-qspi-ecc");
-}
-
-early_initcall(socfpga_init_qspi_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_QSPI */
 
@@ -1593,6 +1613,35 @@ err_release_group_1:
 	return rc;
 }
 
+static int __init socfpga_init_sdmmc_ecc(struct altr_edac_device_dev *device)
+{
+	int rc = -ENODEV;
+	struct device_node *child;
+
+	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
+	if (!child)
+		return -ENODEV;
+
+	if (!of_device_is_available(child))
+		goto exit;
+
+	if (validate_parent_available(child))
+		goto exit;
+
+	/* Init portB */
+	rc = altr_init_a10_ecc_block(child, ALTR_A10_SDMMC_IRQ_MASK,
+				     a10_sdmmceccb_data.ecc_enable_mask, 1);
+	if (rc)
+		goto exit;
+
+	/* Setup portB */
+	return altr_portb_setup(device);
+
+exit:
+	of_node_put(child);
+	return rc;
+}
+
 static irqreturn_t altr_edac_a10_ecc_irq_portb(int irq, void *dev_id)
 {
 	struct altr_edac_device_dev *ad = dev_id;
@@ -1617,7 +1666,7 @@ static irqreturn_t altr_edac_a10_ecc_irq_portb(int irq, void *dev_id)
 }
 
 static const struct edac_device_prv_data a10_sdmmcecca_data = {
-	.setup = altr_portb_setup,
+	.setup = socfpga_init_sdmmc_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1630,7 +1679,7 @@ static const struct edac_device_prv_data a10_sdmmcecca_data = {
 };
 
 static const struct edac_device_prv_data a10_sdmmceccb_data = {
-	.setup = altr_portb_setup,
+	.setup = socfpga_init_sdmmc_ecc,
 	.ce_clear_mask = ALTR_A10_ECC_SERRPENB,
 	.ue_clear_mask = ALTR_A10_ECC_DERRPENB,
 	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
@@ -1641,35 +1690,6 @@ static const struct edac_device_prv_data a10_sdmmceccb_data = {
 	.ecc_irq_handler = altr_edac_a10_ecc_irq_portb,
 	.inject_fops = &altr_edac_a10_device_inject_fops,
 };
-
-static int __init socfpga_init_sdmmc_ecc(void)
-{
-	int rc = -ENODEV;
-	struct device_node *child;
-
-	if (!socfpga_is_a10() && !socfpga_is_s10())
-		return -ENODEV;
-
-	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
-	if (!child) {
-		edac_printk(KERN_WARNING, EDAC_DEVICE, "SDMMC node not found\n");
-		return -ENODEV;
-	}
-
-	if (!of_device_is_available(child))
-		goto exit;
-
-	if (validate_parent_available(child))
-		goto exit;
-
-	rc = altr_init_a10_ecc_block(child, ALTR_A10_SDMMC_IRQ_MASK,
-				     a10_sdmmcecca_data.ecc_enable_mask, 1);
-exit:
-	of_node_put(child);
-	return rc;
-}
-
-early_initcall(socfpga_init_sdmmc_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_SDMMC */
 
