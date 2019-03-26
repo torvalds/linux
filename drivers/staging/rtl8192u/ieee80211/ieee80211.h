@@ -296,7 +296,7 @@ struct cb_desc {
 #define ieee80211_wx_get_encode_ext	ieee80211_wx_get_encode_ext_rsl
 
 
-typedef struct ieee_param {
+struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
 	union {
@@ -323,7 +323,7 @@ typedef struct ieee_param {
 			u8 key[0];
 		} crypt;
 	} u;
-} ieee_param;
+};
 
 
 // linux under 2.6.9 release may not support it, so modify it for common use
