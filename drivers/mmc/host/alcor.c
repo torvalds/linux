@@ -771,7 +771,8 @@ static void alcor_pre_req(struct mmc_host *mmc,
 	data->host_cookie = COOKIE_UNMAPPED;
 
 	/* FIXME: looks like the DMA engine works only with CMD18 */
-	if (cmd->opcode != 18)
+	if (cmd->opcode != MMC_READ_MULTIPLE_BLOCK
+			&& cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK)
 		return;
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
