@@ -102,6 +102,21 @@
 		#clock-cells = <0>;
 	};
 
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
 	panel: panel {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
@@ -327,6 +342,7 @@
 
 &hdmi {
 	status = "okay";
+	#sound-dai-cells = <0>;
 	rockchip,phy-table =
 		<74250000  0x8009 0x0004 0x0272>,
 		<165000000 0x802b 0x0004 0x0209>,
