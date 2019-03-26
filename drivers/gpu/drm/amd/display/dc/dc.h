@@ -66,8 +66,27 @@ struct dc_plane_cap {
 	uint32_t blends_with_above : 1;
 	uint32_t blends_with_below : 1;
 	uint32_t per_pixel_alpha : 1;
-	uint32_t supports_argb8888 : 1;
-	uint32_t supports_nv12 : 1;
+	struct {
+		uint32_t argb8888 : 1;
+		uint32_t nv12 : 1;
+		uint32_t fp16 : 1;
+	} pixel_format_support;
+	// max upscaling factor x1000
+	// upscaling factors are always >= 1
+	// for example, 1080p -> 8K is 4.0, or 4000 raw value
+	struct {
+		uint32_t argb8888;
+		uint32_t nv12;
+		uint32_t fp16;
+	} max_upscale_factor;
+	// max downscale factor x1000
+	// downscale factors are always <= 1
+	// for example, 8K -> 1080p is 0.25, or 250 raw value
+	struct {
+		uint32_t argb8888;
+		uint32_t nv12;
+		uint32_t fp16;
+	} max_downscale_factor;
 };
 
 struct dc_caps {

@@ -521,8 +521,24 @@ static const struct dc_plane_cap plane_cap = {
 	.blends_with_above = true,
 	.blends_with_below = true,
 	.per_pixel_alpha = true,
-	.supports_argb8888 = true,
-	.supports_nv12 = true
+
+	.pixel_format_support = {
+			.argb8888 = true,
+			.nv12 = true,
+			.fp16 = true
+	},
+
+	.max_upscale_factor = {
+			.argb8888 = 16000,
+			.nv12 = 16000,
+			.fp16 = 1
+	},
+
+	.max_downscale_factor = {
+			.argb8888 = 250,
+			.nv12 = 250,
+			.fp16 = 1
+	}
 };
 
 static const struct dc_debug_options debug_defaults_drv = {

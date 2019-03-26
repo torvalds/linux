@@ -2085,7 +2085,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		if (!plane->blends_with_above || !plane->blends_with_below)
 			continue;
 
-		if (!plane->supports_argb8888)
+		if (!plane->pixel_format_support.argb8888)
 			continue;
 
 		if (initialize_plane(dm, NULL, primary_planes + i,
@@ -4142,7 +4142,7 @@ static int get_plane_formats(const struct drm_plane *plane,
 			formats[num_formats++] = rgb_formats[i];
 		}
 
-		if (plane_cap && plane_cap->supports_nv12)
+		if (plane_cap && plane_cap->pixel_format_support.nv12)
 			formats[num_formats++] = DRM_FORMAT_NV12;
 		break;
 
@@ -4196,7 +4196,7 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	}
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&
-	    plane_cap && plane_cap->supports_nv12) {
+	    plane_cap && plane_cap->pixel_format_support.nv12) {
 		/* This only affects YUV formats. */
 		drm_plane_create_color_properties(
 			plane,
