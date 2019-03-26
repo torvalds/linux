@@ -358,20 +358,24 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
 	u32 port_id;
+	unsigned long flags;
 
 	if (!fcport)
 		return;
 
+	spin_lock_irqsave(&fcport->rport_lock, flags);
 	if (test_bit(QEDF_RPORT_IN_RESET, &fcport->flags) ||
 	    !test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
 	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
 		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or not offloaded.\n",
 		    fcport);
+		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		return;
 	}
 
 	/* Set that we are now in reset */
 	set_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
+	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
 	rdata = fcport->rdata;
 	if (rdata) {
