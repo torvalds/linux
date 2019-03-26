@@ -1762,28 +1762,24 @@ static ssize_t altr_edac_a10_device_trig2(struct file *file,
 	if (trig_type == ALTR_UE_TRIGGER_CHAR) {
 		writel(priv->ue_set_mask, set_addr);
 	} else {
-		/* Setup write of 0 to first 4 bytes */
-		writel(0x0, drvdata->base + ECC_BLK_WDATA0_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA1_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA2_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA3_OFST);
-		/* Setup write of 4 bytes */
+		/* Setup read/write of 4 bytes */
 		writel(ECC_WORD_WRITE, drvdata->base + ECC_BLK_DBYTECTRL_OFST);
 		/* Setup Address to 0 */
-		writel(0x0, drvdata->base + ECC_BLK_ADDRESS_OFST);
-		/* Setup accctrl to write & data override */
-		writel(ECC_WRITE_DOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
-		/* Kick it. */
-		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
-		/* Setup accctrl to read & ecc override */
-		writel(ECC_READ_EOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
+		writel(0, drvdata->base + ECC_BLK_ADDRESS_OFST);
+		/* Setup accctrl to read & ecc & data override */
+		writel(ECC_READ_EDOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
 		/* Kick it. */
 		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
 		/* Setup write for single bit change */
-		writel(0x1, drvdata->base + ECC_BLK_WDATA0_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA1_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA2_OFST);
-		writel(0x0, drvdata->base + ECC_BLK_WDATA3_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA0_OFST) ^ 0x1,
+		       drvdata->base + ECC_BLK_WDATA0_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA1_OFST),
+		       drvdata->base + ECC_BLK_WDATA1_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA2_OFST),
+		       drvdata->base + ECC_BLK_WDATA2_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RDATA3_OFST),
+		       drvdata->base + ECC_BLK_WDATA3_OFST);
+
 		/* Copy Read ECC to Write ECC */
 		writel(readl(drvdata->base + ECC_BLK_RECC0_OFST),
 		       drvdata->base + ECC_BLK_WECC0_OFST);

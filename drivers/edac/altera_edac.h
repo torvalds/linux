@@ -321,7 +321,7 @@ struct altr_sdram_mc_data {
 #define ECC_BLK_STARTACC_OFST             0x7C
 
 #define ECC_XACT_KICK                     0x10000
-#define ECC_WORD_WRITE                    0xF
+#define ECC_WORD_WRITE                    0xFF
 #define ECC_WRITE_DOVR                    0x101
 #define ECC_WRITE_EDOVR                   0x103
 #define ECC_READ_EOVR                     0x2
