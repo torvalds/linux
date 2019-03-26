@@ -268,8 +268,8 @@ void bch2_trans_unlink_iters(struct btree_trans *, u64);
 
 struct btree_iter *__bch2_trans_get_iter(struct btree_trans *, enum btree_id,
 					 struct bpos, unsigned, u64);
-struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *,
-					  struct btree_iter *, u64);
+struct btree_iter *bch2_trans_copy_iter(struct btree_trans *,
+					struct btree_iter *);
 
 static __always_inline u64 __btree_iter_id(void)
 {
@@ -288,13 +288,6 @@ bch2_trans_get_iter(struct btree_trans *trans, enum btree_id btree_id,
 {
 	return __bch2_trans_get_iter(trans, btree_id, pos, flags,
 				     __btree_iter_id());
-}
-
-static __always_inline struct btree_iter *
-bch2_trans_copy_iter(struct btree_trans *trans, struct btree_iter *src)
-{
-
-	return __bch2_trans_copy_iter(trans, src, __btree_iter_id());
 }
 
 struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,
