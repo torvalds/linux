@@ -160,6 +160,10 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config);
+enum perf_tool_event;
+int parse_events_add_tool(struct parse_events_state *parse_state,
+			  struct list_head *list,
+			  enum perf_tool_event tool_event);
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
 			   struct parse_events_error *error,

@@ -244,11 +244,25 @@ perf_evsel__write_stat_event(struct perf_evsel *counter, u32 cpu, u32 thread,
 					   process_synthesized_event, NULL);
 }
 
+static int read_single_counter(struct perf_evsel *counter, int cpu,
+			       int thread, struct timespec *rs)
+{
+	if (counter->tool_event == PERF_TOOL_DURATION_TIME) {
+		u64 val = rs->tv_nsec + rs->tv_sec*1000000000ULL;
+		struct perf_counts_values *count =
+			perf_counts(counter->counts, cpu, thread);
+		count->ena = count->run = val;
+		count->val = val;
+		return 0;
+	}
+	return perf_evsel__read_counter(counter, cpu, thread);
+}
+
 /*
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static int read_counter(struct perf_evsel *counter)
+static int read_counter(struct perf_evsel *counter, struct timespec *rs)
 {
 	int nthreads = thread_map__nr(evsel_list->threads);
 	int ncpus, cpu, thread;
@@ -275,7 +289,7 @@ static int read_counter(struct perf_evsel *counter)
 			 * (via perf_evsel__read_counter) and sets threir count->loaded.
 			 */
 			if (!count->loaded &&
-			    perf_evsel__read_counter(counter, cpu, thread)) {
+			    read_single_counter(counter, cpu, thread, rs)) {
 				counter->counts->scaled = -1;
 				perf_counts(counter->counts, cpu, thread)->ena = 0;
 				perf_counts(counter->counts, cpu, thread)->run = 0;
@@ -304,13 +318,13 @@ static int read_counter(struct perf_evsel *counter)
 	return 0;
 }
 
-static void read_counters(void)
+static void read_counters(struct timespec *rs)
 {
 	struct perf_evsel *counter;
 	int ret;
 
 	evlist__for_each_entry(evsel_list, counter) {
-		ret = read_counter(counter);
+		ret = read_counter(counter, rs);
 		if (ret)
 			pr_debug("failed to read counter %s\n", counter->name);
 
@@ -323,10 +337,10 @@ static void process_interval(void)
 {
 	struct timespec ts, rs;
 
-	read_counters();
-
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
+
+	read_counters(&rs);
 
 	if (STAT_RECORD) {
 		if (WRITE_STAT_ROUND_EVENT(rs.tv_sec * NSEC_PER_SEC + rs.tv_nsec, INTERVAL))
@@ -593,7 +607,7 @@ try_again:
 	 * avoid arbitrary skew, we must read all counters before closing any
 	 * group leaders.
 	 */
-	read_counters();
+	read_counters(&(struct timespec) { .tv_nsec = t1-t0 });
 	perf_evlist__close(evsel_list);
 
 	return WEXITSTATUS(status);
