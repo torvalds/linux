@@ -336,7 +336,7 @@ enum {
 	/* RK1608 -> AP
 	 * 6 response of sensor msg
 	 */
-	id_msg_init_sensor_ret_t =	0x0301,
+	id_msg_init_sensor_ret_t =	0x0300,
 	id_msg_set_input_size_ret_t,
 	id_msg_set_output_size_ret_t,
 	id_msg_set_stream_in_on_ret_t,
