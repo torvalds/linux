@@ -639,20 +639,19 @@ static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
 static void dpms_legacy(struct drm_fb_helper *fb_helper, int dpms_mode)
 {
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc *crtc;
 	struct drm_connector *connector;
+	struct drm_mode_set *modeset;
 	int i, j;
 
 	drm_modeset_lock_all(dev);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
-		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+		modeset = &fb_helper->crtc_info[i].mode_set;
 
-		if (!crtc->enabled)
+		if (!modeset->crtc->enabled)
 			continue;
 
-		/* Walk the connectors & encoders on this fb turning them on/off */
-		drm_fb_helper_for_each_connector(fb_helper, j) {
-			connector = fb_helper->connector_info[j]->connector;
+		for (j = 0; j < modeset->num_connectors; j++) {
+			connector = modeset->connectors[j];
 			connector->funcs->dpms(connector, dpms_mode);
 			drm_object_property_set_value(&connector->base,
 				dev->mode_config.dpms_property, dpms_mode);
