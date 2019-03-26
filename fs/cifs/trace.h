@@ -549,19 +549,19 @@ DECLARE_EVENT_CLASS(smb3_tcon_class,
 		__field(unsigned int, xid)
 		__field(__u32, tid)
 		__field(__u64, sesid)
-		__field(const char *,  unc_name)
+		__string(name, unc_name)
 		__field(int, rc)
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
 		__entry->tid = tid;
 		__entry->sesid = sesid;
-		__entry->unc_name = unc_name;
+		__assign_str(name, unc_name);
 		__entry->rc = rc;
 	),
 	TP_printk("xid=%u sid=0x%llx tid=0x%x unc_name=%s rc=%d",
 		__entry->xid, __entry->sesid, __entry->tid,
-		__entry->unc_name, __entry->rc)
+		__get_str(name), __entry->rc)
 )
 
 #define DEFINE_SMB3_TCON_EVENT(name)          \

@@ -330,7 +330,7 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
 /*
  * This one is special, since it doesn't actually clear the bit, rather it
  * sets the corresponding bit in the ->cleared mask instead. Paired with
- * the caller doing sbitmap_batch_clear() if a given index is full, which
+ * the caller doing sbitmap_deferred_clear() if a given index is full, which
  * will clear the previously freed entries in the corresponding ->word.
  */
 static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int bitnr)
