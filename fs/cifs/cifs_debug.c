@@ -462,8 +462,13 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
 #ifdef CONFIG_CIFS_STATS2
-			for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++)
+			for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++) {
+				atomic_set(&server->num_cmds[i], 0);
 				atomic_set(&server->smb2slowcmd[i], 0);
+				server->time_per_cmd[i] = 0;
+				server->slowest_cmd[i] = 0;
+				server->fastest_cmd[0] = 0;
+			}
 #endif /* CONFIG_CIFS_STATS2 */
 			list_for_each(tmp2, &server->smb_ses_list) {
 				ses = list_entry(tmp2, struct cifs_ses,
@@ -531,9 +536,19 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
 #ifdef CONFIG_CIFS_STATS2
+		seq_puts(m, "\nTotal time spent processing by command. Time ");
+		seq_printf(m, "units are jiffies (%d per second)\n", HZ);
+		seq_puts(m, "  SMB3 CMD\tNumber\tTotal Time\tFastest\tSlowest\n");
+		seq_puts(m, "  --------\t------\t----------\t-------\t-------\n");
+		for (j = 0; j < NUMBER_OF_SMB2_COMMANDS; j++)
+			seq_printf(m, "  %d\t\t%d\t%llu\t\t%u\t%u\n", j,
+				atomic_read(&server->num_cmds[j]),
+				server->time_per_cmd[j],
+				server->fastest_cmd[j],
+				server->slowest_cmd[j]);
 		for (j = 0; j < NUMBER_OF_SMB2_COMMANDS; j++)
 			if (atomic_read(&server->smb2slowcmd[j]))
-				seq_printf(m, "%d slow responses from %s for command %d\n",
+				seq_printf(m, "  %d slow responses from %s for command %d\n",
 					atomic_read(&server->smb2slowcmd[j]),
 					server->hostname, j);
 #endif /* STATS2 */

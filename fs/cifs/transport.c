@@ -104,7 +104,10 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 {
 #ifdef CONFIG_CIFS_STATS2
 	__le16 command = midEntry->server->vals->lock_cmd;
+	__u16 smb_cmd = le16_to_cpu(midEntry->command);
 	unsigned long now;
+	unsigned long roundtrip_time;
+	struct TCP_Server_Info *server = midEntry->server;
 #endif
 	midEntry->mid_state = MID_FREE;
 	atomic_dec(&midCount);
@@ -114,6 +117,23 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		cifs_small_buf_release(midEntry->resp_buf);
 #ifdef CONFIG_CIFS_STATS2
 	now = jiffies;
+	if (now < midEntry->when_alloc)
+		cifs_dbg(VFS, "invalid mid allocation time\n");
+	roundtrip_time = now - midEntry->when_alloc;
+
+	if (smb_cmd < NUMBER_OF_SMB2_COMMANDS) {
+		if (atomic_read(&server->num_cmds[smb_cmd]) == 0) {
+			server->slowest_cmd[smb_cmd] = roundtrip_time;
+			server->fastest_cmd[smb_cmd] = roundtrip_time;
+		} else {
+			if (server->slowest_cmd[smb_cmd] < roundtrip_time)
+				server->slowest_cmd[smb_cmd] = roundtrip_time;
+			else if (server->fastest_cmd[smb_cmd] > roundtrip_time)
+				server->fastest_cmd[smb_cmd] = roundtrip_time;
+		}
+		cifs_stats_inc(&server->num_cmds[smb_cmd]);
+		server->time_per_cmd[smb_cmd] += roundtrip_time;
+	}
 	/*
 	 * commands taking longer than one second (default) can be indications
 	 * that something is wrong, unless it is quite a slow link or a very
@@ -131,11 +151,10 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		 * smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command
 		 * NB: le16_to_cpu returns unsigned so can not be negative below
 		 */
-		if (le16_to_cpu(midEntry->command) < NUMBER_OF_SMB2_COMMANDS)
-			cifs_stats_inc(&midEntry->server->smb2slowcmd[le16_to_cpu(midEntry->command)]);
+		if (smb_cmd < NUMBER_OF_SMB2_COMMANDS)
+			cifs_stats_inc(&server->smb2slowcmd[smb_cmd]);
 
-		trace_smb3_slow_rsp(le16_to_cpu(midEntry->command),
-			       midEntry->mid, midEntry->pid,
+		trace_smb3_slow_rsp(smb_cmd, midEntry->mid, midEntry->pid,
 			       midEntry->when_sent, midEntry->when_received);
 		if (cifsFYI & CIFS_TIMER) {
 			pr_debug(" CIFS slow rsp: cmd %d mid %llu",
