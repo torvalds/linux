@@ -936,6 +936,16 @@ static struct syscore_ops rk3288_clk_syscore_ops = {
 	.resume = rk3288_clk_resume,
 };
 
+static void rk3288_dump_cru(void)
+{
+	if (rk3288_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3288_cru_base,
+			       0x21c, false);
+	}
+}
+
 static void __init rk3288_common_init(struct device_node *np,
 				      enum rk3288_variant soc)
 {
@@ -986,6 +996,9 @@ static void __init rk3288_common_init(struct device_node *np,
 		register_syscore_ops(&rk3288_clk_syscore_ops);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	if (!rk_dump_cru)
+		rk_dump_cru = rk3288_dump_cru;
 }
 
 static void __init rk3288_clk_init(struct device_node *np)
