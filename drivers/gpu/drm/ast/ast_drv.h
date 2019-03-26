@@ -259,7 +259,7 @@ struct ast_framebuffer {
 };
 
 struct ast_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct ast_framebuffer afb;
 	void *sysram;
 	int size;
