@@ -615,50 +615,113 @@ static struct scsi_transport_template *qedf_fc_vport_transport_template;
 static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
-	struct fc_rport_libfc_priv *rp = rport->dd_data;
-	struct qedf_rport *fcport;
 	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
 	struct qedf_ioreq *io_req;
+	struct fc_rport_libfc_priv *rp = rport->dd_data;
+	struct fc_rport_priv *rdata;
+	struct qedf_rport *fcport = NULL;
 	int rc = FAILED;
+	int wait_count = 100;
+	int refcount = 0;
 	int rval;
-
-	if (fc_remote_port_chkready(rport)) {
-		QEDF_ERR(NULL, "rport not ready\n");
-		goto out;
-	}
+	int got_ref = 0;
 
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = (struct qedf_ctx *)lport_priv(lport);
 
-	if ((lport->state != LPORT_ST_READY) || !(lport->link_up)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "link not ready.\n");
+	/* rport and tgt are allocated together, so tgt should be non-NULL */
+	fcport = (struct qedf_rport *)&rp[1];
+	rdata = fcport->rdata;
+	if (!rdata || !kref_get_unless_zero(&rdata->kref)) {
+		QEDF_ERR(&qedf->dbg_ctx, "stale rport, sc_cmd=%p\n", sc_cmd);
+		rc = 1;
 		goto out;
 	}
 
-	fcport = (struct qedf_rport *)&rp[1];
 
 	io_req = (struct qedf_ioreq *)sc_cmd->SCp.ptr;
 	if (!io_req) {
-		QEDF_ERR(&(qedf->dbg_ctx), "io_req is NULL.\n");
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "sc_cmd not queued with lld, sc_cmd=%p op=0x%02x, port_id=%06x\n",
+			 sc_cmd, sc_cmd->cmnd[0],
+			 rdata->ids.port_id);
 		rc = SUCCESS;
-		goto out;
+		goto drop_rdata_kref;
 	}
 
-	QEDF_ERR(&(qedf->dbg_ctx), "Aborting io_req sc_cmd=%p xid=0x%x "
-		  "fp_idx=%d.\n", sc_cmd, io_req->xid, io_req->fp_idx);
+	rval = kref_get_unless_zero(&io_req->refcount);	/* ID: 005 */
+	if (rval)
+		got_ref = 1;
+
+	/* If we got a valid io_req, confirm it belongs to this sc_cmd. */
+	if (!rval || io_req->sc_cmd != sc_cmd) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Freed/Incorrect io_req, io_req->sc_cmd=%p, sc_cmd=%p, port_id=%06x, bailing out.\n",
+			 io_req->sc_cmd, sc_cmd, rdata->ids.port_id);
+
+		goto drop_rdata_kref;
+	}
+
+	if (fc_remote_port_chkready(rport)) {
+		refcount = kref_read(&io_req->refcount);
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "rport not ready, io_req=%p, xid=0x%x sc_cmd=%p op=0x%02x, refcount=%d, port_id=%06x\n",
+			 io_req, io_req->xid, sc_cmd, sc_cmd->cmnd[0],
+			 refcount, rdata->ids.port_id);
+
+		goto drop_rdata_kref;
+	}
+
+	rc = fc_block_scsi_eh(sc_cmd);
+	if (rc)
+		goto drop_rdata_kref;
+
+	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Connection uploading, xid=0x%x., port_id=%06x\n",
+			 io_req->xid, rdata->ids.port_id);
+		while (io_req->sc_cmd && (wait_count != 0)) {
+			msleep(100);
+			wait_count--;
+		}
+		if (wait_count) {
+			QEDF_ERR(&qedf->dbg_ctx, "ABTS succeeded\n");
+			rc = SUCCESS;
+		} else {
+			QEDF_ERR(&qedf->dbg_ctx, "ABTS failed\n");
+			rc = FAILED;
+		}
+		goto drop_rdata_kref;
+	}
+
+	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
+		QEDF_ERR(&qedf->dbg_ctx, "link not ready.\n");
+		goto drop_rdata_kref;
+	}
+
+	QEDF_ERR(&qedf->dbg_ctx,
+		 "Aborting io_req=%p sc_cmd=%p xid=0x%x fp_idx=%d, port_id=%06x.\n",
+		 io_req, sc_cmd, io_req->xid, io_req->fp_idx,
+		 rdata->ids.port_id);
 
 	if (qedf->stop_io_on_error) {
 		qedf_stop_all_io(qedf);
 		rc = SUCCESS;
-		goto out;
+		goto drop_rdata_kref;
 	}
 
 	init_completion(&io_req->abts_done);
 	rval = qedf_initiate_abts(io_req, true);
 	if (rval) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to queue ABTS.\n");
-		goto out;
+		/*
+		 * If we fail to queue the ABTS then return this command to
+		 * the SCSI layer as it will own and free the xid
+		 */
+		rc = SUCCESS;
+		qedf_scsi_done(qedf, io_req, DID_ERROR);
+		goto drop_rdata_kref;
 	}
 
 	wait_for_completion(&io_req->abts_done);
@@ -684,19 +747,27 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 		QEDF_ERR(&(qedf->dbg_ctx), "ABTS failed, xid=0x%x.\n",
 			  io_req->xid);
 
+drop_rdata_kref:
+	kref_put(&rdata->kref, fc_rport_destroy);
 out:
+	if (got_ref)
+		kref_put(&io_req->refcount, qedf_release_cmd);
 	return rc;
 }
 
 static int qedf_eh_target_reset(struct scsi_cmnd *sc_cmd)
 {
-	QEDF_ERR(NULL, "TARGET RESET Issued...");
+	QEDF_ERR(NULL, "%d:0:%d:%lld: TARGET RESET Issued...",
+		 sc_cmd->device->host->host_no, sc_cmd->device->id,
+		 sc_cmd->device->lun);
 	return qedf_initiate_tmf(sc_cmd, FCP_TMF_TGT_RESET);
 }
 
 static int qedf_eh_device_reset(struct scsi_cmnd *sc_cmd)
 {
-	QEDF_ERR(NULL, "LUN RESET Issued...\n");
+	QEDF_ERR(NULL, "%d:0:%d:%lld: LUN RESET Issued... ",
+		 sc_cmd->device->host->host_no, sc_cmd->device->id,
+		 sc_cmd->device->lun);
 	return qedf_initiate_tmf(sc_cmd, FCP_TMF_LUN_RESET);
 }
 
@@ -740,22 +811,6 @@ static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
-	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
-	struct fc_rport_libfc_priv *rp = rport->dd_data;
-	struct qedf_rport *fcport = (struct qedf_rport *)&rp[1];
-	int rval;
-
-	rval = fc_remote_port_chkready(rport);
-
-	if (rval) {
-		QEDF_ERR(NULL, "device_reset rport not ready\n");
-		return FAILED;
-	}
-
-	if (fcport == NULL) {
-		QEDF_ERR(NULL, "device_reset: rport is NULL\n");
-		return FAILED;
-	}
 
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = lport_priv(lport);
@@ -3007,6 +3062,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		pci_set_drvdata(pdev, qedf);
 		init_completion(&qedf->fipvlan_compl);
 		mutex_init(&qedf->stats_mutex);
+		mutex_init(&qedf->flush_mutex);
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "

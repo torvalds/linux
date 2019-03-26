@@ -49,8 +49,8 @@
 	sizeof(struct fc_frame_header))
 #define QEDF_MAX_NPIV		64
 #define QEDF_TM_TIMEOUT		10
-#define QEDF_ABORT_TIMEOUT	10
-#define QEDF_CLEANUP_TIMEOUT	10
+#define QEDF_ABORT_TIMEOUT	(10 * 1000)
+#define QEDF_CLEANUP_TIMEOUT	1
 #define QEDF_MAX_CDB_LEN	16
 
 #define UPSTREAM_REMOVE		1
@@ -82,6 +82,7 @@ struct qedf_els_cb_arg {
 };
 
 enum qedf_ioreq_event {
+	QEDF_IOREQ_EV_NONE,
 	QEDF_IOREQ_EV_ABORT_SUCCESS,
 	QEDF_IOREQ_EV_ABORT_FAILED,
 	QEDF_IOREQ_EV_SEND_RRQ,
@@ -182,7 +183,10 @@ struct qedf_rport {
 #define QEDF_RPORT_SESSION_READY 1
 #define QEDF_RPORT_UPLOADING_CONNECTION	2
 #define QEDF_RPORT_IN_RESET 3
+#define QEDF_RPORT_IN_LUN_RESET 4
+#define QEDF_RPORT_IN_TARGET_RESET 5
 	unsigned long flags;
+	int lun_reset_lun;
 	unsigned long retry_delay_timestamp;
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
@@ -395,6 +399,8 @@ struct qedf_ctx {
 	u8 target_resets;
 	u8 task_set_fulls;
 	u8 busy;
+	/* Used for flush routine */
+	struct mutex flush_mutex;
 };
 
 struct io_bdt {
