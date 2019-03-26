@@ -3192,7 +3192,7 @@ static struct iwl_trans_dump_data
 	len = sizeof(*dump_data);
 
 	/* host commands */
-	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD))
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD) && cmdq)
 		len += sizeof(*data) +
 			cmdq->n_window * (sizeof(*txcmd) +
 					  TFD_MAX_PAYLOAD_SIZE);
@@ -3244,7 +3244,7 @@ static struct iwl_trans_dump_data
 	len = 0;
 	data = (void *)dump_data->data;
 
-	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD)) {
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD) && cmdq) {
 		u16 tfd_size = trans_pcie->tfd_size;
 
 		data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
@@ -3681,6 +3681,7 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
+	bool interrupts_enabled = test_bit(STATUS_INT_ENABLED, &trans->status);
 	u32 inta_addr, sw_err_bit;
 
 	if (trans_pcie->msix_enabled) {
@@ -3691,7 +3692,12 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 		sw_err_bit = CSR_INT_BIT_SW_ERR;
 	}
 
-	iwl_disable_interrupts(trans);
+	/* if the interrupts were already disabled, there is no point in
+	 * calling iwl_disable_interrupts
+	 */
+	if (interrupts_enabled)
+		iwl_disable_interrupts(trans);
+
 	iwl_force_nmi(trans);
 	while (time_after(timeout, jiffies)) {
 		u32 inta_hw = iwl_read32(trans, inta_addr);
@@ -3705,6 +3711,13 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 
 		mdelay(1);
 	}
-	iwl_enable_interrupts(trans);
+
+	/* enable interrupts only if there were already enabled before this
+	 * function to avoid a case were the driver enable interrupts before
+	 * proper configurations were made
+	 */
+	if (interrupts_enabled)
+		iwl_enable_interrupts(trans);
+
 	iwl_trans_fw_error(trans);
 }
