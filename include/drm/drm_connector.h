@@ -294,11 +294,6 @@ enum drm_panel_orientation {
  */
 struct drm_display_info {
 	/**
-	 * @name: Name of the display.
-	 */
-	char name[DRM_DISPLAY_INFO_LEN];
-
-	/**
 	 * @width_mm: Physical width in mm.
 	 */
 	unsigned int width_mm;
