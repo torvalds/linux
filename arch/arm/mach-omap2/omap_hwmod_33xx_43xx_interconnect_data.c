@@ -188,21 +188,6 @@ struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.user		= OCP_USER_MPU,
 };
 
-/* i2c2 */
-struct omap_hwmod_ocp_if am33xx_l4_per__i2c2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_i2c2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_l4_per__i2c3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_i2c3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 ls -> mailbox */
 struct omap_hwmod_ocp_if am33xx_l4_per__mailbox = {
 	.master		= &am33xx_l4_ls_hwmod,
