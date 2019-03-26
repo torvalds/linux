@@ -170,6 +170,7 @@ static void qedf_handle_rrq(struct work_struct *work)
 	struct qedf_ioreq *io_req =
 	    container_of(work, struct qedf_ioreq, rrq_work.work);
 
+	atomic_set(&io_req->state, QEDFC_CMD_ST_RRQ_ACTIVE);
 	qedf_send_rrq(io_req);
 
 }
@@ -374,7 +375,8 @@ struct qedf_ioreq *qedf_alloc_cmd(struct qedf_rport *fcport, u8 cmd_type)
 	io_req->lun = -1;
 
 	/* Hold the io_req against deletion */
-	kref_init(&io_req->refcount);
+	kref_init(&io_req->refcount);	/* ID: 001 */
+	atomic_set(&io_req->state, QEDFC_CMD_ST_IO_ACTIVE);
 
 	/* Bind io_bdt for this io_req */
 	/* Have a static link between io_req and io_bdt_pool */
@@ -447,6 +449,7 @@ void qedf_release_cmd(struct kref *ref)
 
 	atomic_inc(&cmd_mgr->free_list_cnt);
 	atomic_dec(&fcport->num_active_ios);
+	atomic_set(&io_req->state, QEDF_CMD_ST_INACTIVE);
 	if (atomic_read(&fcport->num_active_ios) < 0)
 		QEDF_WARN(&(fcport->qedf->dbg_ctx), "active_ios < 0.\n");
 
@@ -1627,6 +1630,21 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
 				  "Not outstanding, xid=0x%x, cmd_type=%d refcount=%d.\n",
 				  io_req->xid, io_req->cmd_type, refcount);
+			/* If RRQ work has been queue, try to cancel it and
+			 * free the io_req
+			 */
+			if (atomic_read(&io_req->state) ==
+			    QEDFC_CMD_ST_RRQ_WAIT) {
+				if (cancel_delayed_work_sync
+				    (&io_req->rrq_work)) {
+					QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+						  "Putting reference for pending RRQ work xid=0x%x.\n",
+						  io_req->xid);
+					/* ID: 003 */
+					kref_put(&io_req->refcount,
+						 qedf_release_cmd);
+				}
+			}
 			continue;
 		}
 
@@ -1650,6 +1668,7 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 		}
 
 		if (io_req->cmd_type == QEDF_ABTS) {
+			/* ID: 004 */
 			rc = kref_get_unless_zero(&io_req->refcount);
 			if (!rc) {
 				QEDF_ERR(&(qedf->dbg_ctx),
@@ -1665,24 +1684,25 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 
 			if (cancel_delayed_work_sync(&io_req->rrq_work)) {
 				QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
-					  "Putting reference for pending RRQ work xid=0x%x.\n",
+					  "Putting ref for cancelled RRQ work xid=0x%x.\n",
 					  io_req->xid);
 				kref_put(&io_req->refcount, qedf_release_cmd);
 			}
 
-			/* Cancel any timeout work */
-			cancel_delayed_work_sync(&io_req->timeout_work);
-
-			if (!test_bit(QEDF_CMD_IN_ABORT, &io_req->flags))
-				goto free_cmd;
-
-			qedf_initiate_cleanup(io_req, true);
+			if (cancel_delayed_work_sync(&io_req->timeout_work)) {
+				QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+					  "Putting ref for cancelled tmo work xid=0x%x.\n",
+					  io_req->xid);
+				qedf_initiate_cleanup(io_req, true);
+				/* Notify eh_abort handler that ABTS is
+				 * complete
+				 */
+				complete(&io_req->abts_done);
+				clear_bit(QEDF_CMD_IN_ABORT, &io_req->flags);
+				/* ID: 002 */
+				kref_put(&io_req->refcount, qedf_release_cmd);
+			}
 			flush_cnt++;
-
-			/* Notify eh_abort handler that ABTS is complete */
-			kref_put(&io_req->refcount, qedf_release_cmd);
-			complete(&io_req->abts_done);
-
 			goto free_cmd;
 		}
 
@@ -1722,7 +1742,7 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 		qedf_initiate_cleanup(io_req, true);
 
 free_cmd:
-		kref_put(&io_req->refcount, qedf_release_cmd);
+		kref_put(&io_req->refcount, qedf_release_cmd);	/* ID: 004 */
 	}
 
 	wait_cnt = 60;
@@ -1929,7 +1949,7 @@ void qedf_process_abts_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_SCSI_TM,
 		    "ABTS response - ACC Send RRQ after R_A_TOV\n");
 		io_req->event = QEDF_IOREQ_EV_ABORT_SUCCESS;
-		rc = kref_get_unless_zero(&io_req->refcount);
+		rc = kref_get_unless_zero(&io_req->refcount);	/* ID: 003 */
 		if (!rc) {
 			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_SCSI_TM,
 				  "kref is already zero so ABTS was already completed or flushed xid=0x%x.\n",
@@ -1942,6 +1962,7 @@ void qedf_process_abts_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		 */
 		queue_delayed_work(qedf->dpc_wq, &io_req->rrq_work,
 		    msecs_to_jiffies(qedf->lport->r_a_tov));
+		atomic_set(&io_req->state, QEDFC_CMD_ST_RRQ_WAIT);
 		break;
 	/* For error cases let the cleanup return the command */
 	case FC_RCTL_BA_RJT:

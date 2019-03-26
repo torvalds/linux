@@ -119,9 +119,26 @@ struct qedf_ioreq {
 	u8 io_req_flags;
 	uint8_t tm_flags;
 	struct qedf_rport *fcport;
+#define	QEDF_CMD_ST_INACTIVE		0
+#define	QEDFC_CMD_ST_IO_ACTIVE		1
+#define	QEDFC_CMD_ST_ABORT_ACTIVE	2
+#define	QEDFC_CMD_ST_ABORT_ACTIVE_EH	3
+#define	QEDFC_CMD_ST_CLEANUP_ACTIVE	4
+#define	QEDFC_CMD_ST_CLEANUP_ACTIVE_EH	5
+#define	QEDFC_CMD_ST_RRQ_ACTIVE		6
+#define	QEDFC_CMD_ST_RRQ_WAIT		7
+#define	QEDFC_CMD_ST_OXID_RETIRE_WAIT	8
+#define	QEDFC_CMD_ST_TMF_ACTIVE		9
+#define	QEDFC_CMD_ST_DRAIN_ACTIVE	10
+#define	QEDFC_CMD_ST_CLEANED		11
+#define	QEDFC_CMD_ST_ELS_ACTIVE		12
+	atomic_t state;
 	unsigned long flags;
 	enum qedf_ioreq_event event;
 	size_t data_xfer_len;
+	/* ID: 001: Alloc cmd (qedf_alloc_cmd) */
+	/* ID: 002: Initiate ABTS (qedf_initiate_abts) */
+	/* ID: 003: For RRQ (qedf_process_abts_compl) */
 	struct kref refcount;
 	struct qedf_cmd_mgr *cmd_mgr;
 	struct io_bdt *bd_tbl;
