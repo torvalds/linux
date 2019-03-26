@@ -1999,9 +1999,7 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 /* file.c */
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr);
-#ifdef CONFIG_UBIFS_ATIME_SUPPORT
 int ubifs_update_time(struct inode *inode, struct timespec64 *time, int flags);
-#endif
 
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,

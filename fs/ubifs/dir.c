@@ -1653,9 +1653,7 @@ const struct inode_operations ubifs_dir_inode_operations = {
 #ifdef CONFIG_UBIFS_FS_XATTR
 	.listxattr   = ubifs_listxattr,
 #endif
-#ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
-#endif
 	.tmpfile     = ubifs_tmpfile,
 };
 
