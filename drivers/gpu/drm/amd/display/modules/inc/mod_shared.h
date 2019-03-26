@@ -45,5 +45,42 @@ enum vrr_packet_type {
 	PACKET_TYPE_VTEM
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+union tm3dlut_internal_flags {
+	unsigned int raw;
+	struct {
+		unsigned int dochroma_scale			:1;
+		unsigned int spec_version			:3;
+		unsigned int use_zero_display_black  :1;
+		unsigned int use_zero_source_black  :1;
+		unsigned int force_display_black		:6;
+		unsigned int apply_display_gamma	:1;
+		unsigned int exp_shaper_max			:6;
+		unsigned int unity3dlut				:1;
+		unsigned int bypass3dlut			:1;
+		unsigned int use3dlut				:1;
+		unsigned int less_than_dcip3		:1;
+		unsigned int override_lum			:1;
+		unsigned int reseved				:8;
+	} bits;
+};
+
+enum tm_show_option_internal {
+	tm_show_option_internal_single_file		= 0,/*flags2 not in use*/
+	tm_show_option_internal_duplicate_file,/*use flags2*/
+	tm_show_option_internal_duplicate_sidebyside/*use flags2*/
+};
+
+struct tm3dlut_settings {
+	unsigned char version;
+	union tm3dlut_internal_flags flags;
+	union tm3dlut_internal_flags flags2;
+	enum tm_show_option_internal option;
+	unsigned int min_lum;/*multiplied by 100*/
+	unsigned int max_lum;
+	unsigned int min_lum2;
+	unsigned int max_lum2;
+};
+#endif
 
 #endif /* MOD_SHARED_H_ */
