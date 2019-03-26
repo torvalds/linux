@@ -890,7 +890,6 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
 		      GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", vdbox_mask);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
@@ -908,8 +907,10 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		if (logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
+	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",
+			 vdbox_mask, VDBOX_MASK(dev_priv));
+	GEM_BUG_ON(vdbox_mask != VDBOX_MASK(dev_priv));
 
-	DRM_DEBUG_DRIVER("vebox enable: %04x\n", vebox_mask);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
@@ -919,4 +920,7 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
 		}
 	}
+	DRM_DEBUG_DRIVER("vebox enable: %04x, instances: %04lx\n",
+			 vebox_mask, VEBOX_MASK(dev_priv));
+	GEM_BUG_ON(vebox_mask != VEBOX_MASK(dev_priv));
 }

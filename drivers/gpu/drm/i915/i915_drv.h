@@ -2458,7 +2458,7 @@ static inline unsigned int i915_sg_segment_size(void)
 	unsigned int first__ = (first);					\
 	unsigned int count__ = (count);					\
 	(INTEL_INFO(dev_priv)->engine_mask &				\
-	 GENMASK(first__ + count__ - 1, first__)) >> first__		\
+	 GENMASK(first__ + count__ - 1, first__)) >> first__;		\
 })
 #define VDBOX_MASK(dev_priv) \
 	ENGINE_INSTANCES_MASK(dev_priv, VCS0, I915_MAX_VCS)
