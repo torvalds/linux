@@ -731,6 +731,7 @@ struct cld_net {
 	spinlock_t		 cn_lock;
 	struct list_head	 cn_list;
 	unsigned int		 cn_xid;
+	bool			 cn_has_legacy;
 };
 
 struct cld_upcall {
@@ -787,6 +788,7 @@ __cld_pipe_inprogress_downcall(const struct cld_msg __user *cmsg,
 	uint8_t cmd;
 	struct xdr_netobj name;
 	uint16_t namelen;
+	struct cld_net *cn = nn->cld_net;
 
 	if (get_user(cmd, &cmsg->cm_cmd)) {
 		dprintk("%s: error when copying cmd from userspace", __func__);
@@ -799,6 +801,11 @@ __cld_pipe_inprogress_downcall(const struct cld_msg __user *cmsg,
 		if (IS_ERR_OR_NULL(name.data))
 			return -EFAULT;
 		name.len = namelen;
+		if (name.len > 5 && memcmp(name.data, "hash:", 5) == 0) {
+			name.len = name.len - 5;
+			memmove(name.data, name.data + 5, name.len);
+			cn->cn_has_legacy = true;
+		}
 		if (!nfs4_client_to_reclaim(name, nn)) {
 			kfree(name.data);
 			return -EFAULT;
@@ -969,6 +976,7 @@ __nfsd4_init_cld_pipe(struct net *net)
 	}
 
 	cn->cn_pipe->dentry = dentry;
+	cn->cn_has_legacy = false;
 	nn->cld_net = cn;
 	return 0;
 
@@ -1171,6 +1179,10 @@ nfsd4_cld_check(struct nfs4_client *clp)
 {
 	struct nfs4_client_reclaim *crp;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct cld_net *cn = nn->cld_net;
+	int status;
+	char dname[HEXDIR_LEN];
+	struct xdr_netobj name;
 
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -1178,12 +1190,31 @@ nfsd4_cld_check(struct nfs4_client *clp)
 
 	/* look for it in the reclaim hashtable otherwise */
 	crp = nfsd4_find_reclaim_client(clp->cl_name, nn);
-	if (crp) {
-		crp->cr_clp = clp;
-		return 0;
-	}
+	if (crp)
+		goto found;
 
+	if (cn->cn_has_legacy) {
+		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
+		if (status)
+			return -ENOENT;
+
+		name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
+		if (!name.data) {
+			dprintk("%s: failed to allocate memory for name.data!\n",
+				__func__);
+			return -ENOENT;
+		}
+		name.len = HEXDIR_LEN;
+		crp = nfsd4_find_reclaim_client(name, nn);
+		kfree(name.data);
+		if (crp)
+			goto found;
+
+	}
 	return -ENOENT;
+found:
+	crp->cr_clp = clp;
+	return 0;
 }
 
 static int
