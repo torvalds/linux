@@ -1392,6 +1392,7 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	sc_cmd->SCp.ptr = NULL;
 	sc_cmd->scsi_done(sc_cmd);
 	kref_put(&io_req->refcount, qedf_release_cmd);
+	return;
 
 bad_scsi_ptr:
 	/*
