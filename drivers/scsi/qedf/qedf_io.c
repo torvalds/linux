@@ -351,6 +351,11 @@ struct qedf_ioreq *qedf_alloc_cmd(struct qedf_rport *fcport, u8 cmd_type)
 		goto out_failed;
 	}
 
+	if (test_bit(QEDF_CMD_DIRTY, &io_req->flags))
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "io_req found to be dirty ox_id = 0x%x.\n",
+			 io_req->xid);
+
 	/* Clear any flags now that we've reallocated the xid */
 	io_req->flags = 0;
 	io_req->alloc = 1;
@@ -1744,6 +1749,8 @@ free_cmd:
 					    io_req->fcport == fcport) {
 						refcount =
 						kref_read(&io_req->refcount);
+						set_bit(QEDF_CMD_DIRTY,
+							&io_req->flags);
 						QEDF_ERR(&qedf->dbg_ctx,
 							 "Outstanding io_req =%p xid=0x%x flags=0x%lx, sc_cmd=%p refcount=%d cmd_type=%d.\n",
 							 io_req, io_req->xid,
