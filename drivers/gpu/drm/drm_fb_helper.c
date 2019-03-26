@@ -2105,6 +2105,32 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_var);
 
+/**
+ * drm_fb_helper_fill_info - initializes fbdev information
+ * @info: fbdev instance to set up
+ * @fb_helper: fb helper instance to use as template
+ * @sizes: describes fbdev size and scanout surface size
+ *
+ * Sets up the variable and fixed fbdev metainformation from the given fb helper
+ * instance and the drm framebuffer allocated in &drm_fb_helper.fb.
+ *
+ * Drivers should call this (or their equivalent setup code) from their
+ * &drm_fb_helper_funcs.fb_probe callback after having allocated the fbdev
+ * backing storage framebuffer.
+ */
+void drm_fb_helper_fill_info(struct fb_info *info,
+			     struct drm_fb_helper *fb_helper,
+			     struct drm_fb_helper_surface_size *sizes)
+{
+	struct drm_framebuffer *fb = fb_helper->fb;
+
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
+	drm_fb_helper_fill_var(info, fb_helper,
+			       sizes->fb_width, sizes->fb_height);
+
+}
+EXPORT_SYMBOL(drm_fb_helper_fill_info);
+
 static int drm_fb_helper_probe_connector_modes(struct drm_fb_helper *fb_helper,
 						uint32_t maxX,
 						uint32_t maxY)
@@ -3165,8 +3191,7 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 #endif
 	strcpy(fbi->fix.id, "DRM emulated");
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(fbi, fb_helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(fbi, fb_helper, sizes);
 
 	if (fb->funcs->dirty) {
 		struct fb_ops *fbops;
