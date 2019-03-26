@@ -3047,6 +3047,8 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 			goto err0;
 		}
 
+		fc_disc_init(lport);
+
 		/* Initialize qedf_ctx */
 		qedf = lport_priv(lport);
 		qedf->lport = lport;
