@@ -49,6 +49,8 @@ struct temp_opp_table {
  * @high_temp_max_volt:	Maximum voltage when high temperature, in microvolt
  * @wide_temp_limit:	Target maximum frequency when low or high temperature,
  *			in Hz
+ * @video_4k_freq:	Maximum frequency when paly 4k video, in KHz
+ * @status_limit:	Minimum frequency of all status frequency, in KHz
  * @low_temp:		Low temperature trip point, in millicelsius
  * @high_temp:		High temperature trip point, in millicelsius
  * @temp_hysteresis:	A low hysteresis value on low_temp, in millicelsius
@@ -70,6 +72,8 @@ struct monitor_dev_info {
 	unsigned long low_temp_min_volt;
 	unsigned long high_temp_max_volt;
 	unsigned long wide_temp_limit;
+	unsigned int video_4k_freq;
+	unsigned int status_limit;
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;

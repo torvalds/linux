@@ -516,10 +516,10 @@ out:
 	return ret;
 }
 
-static int monitor_device_parse_dt(struct device *dev,
-				   struct monitor_dev_info *info)
+static int monitor_device_parse_wide_temp_config(struct device_node *np,
+						 struct monitor_dev_info *info)
 {
-	struct device_node *np;
+	struct device *dev = info->dev;
 	unsigned long high_temp_max_freq;
 	int ret = 0;
 	u32 value;
@@ -565,22 +565,49 @@ static int monitor_device_parse_dt(struct device *dev,
 			info->low_temp, info->high_temp,
 			info->temp_hysteresis);
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 	if (!info->low_temp_adjust_table && !info->low_temp_min_volt &&
 	    !info->low_limit && !info->high_limit) {
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 	if (info->low_temp_adjust_table || info->low_temp_min_volt)
 		info->is_low_temp_enabled = true;
 
-out:
+	return 0;
+err:
+	kfree(info->low_temp_adjust_table);
+	info->low_temp_adjust_table = NULL;
+	kfree(info->opp_table);
+	info->opp_table = NULL;
+
+	return ret;
+}
+
+static int monitor_device_parse_dt(struct device *dev,
+				   struct monitor_dev_info *info)
+{
+	struct device_node *np;
+	int ret = 0;
+	bool is_wide_temp_en = false;
+	bool is_4k_limit_en = false;
+
+	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
+	if (!np)
+		return -EINVAL;
+
+	if (!monitor_device_parse_wide_temp_config(np, info))
+		is_wide_temp_en = true;
+	if (!of_property_read_u32(np, "rockchip,video-4k-freq",
+				  &info->video_4k_freq))
+		is_4k_limit_en = true;
+	if (is_wide_temp_en || is_4k_limit_en)
+		ret = 0;
+	else
+		ret = -EINVAL;
+
 	of_node_put(np);
-	if (ret) {
-		kfree(info->low_temp_adjust_table);
-		kfree(info->opp_table);
-	}
 
 	return ret;
 }
@@ -1018,6 +1045,28 @@ static void rockchip_system_monitor_thermal_check(struct work_struct *work)
 	rockchip_system_monitor_thermal_update();
 }
 
+static void rockchip_system_status_limit_freq(unsigned long status)
+{
+	struct monitor_dev_info *info;
+	unsigned int target_freq, cpu;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (info->devp->type != MONITOR_TPYE_CPU)
+			continue;
+		if (status & SYS_STATUS_VIDEO_4K)
+			target_freq = info->video_4k_freq;
+		else
+			target_freq = 0;
+		if (target_freq != info->status_limit) {
+			info->status_limit = target_freq;
+			cpu = cpumask_any(&info->devp->allowed_cpus);
+			cpufreq_update_policy(cpu);
+		}
+	}
+	up_read(&mdev_list_sem);
+}
+
 static void rockchip_system_status_cpu_on_off(unsigned long status)
 {
 	struct cpumask offline_cpus;
@@ -1039,6 +1088,8 @@ static int rockchip_system_status_notifier(struct notifier_block *nb,
 					   unsigned long status,
 					   void *ptr)
 {
+	rockchip_system_status_limit_freq(status);
+
 	rockchip_system_status_cpu_on_off(status);
 
 	return NOTIFY_OK;
@@ -1077,7 +1128,7 @@ static int rockchip_monitor_cpufreq_policy_notifier(struct notifier_block *nb,
 	struct monitor_dev_info *info;
 	struct cpufreq_policy *policy = data;
 	int cpu = policy->cpu;
-	unsigned int target_freq;
+	unsigned int limit_freq = UINT_MAX;
 
 	if (event != CPUFREQ_ADJUST)
 		return NOTIFY_OK;
@@ -1088,12 +1139,15 @@ static int rockchip_monitor_cpufreq_policy_notifier(struct notifier_block *nb,
 			continue;
 		if (!cpumask_test_cpu(cpu, &info->devp->allowed_cpus))
 			continue;
+
 		if (info->wide_temp_limit) {
-			target_freq = info->wide_temp_limit / 1000;
-			if (target_freq < policy->max)
-				cpufreq_verify_within_limits(policy, 0,
-							     target_freq);
+			if (limit_freq > info->wide_temp_limit / 1000)
+				limit_freq = info->wide_temp_limit / 1000;
 		}
+		if (info->status_limit && limit_freq > info->status_limit)
+			limit_freq = info->status_limit;
+		if (limit_freq < policy->max)
+			cpufreq_verify_within_limits(policy, 0, limit_freq);
 	}
 	up_read(&mdev_list_sem);
 
