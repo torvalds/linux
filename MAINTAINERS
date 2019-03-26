@@ -14325,9 +14325,8 @@ SOC-CAMERA V4L2 SUBSYSTEM
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Orphan
-F:	include/media/soc*
-F:	drivers/media/i2c/soc_camera/
-F:	drivers/media/platform/soc_camera/
+F:	include/media/soc_camera.h
+F:	drivers/staging/media/soc_camera/
 
 SOCIONEXT SYNQUACER I2C DRIVER
 M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
