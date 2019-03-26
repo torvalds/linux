@@ -308,12 +308,6 @@ struct drm_display_info {
 	unsigned int height_mm;
 
 	/**
-	 * @pixel_clock: Maximum pixel clock supported by the sink, in units of
-	 * 100Hz. This mismatches the clock in &drm_display_mode (which is in
-	 * kHZ), because that's what the EDID uses as base unit.
-	 */
-	unsigned int pixel_clock;
-	/**
 	 * @bpc: Maximum bits per color channel. Used by HDMI and DP outputs.
 	 */
 	unsigned int bpc;
