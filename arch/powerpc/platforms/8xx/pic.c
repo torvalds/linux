@@ -153,10 +153,9 @@ int mpc8xx_pic_init(void)
 	if (mpc8xx_pic_host == NULL) {
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
 		ret = -ENOMEM;
-		goto out;
 	}
-	return 0;
 
+	ret = 0;
 out:
 	of_node_put(np);
 	return ret;
