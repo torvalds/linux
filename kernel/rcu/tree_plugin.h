@@ -285,7 +285,7 @@ static void rcu_qs(void)
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
 		barrier(); /* Coordinate with rcu_flavor_sched_clock_irq(). */
-		current->rcu_read_unlock_special.b.need_qs = false;
+		WRITE_ONCE(current->rcu_read_unlock_special.b.need_qs, false);
 	}
 }
 
@@ -817,7 +817,7 @@ void exit_rcu(void)
 	if (unlikely(!list_empty(&current->rcu_node_entry))) {
 		t->rcu_read_lock_nesting = 1;
 		barrier();
-		t->rcu_read_unlock_special.b.blocked = true;
+		WRITE_ONCE(t->rcu_read_unlock_special.b.blocked, true);
 	} else if (unlikely(t->rcu_read_lock_nesting)) {
 		t->rcu_read_lock_nesting = 1;
 	} else {
