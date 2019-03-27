@@ -367,7 +367,7 @@ extern struct nf_nat_hook __rcu *nf_nat_hook;
 static inline void
 nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 	struct nf_nat_hook *nat_hook;
 
 	rcu_read_lock();

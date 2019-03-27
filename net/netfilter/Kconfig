@@ -404,11 +404,6 @@ config NF_NAT
 	  forms of full Network Address Port Translation. This can be
 	  controlled by iptables, ip6tables or nft.
 
-config NF_NAT_NEEDED
-	bool
-	depends on NF_NAT
-	default y
-
 config NF_NAT_AMANDA
 	tristate
 	depends on NF_CONNTRACK && NF_NAT
