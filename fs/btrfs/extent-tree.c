@@ -11249,54 +11249,6 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
 	return unpin_extent_range(fs_info, start, end, false);
 }
 
-static bool should_skip_trim(struct btrfs_device *device, u64 *start, u64 *len)
-{
-	u64 trimmed_start = 0, trimmed_end = 0;
-	u64 end = *start + *len - 1;
-
-	if (!find_first_extent_bit(&device->alloc_state, *start, &trimmed_start,
-				   &trimmed_end, CHUNK_TRIMMED, NULL)) {
-		u64 trimmed_len = trimmed_end - trimmed_start + 1;
-
-		if (*start < trimmed_start) {
-			if (in_range(end, trimmed_start, trimmed_len) ||
-			    end > trimmed_end) {
-				/*
-				 * start|------|end
-				 *      ts|--|trimmed_len
-				 *      OR
-				 * start|-----|end
-				 *      ts|-----|trimmed_len
-				 */
-				*len = trimmed_start - *start;
-				return false;
-			} else if (end < trimmed_start) {
-				/*
-				 * start|------|end
-				 *             ts|--|trimmed_len
-				 */
-				return false;
-			}
-		} else if (in_range(*start, trimmed_start, trimmed_len)) {
-			if (in_range(end, trimmed_start, trimmed_len)) {
-				/*
-				 * start|------|end
-				 *  ts|----------|trimmed_len
-				 */
-				return true;
-			} else {
-				/*
-				 * start|-----------|end
-				 *  ts|----------|trimmed_len
-				 */
-				*start = trimmed_end + 1;
-				*len = end - *start + 1;
-				return false;
-			}
-		}
-	}
-	return false;
-}
 /*
  * It used to be that old block groups would be left around forever.
  * Iterating over them would be enough to trim unused space.  Since we
@@ -11320,9 +11272,10 @@ static bool should_skip_trim(struct btrfs_device *device, u64 *start, u64 *len)
 static int btrfs_trim_free_extents(struct btrfs_device *device,
 				   struct fstrim_range *range, u64 *trimmed)
 {
-	u64 start = range->start, len = 0;
+	u64 start, len = 0, end = 0;
 	int ret;
 
+	start = max_t(u64, range->start, SZ_1M);
 	*trimmed = 0;
 
 	/* Discard not supported = nothing to do. */
@@ -11347,34 +11300,46 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 		if (ret)
 			break;
 
-		ret = find_free_dev_extent_start(device, range->minlen, start,
-						 &start, &len);
+		find_first_clear_extent_bit(&device->alloc_state, start,
+					    &start, &end,
+					    CHUNK_TRIMMED | CHUNK_ALLOCATED);
+		/*
+		 * If find_first_clear_extent_bit find a range that spans the
+		 * end of the device it will set end to -1, in this case it's up
+		 * to the caller to trim the value to the size of the device.
+		 */
+		end = min(end, device->total_bytes - 1);
+		len = end - start + 1;
 
-		if (ret) {
+		/* We didn't find any extents */
+		if (!len) {
 			mutex_unlock(&fs_info->chunk_mutex);
-			if (ret == -ENOSPC)
-				ret = 0;
+			ret = 0;
 			break;
+		}
+
+		/* Keep going until we satisfy minlen or reach end of space */
+		if (len < range->minlen) {
+			mutex_unlock(&fs_info->chunk_mutex);
+			start += len;
+			continue;
 		}
 
 		/* If we are out of the passed range break */
 		if (start > range->start + range->len - 1) {
 			mutex_unlock(&fs_info->chunk_mutex);
-			ret = 0;
 			break;
 		}
 
 		start = max(range->start, start);
 		len = min(range->len, len);
 
-		if (!should_skip_trim(device, &start, &len)) {
-			ret = btrfs_issue_discard(device->bdev, start, len,
-						  &bytes);
-			if (!ret)
-				set_extent_bits(&device->alloc_state, start,
-						start + bytes - 1,
-						CHUNK_TRIMMED);
-		}
+		ret = btrfs_issue_discard(device->bdev, start, len,
+					  &bytes);
+		if (!ret)
+			set_extent_bits(&device->alloc_state, start,
+					start + bytes - 1,
+					CHUNK_TRIMMED);
 		mutex_unlock(&fs_info->chunk_mutex);
 
 		if (ret)
