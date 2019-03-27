@@ -225,6 +225,8 @@ static struct workqueue_struct *nfit_wq;
 
 static struct gen_pool *nfit_pool;
 
+static const char zero_key[NVDIMM_PASSPHRASE_LEN];
+
 static struct nfit_test *to_nfit_test(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1059,8 +1061,7 @@ static int nd_intel_test_cmd_secure_erase(struct nfit_test *t,
 	struct device *dev = &t->pdev.dev;
 	struct nfit_test_sec *sec = &dimm_sec_info[dimm];
 
-	if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED) ||
-			(sec->state & ND_INTEL_SEC_STATE_FROZEN)) {
+	if (sec->state & ND_INTEL_SEC_STATE_FROZEN) {
 		nd_cmd->status = ND_INTEL_STATUS_INVALID_STATE;
 		dev_dbg(dev, "secure erase: wrong security state\n");
 	} else if (memcmp(nd_cmd->passphrase, sec->passphrase,
@@ -1068,6 +1069,12 @@ static int nd_intel_test_cmd_secure_erase(struct nfit_test *t,
 		nd_cmd->status = ND_INTEL_STATUS_INVALID_PASS;
 		dev_dbg(dev, "secure erase: wrong passphrase\n");
 	} else {
+		if (!(sec->state & ND_INTEL_SEC_STATE_ENABLED)
+				&& (memcmp(nd_cmd->passphrase, zero_key,
+					ND_INTEL_PASSPHRASE_SIZE) != 0)) {
+			dev_dbg(dev, "invalid zero key\n");
+			return 0;
+		}
 		memset(sec->passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
 		memset(sec->master_passphrase, 0, ND_INTEL_PASSPHRASE_SIZE);
 		sec->state = 0;
