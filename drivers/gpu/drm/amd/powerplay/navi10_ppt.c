@@ -117,6 +117,8 @@ static int
 navi10_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	if (num > 2)
 		return -EINVAL;
 
@@ -139,6 +141,10 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_MMHUB_PG)
 				| FEATURE_MASK(FEATURE_ATHUB_PG);
 
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
+				| FEATURE_MASK(FEATURE_GFXOFF_BIT);
+
 	return 0;
 }
 
@@ -149,6 +155,7 @@ static int navi10_check_powerplay_table(struct smu_context *smu)
 
 static int navi10_append_powerplay_table(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *smc_pptable = table_context->driver_pptable;
 	struct atom_smc_dpm_info_v4_5 *smc_dpm_table;
@@ -233,6 +240,10 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 
 	/* Mvdd Svi2 Div Ratio Setting */
 	smc_pptable->MvddRatio = smc_dpm_table->MvddRatio;
+
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+		*(uint64_t *)smc_pptable->FeaturesToRun |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
+					| FEATURE_MASK(FEATURE_GFXOFF_BIT);
 
 	return 0;
 }
