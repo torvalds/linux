@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -414,6 +414,8 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 
 	clk_flags = clk_hw_get_flags(hw);
 	p = clk_hw_get_parent_by_index(hw, index);
+	if (!p)
+		return -EINVAL;
 	if (clk_flags & CLK_SET_RATE_PARENT) {
 		rate = rate * f->pre_div;
 		if (f->n) {
@@ -465,6 +467,8 @@ static int clk_rcg_bypass_determine_rate(struct clk_hw *hw,
 	int index = qcom_find_src_index(hw, rcg->s.parent_map, f->src);
 
 	req->best_parent_hw = p = clk_hw_get_parent_by_index(hw, index);
+	if (!p)
+		return -EINVAL;
 	req->best_parent_rate = clk_hw_round_rate(p, req->rate);
 	req->rate = req->best_parent_rate;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2015, 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -1002,6 +1002,7 @@ clk_alpha_pll_postdiv_round_ro_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long *prate)
 {
 	struct clk_alpha_pll_postdiv *pll = to_clk_alpha_pll_postdiv(hw);
+	struct clk_hw *parent_hw;
 	u32 ctl, div;
 
 	regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &ctl);
@@ -1010,8 +1011,13 @@ clk_alpha_pll_postdiv_round_ro_rate(struct clk_hw *hw, unsigned long rate,
 	ctl &= BIT(pll->width) - 1;
 	div = 1 << fls(ctl);
 
-	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)
-		*prate = clk_hw_round_rate(clk_hw_get_parent(hw), div * rate);
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
+		parent_hw = clk_hw_get_parent(hw);
+		if (!parent_hw)
+			return -EINVAL;
+
+		*prate = clk_hw_round_rate(parent_hw, div * rate);
+	}
 
 	return DIV_ROUND_UP_ULL((u64)*prate, div);
 }

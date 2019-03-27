@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013, 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2016-2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -821,6 +821,8 @@ static int clk_edp_pixel_determine_rate(struct clk_hw *hw,
 
 	/* Force the correct parent */
 	req->best_parent_hw = clk_hw_get_parent_by_index(hw, index);
+	if (!req->best_parent_hw)
+		return -EINVAL;
 	req->best_parent_rate = clk_hw_get_rate(req->best_parent_hw);
 
 	if (req->best_parent_rate == 810000000)
@@ -875,6 +877,8 @@ static int clk_byte_determine_rate(struct clk_hw *hw,
 		return -EINVAL;
 
 	req->best_parent_hw = p = clk_hw_get_parent_by_index(hw, index);
+	if (!p)
+		return -EINVAL;
 	req->best_parent_rate = parent_rate = clk_hw_round_rate(p, req->rate);
 
 	div = DIV_ROUND_UP((2 * parent_rate), req->rate) - 1;
@@ -1101,6 +1105,8 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 		return -EINVAL;
 
 	xo = clk_hw_get_parent_by_index(hw, 0);
+	if (!xo)
+		return -EINVAL;
 	if (req->rate == clk_hw_get_rate(xo)) {
 		req->best_parent_hw = xo;
 		return 0;
