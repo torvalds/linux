@@ -60,6 +60,8 @@
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,uboot-low-power-voltage = <3500>;
 		status = "okay";
 	};
 
@@ -72,11 +74,11 @@
 		status = "okay";
 		compatible = "gpio-leds";
 
-		red-led {
+		blue-led {
 			gpios = <&gpio2 RK_PA1 GPIO_ACTIVE_LOW>;
-			label = "redled";
+			label = "battery_full";
 			default-state = "off";
-			linux,default-trigger = "default-off";
+			linux,default-trigger = "battery-full";
 		};
 
 		green-led {
@@ -86,11 +88,11 @@
 			linux,default-trigger = "default-off";
 		};
 
-		blue-led {
+		red-led {
 			gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
-			label = "blueled";
-			default-state = "on";
-			linux,default-trigger = "default-on";
+			label = "battery_charging";
+			default-state = "off";
+			linux,default-trigger = "battery-charging";
 		};
 	};
 
