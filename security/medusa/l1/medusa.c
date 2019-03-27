@@ -918,12 +918,26 @@ static int medusa_l1_socket_accept(struct socket *sock, struct socket *newsock)
 
 static int medusa_l1_socket_sendmsg(struct socket *sock, struct msghdr *msg, int size)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_sendmsg(sock, msg, size) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 
 static int medusa_l1_socket_recvmsg(struct socket *sock, struct msghdr *msg,
 				int size, int flags)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_recvmsg(sock, msg, size, flags) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 
