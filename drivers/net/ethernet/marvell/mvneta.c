@@ -3385,6 +3385,7 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 		phylink_set(mask, 1000baseX_Full);
 	}
 	if (pp->comphy || state->interface == PHY_INTERFACE_MODE_2500BASEX) {
+		phylink_set(mask, 2500baseT_Full);
 		phylink_set(mask, 2500baseX_Full);
 	}
 
