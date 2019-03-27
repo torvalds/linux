@@ -928,4 +928,8 @@ extern int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
 			   enum amd_pp_task task_id);
 int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t *smu_version);
+int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_type,
+			      uint16_t level, uint32_t *value);
+int smu_get_dpm_level_count(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t *value);
 #endif
