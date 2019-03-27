@@ -704,6 +704,13 @@ void intel_color_commit(const struct intel_crtc_state *crtc_state)
 	dev_priv->display.color_commit(crtc_state);
 }
 
+int intel_color_check(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	return dev_priv->display.color_check(crtc_state);
+}
+
 static bool need_plane_update(struct intel_plane *plane,
 			      const struct intel_crtc_state *crtc_state)
 {
@@ -820,7 +827,7 @@ static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
 	return cgm_mode;
 }
 
-int intel_color_check(struct intel_crtc_state *crtc_state)
+static int _intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
@@ -888,13 +895,23 @@ void intel_color_init(struct intel_crtc *crtc)
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
 	if (HAS_GMCH(dev_priv)) {
+		dev_priv->display.color_check = _intel_color_check;
+		dev_priv->display.color_commit = i9xx_color_commit;
+
 		if (IS_CHERRYVIEW(dev_priv))
 			dev_priv->display.load_luts = cherryview_load_luts;
 		else
 			dev_priv->display.load_luts = i9xx_load_luts;
-
-		dev_priv->display.color_commit = i9xx_color_commit;
 	} else {
+		dev_priv->display.color_check = _intel_color_check;
+
+		if (INTEL_GEN(dev_priv) >= 9)
+			dev_priv->display.color_commit = skl_color_commit;
+		else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+			dev_priv->display.color_commit = hsw_color_commit;
+		else
+			dev_priv->display.color_commit = ilk_color_commit;
+
 		if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.load_luts = icl_load_luts;
 		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
@@ -903,13 +920,6 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.load_luts = broadwell_load_luts;
 		else
 			dev_priv->display.load_luts = i9xx_load_luts;
-
-		if (INTEL_GEN(dev_priv) >= 9)
-			dev_priv->display.color_commit = skl_color_commit;
-		else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-			dev_priv->display.color_commit = hsw_color_commit;
-		else
-			dev_priv->display.color_commit = ilk_color_commit;
 	}
 
 	/* Enable color management support when we have degamma & gamma LUTs. */

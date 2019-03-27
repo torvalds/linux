@@ -325,6 +325,7 @@ struct drm_i915_display_funcs {
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
 
+	int (*color_check)(struct intel_crtc_state *crtc_state);
 	/*
 	 * Program double buffered color management registers during
 	 * vblank evasion. The registers should then latch during the
