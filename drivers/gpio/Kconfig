@@ -1304,7 +1304,7 @@ config GPIO_MERRIFIELD
 
 config GPIO_MLXBF
 	tristate "Mellanox BlueField SoC GPIO"
-	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || COMPILE_TEST
+	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || (64BIT && COMPILE_TEST)
 	select GPIO_GENERIC
 	help
 	  Say Y here if you want GPIO support on Mellanox BlueField SoC.
