@@ -2783,9 +2783,8 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
  *
  * This function will call down into the &drm_fb_helper_funcs.fb_probe callback
  * to let the driver allocate and initialize the fbdev info structure and the
- * drm framebuffer used to back the fbdev. drm_fb_helper_fill_var() and
- * drm_fb_helper_fill_fix() are provided as helpers to setup simple default
- * values for the fbdev info structure.
+ * drm framebuffer used to back the fbdev. drm_fb_helper_fill_info() is provided
+ * as a helper to setup simple default values for the fbdev info structure.
  *
  * HANG DEBUGGING:
  *
