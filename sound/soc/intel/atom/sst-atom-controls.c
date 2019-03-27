@@ -647,7 +647,7 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 		set_mixer = false;
 	}
 
-	if (set_mixer == false)
+	if (!set_mixer)
 		return 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event) ||

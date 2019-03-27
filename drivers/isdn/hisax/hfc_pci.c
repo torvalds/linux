@@ -656,7 +656,7 @@ hfcpci_fill_fifo(struct BCState *bcs)
 				schedule_event(bcs, B_ACKPENDING);
 			}
 
-			dev_kfree_skb_any(bcs->tx_skb);
+			dev_consume_skb_any(bcs->tx_skb);
 			bcs->tx_skb = skb_dequeue(&bcs->squeue);	/* fetch next data */
 		}
 		test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);

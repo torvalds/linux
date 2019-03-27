@@ -367,10 +367,10 @@ static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_pcm_substream *substream)
 
 static int acp3x_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-						     SNDRV_DMA_TYPE_DEV,
-						     NULL, MIN_BUFFER,
-						     MAX_BUFFER);
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+					      rtd->pcm->card->dev,
+					      MIN_BUFFER, MAX_BUFFER);
+	return 0;
 }
 
 static int acp3x_dma_hw_free(struct snd_pcm_substream *substream)

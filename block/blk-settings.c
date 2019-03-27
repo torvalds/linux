@@ -799,15 +799,6 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 }
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
 
-void blk_queue_flush_queueable(struct request_queue *q, bool queueable)
-{
-	if (queueable)
-		blk_queue_flag_clear(QUEUE_FLAG_FLUSH_NQ, q);
-	else
-		blk_queue_flag_set(QUEUE_FLAG_FLUSH_NQ, q);
-}
-EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
-
 /**
  * blk_set_queue_depth - tell the block layer about the device queue depth
  * @q:		the request queue for the device

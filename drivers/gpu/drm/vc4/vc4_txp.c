@@ -249,7 +249,6 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 					struct drm_connector_state *conn_state)
 {
 	struct drm_crtc_state *crtc_state;
-	struct drm_gem_cma_object *gem;
 	struct drm_framebuffer *fb;
 	int i;
 
@@ -274,8 +273,6 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 
 	if (i == ARRAY_SIZE(drm_fmts))
 		return -EINVAL;
-
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
 	/* Pitch must be aligned on 16 bytes. */
 	if (fb->pitches[0] & GENMASK(3, 0))
@@ -327,7 +324,7 @@ static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
 
 	TXP_WRITE(TXP_DST_CTRL, ctrl);
 
-	drm_writeback_queue_job(&txp->connector, conn_state->writeback_job);
+	drm_writeback_queue_job(&txp->connector, conn_state);
 }
 
 static const struct drm_connector_helper_funcs vc4_txp_connector_helper_funcs = {

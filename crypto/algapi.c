@@ -494,6 +494,24 @@ out:
 }
 EXPORT_SYMBOL_GPL(crypto_register_template);
 
+int crypto_register_templates(struct crypto_template *tmpls, int count)
+{
+	int i, err;
+
+	for (i = 0; i < count; i++) {
+		err = crypto_register_template(&tmpls[i]);
+		if (err)
+			goto out;
+	}
+	return 0;
+
+out:
+	for (--i; i >= 0; --i)
+		crypto_unregister_template(&tmpls[i]);
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_register_templates);
+
 void crypto_unregister_template(struct crypto_template *tmpl)
 {
 	struct crypto_instance *inst;
@@ -522,6 +540,15 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 	crypto_remove_final(&users);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_template);
+
+void crypto_unregister_templates(struct crypto_template *tmpls, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_template(&tmpls[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_templates);
 
 static struct crypto_template *__crypto_lookup_template(const char *name)
 {
@@ -607,6 +634,9 @@ int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 		      struct crypto_instance *inst, u32 mask)
 {
 	int err = -EAGAIN;
+
+	if (WARN_ON_ONCE(inst == NULL))
+		return -EINVAL;
 
 	spawn->inst = inst;
 	spawn->mask = mask;
@@ -845,8 +875,8 @@ int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 }
 EXPORT_SYMBOL_GPL(crypto_inst_setname);
 
-void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
-			     unsigned int head)
+void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
+			    unsigned int head)
 {
 	struct crypto_instance *inst;
 	char *p;
@@ -868,35 +898,6 @@ void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
 err_free_inst:
 	kfree(p);
 	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(crypto_alloc_instance2);
-
-struct crypto_instance *crypto_alloc_instance(const char *name,
-					      struct crypto_alg *alg)
-{
-	struct crypto_instance *inst;
-	struct crypto_spawn *spawn;
-	int err;
-
-	inst = crypto_alloc_instance2(name, alg, 0);
-	if (IS_ERR(inst))
-		goto out;
-
-	spawn = crypto_instance_ctx(inst);
-	err = crypto_init_spawn(spawn, alg, inst,
-				CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
-
-	if (err)
-		goto err_free_inst;
-
-	return inst;
-
-err_free_inst:
-	kfree(inst);
-	inst = ERR_PTR(err);
-
-out:
-	return inst;
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_instance);
 

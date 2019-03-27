@@ -37,7 +37,7 @@ struct sdi_device {
 	struct regulator *vdds_sdi_reg;
 
 	struct dss_lcd_mgr_config mgr_config;
-	struct videomode vm;
+	unsigned long pixelclock;
 	int datapairs;
 
 	struct omap_dss_device output;
@@ -129,27 +129,22 @@ static void sdi_config_lcd_manager(struct sdi_device *sdi)
 	dss_mgr_set_lcd_config(&sdi->output, &sdi->mgr_config);
 }
 
-static int sdi_display_enable(struct omap_dss_device *dssdev)
+static void sdi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long fck;
 	int r;
 
-	if (!sdi->output.dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		return -ENODEV;
-	}
-
 	r = regulator_enable(sdi->vdds_sdi_reg);
 	if (r)
-		goto err_reg_enable;
+		return;
 
 	r = dispc_runtime_get(sdi->dss->dispc);
 	if (r)
 		goto err_get_dispc;
 
-	r = sdi_calc_clock_div(sdi, sdi->vm.pixelclock, &fck, &dispc_cinfo);
+	r = sdi_calc_clock_div(sdi, sdi->pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 
@@ -185,7 +180,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_mgr_enable;
 
-	return 0;
+	return;
 
 err_mgr_enable:
 	dss_sdi_disable(sdi->dss);
@@ -195,8 +190,6 @@ err_calc_clock_div:
 	dispc_runtime_put(sdi->dss->dispc);
 err_get_dispc:
 	regulator_disable(sdi->vdds_sdi_reg);
-err_reg_enable:
-	return r;
 }
 
 static void sdi_display_disable(struct omap_dss_device *dssdev)
@@ -213,36 +206,37 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void sdi_set_timings(struct omap_dss_device *dssdev,
-			    const struct videomode *vm)
+			    const struct drm_display_mode *mode)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
-	sdi->vm = *vm;
+	sdi->pixelclock = mode->clock * 1000;
 }
 
 static int sdi_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
+			     struct drm_display_mode *mode)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 	struct dispc_clock_info dispc_cinfo;
+	unsigned long pixelclock = mode->clock * 1000;
 	unsigned long fck;
 	unsigned long pck;
 	int r;
 
-	if (vm->pixelclock == 0)
+	if (pixelclock == 0)
 		return -EINVAL;
 
-	r = sdi_calc_clock_div(sdi, vm->pixelclock, &fck, &dispc_cinfo);
+	r = sdi_calc_clock_div(sdi, pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		return r;
 
 	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
 
-	if (pck != vm->pixelclock) {
+	if (pck != pixelclock) {
 		DSSWARN("Pixel clock adjusted from %lu Hz to %lu Hz\n",
-			vm->pixelclock, pck);
+			pixelclock, pck);
 
-		vm->pixelclock = pck;
+		mode->clock = pck / 1000;
 	}
 
 	return 0;
@@ -251,21 +245,12 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 static int sdi_connect(struct omap_dss_device *src,
 		       struct omap_dss_device *dst)
 {
-	int r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void sdi_disconnect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 
@@ -287,29 +272,19 @@ static int sdi_init_output(struct sdi_device *sdi)
 
 	out->dev = &sdi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_SDI;
-	out->output_type = OMAP_DISPLAY_TYPE_SDI;
+	out->type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 	/* We have SDI only on OMAP3, where it's on port 1 */
 	out->of_ports = BIT(1);
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
-	out->bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE	/* 15.5.9.1.2 */
-		       | DRM_BUS_FLAG_SYNC_POSEDGE;
+	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE	/* 15.5.9.1.2 */
+		       | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE;
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 1);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -318,9 +293,8 @@ static int sdi_init_output(struct sdi_device *sdi)
 
 static void sdi_uninit_output(struct sdi_device *sdi)
 {
-	if (sdi->output.next)
-		omapdss_device_put(sdi->output.next);
 	omapdss_device_unregister(&sdi->output);
+	omapdss_device_cleanup_output(&sdi->output);
 }
 
 int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,

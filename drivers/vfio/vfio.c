@@ -2219,12 +2219,12 @@ static int __init vfio_init(void)
 
 	vfio.class->devnode = vfio_devnode;
 
-	ret = alloc_chrdev_region(&vfio.group_devt, 0, MINORMASK, "vfio");
+	ret = alloc_chrdev_region(&vfio.group_devt, 0, MINORMASK + 1, "vfio");
 	if (ret)
 		goto err_alloc_chrdev;
 
 	cdev_init(&vfio.group_cdev, &vfio_group_fops);
-	ret = cdev_add(&vfio.group_cdev, vfio.group_devt, MINORMASK);
+	ret = cdev_add(&vfio.group_cdev, vfio.group_devt, MINORMASK + 1);
 	if (ret)
 		goto err_cdev_add;
 
@@ -2236,7 +2236,7 @@ static int __init vfio_init(void)
 	return 0;
 
 err_cdev_add:
-	unregister_chrdev_region(vfio.group_devt, MINORMASK);
+	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
 err_alloc_chrdev:
 	class_destroy(vfio.class);
 	vfio.class = NULL;
@@ -2254,7 +2254,7 @@ static void __exit vfio_cleanup(void)
 #endif
 	idr_destroy(&vfio.group_idr);
 	cdev_del(&vfio.group_cdev);
-	unregister_chrdev_region(vfio.group_devt, MINORMASK);
+	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
 	class_destroy(vfio.class);
 	vfio.class = NULL;
 	misc_deregister(&vfio_dev);

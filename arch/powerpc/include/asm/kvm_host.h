@@ -99,6 +99,8 @@ struct kvm_nested_guest;
 
 struct kvm_vm_stat {
 	ulong remote_tlb_flush;
+	ulong num_2M_pages;
+	ulong num_1G_pages;
 };
 
 struct kvm_vcpu_stat {
@@ -377,6 +379,7 @@ struct kvmppc_mmu {
 	void (*slbmte)(struct kvm_vcpu *vcpu, u64 rb, u64 rs);
 	u64  (*slbmfee)(struct kvm_vcpu *vcpu, u64 slb_nr);
 	u64  (*slbmfev)(struct kvm_vcpu *vcpu, u64 slb_nr);
+	int  (*slbfee)(struct kvm_vcpu *vcpu, gva_t eaddr, ulong *ret_slb);
 	void (*slbie)(struct kvm_vcpu *vcpu, u64 slb_nr);
 	void (*slbia)(struct kvm_vcpu *vcpu);
 	/* book3s */
@@ -837,7 +840,7 @@ struct kvm_vcpu_arch {
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
-static inline void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen) {}
 static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_exit(void) {}

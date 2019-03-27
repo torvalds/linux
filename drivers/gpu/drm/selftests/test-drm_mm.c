@@ -1615,7 +1615,7 @@ static int igt_topdown(void *ignored)
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int count = 8192;
 	unsigned int size;
-	unsigned long *bitmap = NULL;
+	unsigned long *bitmap;
 	struct drm_mm mm;
 	struct drm_mm_node *nodes, *node, *next;
 	unsigned int *order, n, m, o = 0;
@@ -1631,8 +1631,7 @@ static int igt_topdown(void *ignored)
 	if (!nodes)
 		goto err;
 
-	bitmap = kcalloc(count / BITS_PER_LONG, sizeof(unsigned long),
-			 GFP_KERNEL);
+	bitmap = bitmap_zalloc(count, GFP_KERNEL);
 	if (!bitmap)
 		goto err_nodes;
 
@@ -1717,7 +1716,7 @@ out:
 	drm_mm_takedown(&mm);
 	kfree(order);
 err_bitmap:
-	kfree(bitmap);
+	bitmap_free(bitmap);
 err_nodes:
 	vfree(nodes);
 err:
@@ -1745,8 +1744,7 @@ static int igt_bottomup(void *ignored)
 	if (!nodes)
 		goto err;
 
-	bitmap = kcalloc(count / BITS_PER_LONG, sizeof(unsigned long),
-			 GFP_KERNEL);
+	bitmap = bitmap_zalloc(count, GFP_KERNEL);
 	if (!bitmap)
 		goto err_nodes;
 
@@ -1818,7 +1816,7 @@ out:
 	drm_mm_takedown(&mm);
 	kfree(order);
 err_bitmap:
-	kfree(bitmap);
+	bitmap_free(bitmap);
 err_nodes:
 	vfree(nodes);
 err:

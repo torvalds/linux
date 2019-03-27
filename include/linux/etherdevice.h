@@ -44,6 +44,7 @@ int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh,
 		     __be16 type);
 void eth_header_cache_update(struct hh_cache *hh, const struct net_device *dev,
 			     const unsigned char *haddr);
+__be16 eth_header_parse_protocol(const struct sk_buff *skb);
 int eth_prepare_mac_addr_change(struct net_device *dev, void *p);
 void eth_commit_mac_addr_change(struct net_device *dev, void *p);
 int eth_mac_addr(struct net_device *dev, void *p);

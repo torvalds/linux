@@ -52,11 +52,9 @@ static int perf_session__list_build_ids(bool force, bool with_hits)
 {
 	struct perf_session *session;
 	struct perf_data data = {
-		.file      = {
-			.path = input_name,
-		},
-		.mode      = PERF_DATA_MODE_READ,
-		.force     = force,
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = force,
 	};
 
 	symbol__elf_init();

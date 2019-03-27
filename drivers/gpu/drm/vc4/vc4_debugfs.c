@@ -23,6 +23,7 @@ static const struct drm_info_list vc4_debugfs_list[] = {
 	{"vec_regs", vc4_vec_debugfs_regs, 0},
 	{"txp_regs", vc4_txp_debugfs_regs, 0},
 	{"hvs_regs", vc4_hvs_debugfs_regs, 0},
+	{"hvs_underrun",  vc4_hvs_debugfs_underrun, 0},
 	{"crtc0_regs", vc4_crtc_debugfs_regs, 0, (void *)(uintptr_t)0},
 	{"crtc1_regs", vc4_crtc_debugfs_regs, 0, (void *)(uintptr_t)1},
 	{"crtc2_regs", vc4_crtc_debugfs_regs, 0, (void *)(uintptr_t)2},
@@ -35,6 +36,15 @@ static const struct drm_info_list vc4_debugfs_list[] = {
 int
 vc4_debugfs_init(struct drm_minor *minor)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(minor->dev);
+	struct dentry *dentry;
+
+	dentry = debugfs_create_bool("hvs_load_tracker", S_IRUGO | S_IWUSR,
+				     minor->debugfs_root,
+				     &vc4->load_tracker_enabled);
+	if (!dentry)
+		return -ENOMEM;
+
 	return drm_debugfs_create_files(vc4_debugfs_list, VC4_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
 }

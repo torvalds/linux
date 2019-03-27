@@ -86,8 +86,8 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 	return 0;
 }
 
-static int nf_ip6_route(struct net *net, struct dst_entry **dst,
-			struct flowi *fl, bool strict)
+int __nf_ip6_route(struct net *net, struct dst_entry **dst,
+		   struct flowi *fl, bool strict)
 {
 	static const struct ipv6_pinfo fake_pinfo;
 	static const struct inet_sock fake_sk = {
@@ -107,12 +107,17 @@ static int nf_ip6_route(struct net *net, struct dst_entry **dst,
 		*dst = result;
 	return err;
 }
+EXPORT_SYMBOL_GPL(__nf_ip6_route);
 
 static const struct nf_ipv6_ops ipv6ops = {
+#if IS_MODULE(CONFIG_IPV6)
 	.chk_addr		= ipv6_chk_addr,
-	.route_input    	= ip6_route_input,
+	.route_me_harder	= ip6_route_me_harder,
+	.dev_get_saddr		= ipv6_dev_get_saddr,
+	.route			= __nf_ip6_route,
+#endif
+	.route_input		= ip6_route_input,
 	.fragment		= ip6_fragment,
-	.route			= nf_ip6_route,
 	.reroute		= nf_ip6_reroute,
 };
 

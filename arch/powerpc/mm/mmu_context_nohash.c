@@ -461,10 +461,19 @@ void __init mmu_context_init(void)
 	 * Allocate the maps used by context management
 	 */
 	context_map = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+	if (!context_map)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      CTX_MAP_SIZE);
 	context_mm = memblock_alloc(sizeof(void *) * (LAST_CONTEXT + 1),
 				    SMP_CACHE_BYTES);
+	if (!context_mm)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(void *) * (LAST_CONTEXT + 1));
 #ifdef CONFIG_SMP
 	stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+	if (!stale_map[boot_cpuid])
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      CTX_MAP_SIZE);
 
 	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
 				  "powerpc/mmu/ctx:prepare",

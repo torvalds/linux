@@ -597,6 +597,43 @@ static const struct nla_policy devconf_ipv6_policy[NETCONFA_MAX+1] = {
 	[NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN]	= { .len = sizeof(int) },
 };
 
+static int inet6_netconf_valid_get_req(struct sk_buff *skb,
+				       const struct nlmsghdr *nlh,
+				       struct nlattr **tb,
+				       struct netlink_ext_ack *extack)
+{
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(struct netconfmsg))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for netconf get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(struct netconfmsg), tb,
+				   NETCONFA_MAX, devconf_ipv6_policy, extack);
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct netconfmsg), tb,
+				 NETCONFA_MAX, devconf_ipv6_policy, extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= NETCONFA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case NETCONFA_IFINDEX:
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in netconf get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet6_netconf_get_devconf(struct sk_buff *in_skb,
 				     struct nlmsghdr *nlh,
 				     struct netlink_ext_ack *extack)
@@ -605,14 +642,12 @@ static int inet6_netconf_get_devconf(struct sk_buff *in_skb,
 	struct nlattr *tb[NETCONFA_MAX+1];
 	struct inet6_dev *in6_dev = NULL;
 	struct net_device *dev = NULL;
-	struct netconfmsg *ncm;
 	struct sk_buff *skb;
 	struct ipv6_devconf *devconf;
 	int ifindex;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*ncm), tb, NETCONFA_MAX,
-			  devconf_ipv6_policy, extack);
+	err = inet6_netconf_valid_get_req(in_skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 
@@ -5182,6 +5217,52 @@ static int inet6_dump_ifacaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	return inet6_dump_addr(skb, cb, type);
 }
 
+static int inet6_rtm_valid_getaddr_req(struct sk_buff *skb,
+				       const struct nlmsghdr *nlh,
+				       struct nlattr **tb,
+				       struct netlink_ext_ack *extack)
+{
+	struct ifaddrmsg *ifm;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for get address request");
+		return -EINVAL;
+	}
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->ifa_prefixlen || ifm->ifa_flags || ifm->ifa_scope) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for get address request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX,
+				   ifa_ipv6_policy, extack);
+
+	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
+				 ifa_ipv6_policy, extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= IFA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case IFA_TARGET_NETNSID:
+		case IFA_ADDRESS:
+		case IFA_LOCAL:
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in get address request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack)
 {
@@ -5202,8 +5283,7 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct sk_buff *skb;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy,
-			  extack);
+	err = inet6_rtm_valid_getaddr_req(in_skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 
@@ -6824,6 +6904,12 @@ static int __net_init addrconf_init_net(struct net *net)
 	dflt = kmemdup(&ipv6_devconf_dflt, sizeof(ipv6_devconf_dflt), GFP_KERNEL);
 	if (!dflt)
 		goto err_alloc_dflt;
+
+	if (IS_ENABLED(CONFIG_SYSCTL) &&
+	    sysctl_devconf_inherit_init_net == 1 && !net_eq(net, &init_net)) {
+		memcpy(all, init_net.ipv6.devconf_all, sizeof(ipv6_devconf));
+		memcpy(dflt, init_net.ipv6.devconf_dflt, sizeof(ipv6_devconf_dflt));
+	}
 
 	/* these will be inherited by all namespaces */
 	dflt->autoconf = ipv6_defaults.autoconf;

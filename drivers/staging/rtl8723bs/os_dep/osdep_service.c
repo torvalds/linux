@@ -137,7 +137,7 @@ static int isFileReadable(char *path)
 		ret = PTR_ERR(fp);
 	}
 	else {
-		oldfs = get_fs(); set_fs(get_ds());
+		oldfs = get_fs(); set_fs(KERNEL_DS);
 
 		if (1!=readFile(fp, &buf, 1))
 			ret = -EINVAL;
@@ -165,7 +165,7 @@ static int retriveFromFile(char *path, u8 *buf, u32 sz)
 		if (0 == (ret =openFile(&fp, path, O_RDONLY, 0))) {
 			DBG_871X("%s openFile path:%s fp =%p\n", __func__, path , fp);
 
-			oldfs = get_fs(); set_fs(get_ds());
+			oldfs = get_fs(); set_fs(KERNEL_DS);
 			ret =readFile(fp, buf, sz);
 			set_fs(oldfs);
 			closeFile(fp);

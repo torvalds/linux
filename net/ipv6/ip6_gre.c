@@ -524,7 +524,7 @@ static int ip6gre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 	return PACKET_REJECT;
 }
 
-static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
+static int ip6erspan_rcv(struct sk_buff *skb,
 			 struct tnl_ptk_info *tpi)
 {
 	struct erspan_base_hdr *ershdr;
@@ -607,7 +607,7 @@ static int gre_rcv(struct sk_buff *skb)
 
 	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN) ||
 		     tpi.proto == htons(ETH_P_ERSPAN2))) {
-		if (ip6erspan_rcv(skb, hdr_len, &tpi) == PACKET_RCVD)
+		if (ip6erspan_rcv(skb, &tpi) == PACKET_RCVD)
 			return 0;
 		goto out;
 	}

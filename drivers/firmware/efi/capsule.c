@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * EFI capsule support.
  *
  * Copyright 2013 Intel Corporation; author Matt Fleming
- *
- * This file is part of the Linux kernel, and is made available under
- * the terms of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) "efi: " fmt

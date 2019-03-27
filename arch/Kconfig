@@ -276,6 +276,16 @@ config ARCH_THREAD_STACK_ALLOCATOR
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	bool
 
+config ARCH_32BIT_OFF_T
+	bool
+	depends on !64BIT
+	help
+	  All new 32-bit architectures should have 64-bit off_t type on
+	  userspace side which corresponds to the loff_t kernel type. This
+	  is the requirement for modern ABIs. Some existing architectures
+	  still support 32-bit off_t. This option is enabled for all such
+	  architectures explicitly.
+
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
 	help
@@ -701,6 +711,9 @@ config HAVE_ARCH_HASH
 	  file which provides platform-specific implementations of some
 	  functions in <linux/hash.h> or fs/namei.c.
 
+config HAVE_ARCH_NVRAM_OPS
+	bool
+
 config ISA_BUS_API
 	def_bool ISA
 
@@ -759,7 +772,7 @@ config 64BIT_TIME
 	  handling.
 
 config COMPAT_32BIT_TIME
-	def_bool (!64BIT && 64BIT_TIME) || COMPAT
+	def_bool !64BIT || COMPAT
 	help
 	  This enables 32 bit time_t support in addition to 64 bit time_t support.
 	  This is relevant on all 32-bit architectures, and 64-bit architectures
@@ -884,6 +897,9 @@ config HAVE_ARCH_PREL32_RELOCATIONS
 	  for PCI fixup, initcalls etc which are only half the size on 64 bit
 	  architectures, and don't require runtime relocation on relocatable
 	  kernels.
+
+config ARCH_USE_MEMREMAP_PROT
+	bool
 
 source "kernel/gcov/Kconfig"
 

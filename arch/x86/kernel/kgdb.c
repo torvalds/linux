@@ -467,6 +467,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->ip = addr;
+		/* fall through */
 	case 'D':
 	case 'k':
 		/* clear the trace bit */

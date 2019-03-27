@@ -79,7 +79,7 @@ static int bd718xx_set_voltage_sel_pickable_restricted(
 	return regulator_set_voltage_sel_pickable_regmap(rdev, sel);
 }
 
-static struct regulator_ops bd718xx_pickable_range_ldo_ops = {
+static const struct regulator_ops bd718xx_pickable_range_ldo_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -88,7 +88,7 @@ static struct regulator_ops bd718xx_pickable_range_ldo_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
 };
 
-static struct regulator_ops bd718xx_pickable_range_buck_ops = {
+static const struct regulator_ops bd718xx_pickable_range_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -98,7 +98,7 @@ static struct regulator_ops bd718xx_pickable_range_buck_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops bd718xx_ldo_regulator_ops = {
+static const struct regulator_ops bd718xx_ldo_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -107,7 +107,7 @@ static struct regulator_ops bd718xx_ldo_regulator_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
+static const struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -116,7 +116,7 @@ static struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops bd718xx_buck_regulator_ops = {
+static const struct regulator_ops bd718xx_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -126,7 +126,7 @@ static struct regulator_ops bd718xx_buck_regulator_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
+static const struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -137,7 +137,7 @@ static struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
+static const struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -350,6 +350,135 @@ static const struct reg_init bd71837_ldo6_inits[] = {
 	},
 };
 
+#define NUM_DVS_BUCKS 4
+
+struct of_dvs_setting {
+	const char *prop;
+	unsigned int reg;
+};
+
+static int set_dvs_levels(const struct of_dvs_setting *dvs,
+			  struct device_node *np,
+			  const struct regulator_desc *desc,
+			  struct regmap *regmap)
+{
+	int ret, i;
+	unsigned int uv;
+
+	ret = of_property_read_u32(np, dvs->prop, &uv);
+	if (ret) {
+		if (ret != -EINVAL)
+			return ret;
+		return 0;
+	}
+
+	for (i = 0; i < desc->n_voltages; i++) {
+		ret = regulator_desc_list_voltage_linear_range(desc, i);
+		if (ret < 0)
+			continue;
+		if (ret == uv) {
+			i <<= ffs(desc->vsel_mask) - 1;
+			ret = regmap_update_bits(regmap, dvs->reg,
+						 DVS_BUCK_RUN_MASK, i);
+			break;
+		}
+	}
+	return ret;
+}
+
+static int buck4_set_hw_dvs_levels(struct device_node *np,
+			    const struct regulator_desc *desc,
+			    struct regulator_config *cfg)
+{
+	int ret, i;
+	const struct of_dvs_setting dvs[] = {
+		{
+			.prop = "rohm,dvs-run-voltage",
+			.reg = BD71837_REG_BUCK4_VOLT_RUN,
+		},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(dvs); i++) {
+		ret = set_dvs_levels(&dvs[i], np, desc, cfg->regmap);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+static int buck3_set_hw_dvs_levels(struct device_node *np,
+			    const struct regulator_desc *desc,
+			    struct regulator_config *cfg)
+{
+	int ret, i;
+	const struct of_dvs_setting dvs[] = {
+		{
+			.prop = "rohm,dvs-run-voltage",
+			.reg = BD71837_REG_BUCK3_VOLT_RUN,
+		},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(dvs); i++) {
+		ret = set_dvs_levels(&dvs[i], np, desc, cfg->regmap);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+static int buck2_set_hw_dvs_levels(struct device_node *np,
+			    const struct regulator_desc *desc,
+			    struct regulator_config *cfg)
+{
+	int ret, i;
+	const struct of_dvs_setting dvs[] = {
+		{
+			.prop = "rohm,dvs-run-voltage",
+			.reg = BD718XX_REG_BUCK2_VOLT_RUN,
+		},
+		{
+			.prop = "rohm,dvs-idle-voltage",
+			.reg = BD718XX_REG_BUCK2_VOLT_IDLE,
+		},
+	};
+
+
+
+	for (i = 0; i < ARRAY_SIZE(dvs); i++) {
+		ret = set_dvs_levels(&dvs[i], np, desc, cfg->regmap);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+static int buck1_set_hw_dvs_levels(struct device_node *np,
+			    const struct regulator_desc *desc,
+			    struct regulator_config *cfg)
+{
+	int ret, i;
+	const struct of_dvs_setting dvs[] = {
+		{
+			.prop = "rohm,dvs-run-voltage",
+			.reg = BD718XX_REG_BUCK1_VOLT_RUN,
+		},
+		{
+			.prop = "rohm,dvs-idle-voltage",
+			.reg = BD718XX_REG_BUCK1_VOLT_IDLE,
+		},
+		{
+			.prop = "rohm,dvs-suspend-voltage",
+			.reg = BD718XX_REG_BUCK1_VOLT_SUSP,
+		},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(dvs); i++) {
+		ret = set_dvs_levels(&dvs[i], np, desc, cfg->regmap);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
 static const struct bd718xx_regulator_data bd71847_regulators[] = {
 	{
 		.desc = {
@@ -368,6 +497,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 			.enable_reg = BD718XX_REG_BUCK1_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.owner = THIS_MODULE,
+			.of_parse_cb = buck1_set_hw_dvs_levels,
 		},
 		.init = {
 			.reg = BD718XX_REG_BUCK1_CTRL,
@@ -391,6 +521,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 			.enable_reg = BD718XX_REG_BUCK2_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.owner = THIS_MODULE,
+			.of_parse_cb = buck2_set_hw_dvs_levels,
 		},
 		.init = {
 			.reg = BD718XX_REG_BUCK2_CTRL,
@@ -662,6 +793,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.enable_reg = BD718XX_REG_BUCK1_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.owner = THIS_MODULE,
+			.of_parse_cb = buck1_set_hw_dvs_levels,
 		},
 		.init = {
 			.reg = BD718XX_REG_BUCK1_CTRL,
@@ -685,6 +817,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.enable_reg = BD718XX_REG_BUCK2_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.owner = THIS_MODULE,
+			.of_parse_cb = buck2_set_hw_dvs_levels,
 		},
 		.init = {
 			.reg = BD718XX_REG_BUCK2_CTRL,
@@ -708,6 +841,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.enable_reg = BD71837_REG_BUCK3_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.owner = THIS_MODULE,
+			.of_parse_cb = buck3_set_hw_dvs_levels,
 		},
 		.init = {
 			.reg = BD71837_REG_BUCK3_CTRL,
@@ -731,6 +865,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.enable_reg = BD71837_REG_BUCK4_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.owner = THIS_MODULE,
+			.of_parse_cb = buck4_set_hw_dvs_levels,
 		},
 		.init = {
 			.reg = BD71837_REG_BUCK4_CTRL,
@@ -1029,6 +1164,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	};
 
 	int i, j, err;
+	bool use_snvs;
 
 	mfd = dev_get_drvdata(pdev->dev.parent);
 	if (!mfd) {
@@ -1055,27 +1191,28 @@ static int bd718xx_probe(struct platform_device *pdev)
 			BD718XX_REG_REGLOCK);
 	}
 
-	/* At poweroff transition PMIC HW disables EN bit for regulators but
-	 * leaves SEL bit untouched. So if state transition from POWEROFF
-	 * is done to SNVS - then all power rails controlled by SW (having
-	 * SEL bit set) stay disabled as EN is cleared. This may result boot
-	 * failure if any crucial systems are powered by these rails.
-	 *
+	use_snvs = of_property_read_bool(pdev->dev.parent->of_node,
+					 "rohm,reset-snvs-powered");
+
+	/*
 	 * Change the next stage from poweroff to be READY instead of SNVS
 	 * for all reset types because OTP loading at READY will clear SEL
 	 * bit allowing HW defaults for power rails to be used
 	 */
-	err = regmap_update_bits(mfd->regmap, BD718XX_REG_TRANS_COND1,
-				 BD718XX_ON_REQ_POWEROFF_MASK |
-				 BD718XX_SWRESET_POWEROFF_MASK |
-				 BD718XX_WDOG_POWEROFF_MASK |
-				 BD718XX_KEY_L_POWEROFF_MASK,
-				 BD718XX_POWOFF_TO_RDY);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to change reset target\n");
-		goto err;
-	} else {
-		dev_dbg(&pdev->dev, "Changed all resets from SVNS to READY\n");
+	if (!use_snvs) {
+		err = regmap_update_bits(mfd->regmap, BD718XX_REG_TRANS_COND1,
+					 BD718XX_ON_REQ_POWEROFF_MASK |
+					 BD718XX_SWRESET_POWEROFF_MASK |
+					 BD718XX_WDOG_POWEROFF_MASK |
+					 BD718XX_KEY_L_POWEROFF_MASK,
+					 BD718XX_POWOFF_TO_RDY);
+		if (err) {
+			dev_err(&pdev->dev, "Failed to change reset target\n");
+			goto err;
+		} else {
+			dev_dbg(&pdev->dev,
+				"Changed all resets from SVNS to READY\n");
+		}
 	}
 
 	for (i = 0; i < pmic_regulators[mfd->chip_type].r_amount; i++) {
@@ -1098,19 +1235,33 @@ static int bd718xx_probe(struct platform_device *pdev)
 			err = PTR_ERR(rdev);
 			goto err;
 		}
-		/* Regulator register gets the regulator constraints and
+
+		/*
+		 * Regulator register gets the regulator constraints and
 		 * applies them (set_machine_constraints). This should have
 		 * turned the control register(s) to correct values and we
 		 * can now switch the control from PMIC state machine to the
 		 * register interface
+		 *
+		 * At poweroff transition PMIC HW disables EN bit for
+		 * regulators but leaves SEL bit untouched. So if state
+		 * transition from POWEROFF is done to SNVS - then all power
+		 * rails controlled by SW (having SEL bit set) stay disabled
+		 * as EN is cleared. This will result boot failure if any
+		 * crucial systems are powered by these rails. We don't
+		 * enable SW control for crucial regulators if snvs state is
+		 * used
 		 */
-		err = regmap_update_bits(mfd->regmap, r->init.reg,
-					 r->init.mask, r->init.val);
-		if (err) {
-			dev_err(&pdev->dev,
-				"Failed to write BUCK/LDO SEL bit for (%s)\n",
-				desc->name);
-			goto err;
+		if (!use_snvs || !rdev->constraints->always_on ||
+		    !rdev->constraints->boot_on) {
+			err = regmap_update_bits(mfd->regmap, r->init.reg,
+						 r->init.mask, r->init.val);
+			if (err) {
+				dev_err(&pdev->dev,
+					"Failed to take control for (%s)\n",
+					desc->name);
+				goto err;
+			}
 		}
 		for (j = 0; j < r->additional_init_amnt; j++) {
 			err = regmap_update_bits(mfd->regmap,

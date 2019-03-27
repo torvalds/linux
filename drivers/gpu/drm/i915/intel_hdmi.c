@@ -701,6 +701,8 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 	else
 		frame->colorspace = HDMI_COLORSPACE_RGB;
 
+	drm_hdmi_avi_infoframe_colorspace(frame, conn_state);
+
 	drm_hdmi_avi_infoframe_quant_range(frame, connector,
 					   adjusted_mode,
 					   crtc_state->limited_color_range ?
@@ -2700,10 +2702,21 @@ static void
 intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_digital_port *intel_dig_port =
+				hdmi_to_dig_port(intel_hdmi);
 
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 	intel_attach_aspect_ratio_property(connector);
+
+	/*
+	 * Attach Colorspace property for Non LSPCON based device
+	 * ToDo: This needs to be extended for LSPCON implementation
+	 * as well. Will be implemented separately.
+	 */
+	if (!intel_dig_port->lspcon.active)
+		intel_attach_colorspace_property(connector);
+
 	drm_connector_attach_content_type_property(connector);
 	connector->state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 

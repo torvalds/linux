@@ -1157,7 +1157,7 @@ out:
 		dev_err(&dev->pdev->dev, "%s: %s status = %d", __func__,
 			state_str[state], rc);
 
-return rc;
+	return rc;
 }
 /**
  *  aac_srcv_init	-	initialize an SRCv card

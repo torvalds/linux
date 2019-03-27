@@ -88,11 +88,17 @@ static struct smca_bank_name smca_names[] = {
 	[SMCA_FP]	= { "floating_point",	"Floating Point Unit" },
 	[SMCA_L3_CACHE]	= { "l3_cache",		"L3 Cache" },
 	[SMCA_CS]	= { "coherent_slave",	"Coherent Slave" },
+	[SMCA_CS_V2]	= { "coherent_slave",	"Coherent Slave" },
 	[SMCA_PIE]	= { "pie",		"Power, Interrupts, etc." },
 	[SMCA_UMC]	= { "umc",		"Unified Memory Controller" },
 	[SMCA_PB]	= { "param_block",	"Parameter Block" },
 	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
+	[SMCA_PSP_V2]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
+	[SMCA_SMU_V2]	= { "smu",		"System Management Unit" },
+	[SMCA_MP5]	= { "mp5",		"Microprocessor 5 Unit" },
+	[SMCA_NBIO]	= { "nbio",		"Northbridge IO Unit" },
+	[SMCA_PCIE]	= { "pcie",		"PCI Express Unit" },
 };
 
 static u32 smca_bank_addrs[MAX_NR_BANKS][NR_BLOCKS] __ro_after_init =
@@ -138,30 +144,42 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 	{ SMCA_RESERVED, HWID_MCATYPE(0x00, 0x0), 0x0 },
 
 	/* ZN Core (HWID=0xB0) MCA types */
-	{ SMCA_LS,	 HWID_MCATYPE(0xB0, 0x0), 0x1FFFEF },
+	{ SMCA_LS,	 HWID_MCATYPE(0xB0, 0x0), 0x1FFFFF },
 	{ SMCA_IF,	 HWID_MCATYPE(0xB0, 0x1), 0x3FFF },
 	{ SMCA_L2_CACHE, HWID_MCATYPE(0xB0, 0x2), 0xF },
 	{ SMCA_DE,	 HWID_MCATYPE(0xB0, 0x3), 0x1FF },
 	/* HWID 0xB0 MCATYPE 0x4 is Reserved */
-	{ SMCA_EX,	 HWID_MCATYPE(0xB0, 0x5), 0x7FF },
+	{ SMCA_EX,	 HWID_MCATYPE(0xB0, 0x5), 0xFFF },
 	{ SMCA_FP,	 HWID_MCATYPE(0xB0, 0x6), 0x7F },
 	{ SMCA_L3_CACHE, HWID_MCATYPE(0xB0, 0x7), 0xFF },
 
 	/* Data Fabric MCA types */
 	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0), 0x1FF },
-	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1), 0xF },
+	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1), 0x1F },
+	{ SMCA_CS_V2,	 HWID_MCATYPE(0x2E, 0x2), 0x3FFF },
 
 	/* Unified Memory Controller MCA type */
-	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0), 0x3F },
+	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0), 0xFF },
 
 	/* Parameter Block MCA type */
 	{ SMCA_PB,	 HWID_MCATYPE(0x05, 0x0), 0x1 },
 
 	/* Platform Security Processor MCA type */
 	{ SMCA_PSP,	 HWID_MCATYPE(0xFF, 0x0), 0x1 },
+	{ SMCA_PSP_V2,	 HWID_MCATYPE(0xFF, 0x1), 0x3FFFF },
 
 	/* System Management Unit MCA type */
 	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0), 0x1 },
+	{ SMCA_SMU_V2,	 HWID_MCATYPE(0x01, 0x1), 0x7FF },
+
+	/* Microprocessor 5 Unit MCA type */
+	{ SMCA_MP5,	 HWID_MCATYPE(0x01, 0x2), 0x3FF },
+
+	/* Northbridge IO Unit MCA type */
+	{ SMCA_NBIO,	 HWID_MCATYPE(0x18, 0x0), 0x1F },
+
+	/* PCI Express Unit MCA type */
+	{ SMCA_PCIE,	 HWID_MCATYPE(0x46, 0x0), 0x1F },
 };
 
 struct smca_bank smca_banks[MAX_NR_BANKS];
@@ -545,12 +563,48 @@ out:
 	return offset;
 }
 
+/*
+ * Turn off MC4_MISC thresholding banks on all family 0x15 models since
+ * they're not supported there.
+ */
+void disable_err_thresholding(struct cpuinfo_x86 *c)
+{
+	int i;
+	u64 hwcr;
+	bool need_toggle;
+	u32 msrs[] = {
+		0x00000413, /* MC4_MISC0 */
+		0xc0000408, /* MC4_MISC1 */
+	};
+
+	if (c->x86 != 0x15)
+		return;
+
+	rdmsrl(MSR_K7_HWCR, hwcr);
+
+	/* McStatusWrEn has to be set */
+	need_toggle = !(hwcr & BIT(18));
+
+	if (need_toggle)
+		wrmsrl(MSR_K7_HWCR, hwcr | BIT(18));
+
+	/* Clear CntP bit safely */
+	for (i = 0; i < ARRAY_SIZE(msrs); i++)
+		msr_clear_bit(msrs[i], 62);
+
+	/* restore old settings */
+	if (need_toggle)
+		wrmsrl(MSR_K7_HWCR, hwcr);
+}
+
 /* cpu init entry point, called from mce.c with preempt off */
 void mce_amd_feature_init(struct cpuinfo_x86 *c)
 {
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block, cpu = smp_processor_id();
 	int offset = -1;
+
+	disable_err_thresholding(c);
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (mce_flags.smca)

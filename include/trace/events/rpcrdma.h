@@ -521,12 +521,18 @@ TRACE_EVENT(xprtrdma_post_send,
 
 	TP_STRUCT__entry(
 		__field(const void *, req)
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
 		__field(int, num_sge)
 		__field(int, signaled)
 		__field(int, status)
 	),
 
 	TP_fast_assign(
+		const struct rpc_rqst *rqst = &req->rl_slot;
+
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
 		__entry->req = req;
 		__entry->num_sge = req->rl_sendctx->sc_wr.num_sge;
 		__entry->signaled = req->rl_sendctx->sc_wr.send_flags &
@@ -534,9 +540,11 @@ TRACE_EVENT(xprtrdma_post_send,
 		__entry->status = status;
 	),
 
-	TP_printk("req=%p, %d SGEs%s, status=%d",
+	TP_printk("task:%u@%u req=%p (%d SGE%s) %sstatus=%d",
+		__entry->task_id, __entry->client_id,
 		__entry->req, __entry->num_sge,
-		(__entry->signaled ? ", signaled" : ""),
+		(__entry->num_sge == 1 ? "" : "s"),
+		(__entry->signaled ? "signaled " : ""),
 		__entry->status
 	)
 );

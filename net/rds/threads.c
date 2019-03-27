@@ -93,6 +93,7 @@ void rds_connect_path_complete(struct rds_conn_path *cp, int curr)
 		queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
 	}
 	rcu_read_unlock();
+	cp->cp_conn->c_proposed_version = RDS_PROTOCOL_VERSION;
 }
 EXPORT_SYMBOL_GPL(rds_connect_path_complete);
 

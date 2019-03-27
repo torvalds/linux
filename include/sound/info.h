@@ -82,7 +82,6 @@ struct snd_info_entry {
 		struct snd_info_entry_ops *ops;
 	} c;
 	struct snd_info_entry *parent;
-	struct snd_card *card;
 	struct module *module;
 	void *private_data;
 	void (*private_free)(struct snd_info_entry *entry);
@@ -160,6 +159,13 @@ static inline void snd_info_set_text_ops(struct snd_info_entry *entry,
 	entry->c.text.read = read;
 }
 
+int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+			 void *private_data,
+			 void (*read)(struct snd_info_entry *,
+				      struct snd_info_buffer *),
+			 void (*write)(struct snd_info_entry *entry,
+				       struct snd_info_buffer *buffer));
+
 int snd_info_check_reserved_words(const char *str);
 
 #else
@@ -189,9 +195,37 @@ static inline int snd_card_proc_new(struct snd_card *card, const char *name,
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry __attribute__((unused)),
 					 void *private_data,
 					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *)) {}
+static inline int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+				       void *private_data,
+				       void (*read)(struct snd_info_entry *,
+						    struct snd_info_buffer *),
+				       void (*write)(struct snd_info_entry *entry,
+						     struct snd_info_buffer *buffer))
+{
+	return 0;
+}
 static inline int snd_info_check_reserved_words(const char *str) { return 1; }
 
 #endif
+
+/**
+ * snd_card_ro_proc_new - Create a read-only text proc file entry for the card
+ * @card: the card instance
+ * @name: the file name
+ * @private_data: the arbitrary private data
+ * @read: the read callback
+ *
+ * This proc file entry will be registered via snd_card_register() call, and
+ * it will be removed automatically at the card removal, too.
+ */
+static inline int
+snd_card_ro_proc_new(struct snd_card *card, const char *name,
+		     void *private_data,
+		     void (*read)(struct snd_info_entry *,
+				  struct snd_info_buffer *))
+{
+	return snd_card_rw_proc_new(card, name, private_data, read, NULL);
+}
 
 /*
  * OSS info part

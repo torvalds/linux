@@ -28,6 +28,8 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		enum ice_aq_res_access_type access, u32 timeout);
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res);
 enum ice_status ice_init_nvm(struct ice_hw *hw);
+enum ice_status ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words,
+				u16 *data);
 enum ice_status
 ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		struct ice_aq_desc *desc, void *buf, u16 buf_size,
@@ -70,9 +72,10 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		    struct ice_aqc_get_phy_caps_data *caps,
 		    struct ice_sq_cd *cd);
 void
-ice_update_phy_type(u64 *phy_type_low, u16 link_speeds_bitmap);
+ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
+		    u16 link_speeds_bitmap);
 enum ice_status
-ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
+ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 			struct ice_sq_cd *cd);
 enum ice_status ice_clear_pf_cfg(struct ice_hw *hw);
 enum ice_status
@@ -85,6 +88,10 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures,
 enum ice_status
 ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 			   struct ice_sq_cd *cd);
+enum ice_status
+ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
+		       struct ice_sq_cd *cd);
+
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 		u32 *q_teids, enum ice_disq_rst_src rst_src, u16 vmvf_num,

@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2015-2018 Y Soft Corporation, a.s.
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6dl-yapp4-common.dtsi"
+
+/ {
+	model = "Y Soft IOTA Ursa i.MX6Solo board";
+	compatible = "ysoft,imx6dl-yapp4-ursa", "fsl,imx6dl";
+
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0x20000000>;
+	};
+};
+
+&backlight {
+	status = "okay";
+};
+
+&lcd_display {
+	status = "okay";
+};
+
+&panel {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&reg_usb_h1_vbus {
+	status = "okay";
+};
+
+&switch_ports {
+	/delete-node/ port@2;
+};
+
+&touchscreen {
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&usbphy2 {
+	status = "okay";
+};

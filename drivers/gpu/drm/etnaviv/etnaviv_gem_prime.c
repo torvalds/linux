@@ -15,7 +15,7 @@ struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	int npages = obj->size >> PAGE_SHIFT;
 
 	if (WARN_ON(!etnaviv_obj->pages))  /* should have already pinned! */
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	return drm_prime_pages_to_sg(etnaviv_obj->pages, npages);
 }
@@ -138,11 +138,4 @@ fail:
 	drm_gem_object_put_unlocked(&etnaviv_obj->base);
 
 	return ERR_PTR(ret);
-}
-
-struct reservation_object *etnaviv_gem_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-
-	return etnaviv_obj->resv;
 }

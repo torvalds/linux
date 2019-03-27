@@ -200,7 +200,6 @@ static struct drm_driver vc4_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_export = vc4_prime_export,
-	.gem_prime_res_obj = vc4_prime_res_obj,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = vc4_prime_import_sg_table,
 	.gem_prime_vmap = vc4_prime_vmap,
@@ -287,7 +286,7 @@ static int vc4_drm_bind(struct device *dev)
 
 	vc4_kms_load(drm);
 
-	drm_fbdev_generic_setup(drm, 32);
+	drm_fbdev_generic_setup(drm, 16);
 
 	return 0;
 
@@ -312,6 +311,7 @@ static void vc4_drm_unbind(struct device *dev)
 
 	drm_mode_config_cleanup(drm);
 
+	drm_atomic_private_obj_fini(&vc4->load_tracker);
 	drm_atomic_private_obj_fini(&vc4->ctm_manager);
 
 	drm_dev_put(drm);

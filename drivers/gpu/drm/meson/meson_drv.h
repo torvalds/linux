@@ -29,7 +29,6 @@ struct meson_drm {
 	struct device *dev;
 	void __iomem *io_base;
 	struct regmap *hhi;
-	struct regmap *dmc;
 	int vsync_irq;
 
 	struct meson_canvas *canvas;

@@ -87,6 +87,15 @@ static void world_obj_put(struct world *world, struct objagg *objagg,
 
 #define MAX_KEY_ID_DIFF 5
 
+static bool delta_check(void *priv, const void *parent_obj, const void *obj)
+{
+	const struct tokey *parent_key = parent_obj;
+	const struct tokey *key = obj;
+	int diff = key->id - parent_key->id;
+
+	return diff >= 0 && diff <= MAX_KEY_ID_DIFF;
+}
+
 static void *delta_create(void *priv, void *parent_obj, void *obj)
 {
 	struct tokey *parent_key = parent_obj;
@@ -95,7 +104,7 @@ static void *delta_create(void *priv, void *parent_obj, void *obj)
 	int diff = key->id - parent_key->id;
 	struct delta *delta;
 
-	if (diff < 0 || diff > MAX_KEY_ID_DIFF)
+	if (!delta_check(priv, parent_obj, obj))
 		return ERR_PTR(-EINVAL);
 
 	delta = kzalloc(sizeof(*delta), GFP_KERNEL);
@@ -115,7 +124,7 @@ static void delta_destroy(void *priv, void *delta_priv)
 	kfree(delta);
 }
 
-static void *root_create(void *priv, void *obj)
+static void *root_create(void *priv, void *obj, unsigned int id)
 {
 	struct world *world = priv;
 	struct tokey *key = obj;
@@ -268,6 +277,12 @@ stats_put:
 	return err;
 }
 
+static bool delta_check_dummy(void *priv, const void *parent_obj,
+			      const void *obj)
+{
+	return false;
+}
+
 static void *delta_create_dummy(void *priv, void *parent_obj, void *obj)
 {
 	return ERR_PTR(-EOPNOTSUPP);
@@ -279,6 +294,7 @@ static void delta_destroy_dummy(void *priv, void *delta_priv)
 
 static const struct objagg_ops nodelta_ops = {
 	.obj_size = sizeof(struct tokey),
+	.delta_check = delta_check_dummy,
 	.delta_create = delta_create_dummy,
 	.delta_destroy = delta_destroy_dummy,
 	.root_create = root_create,
@@ -292,7 +308,7 @@ static int test_nodelta(void)
 	int i;
 	int err;
 
-	objagg = objagg_create(&nodelta_ops, &world);
+	objagg = objagg_create(&nodelta_ops, NULL, &world);
 	if (IS_ERR(objagg))
 		return PTR_ERR(objagg);
 
@@ -357,6 +373,7 @@ err_stats_second_zero:
 
 static const struct objagg_ops delta_ops = {
 	.obj_size = sizeof(struct tokey),
+	.delta_check = delta_check,
 	.delta_create = delta_create,
 	.delta_destroy = delta_destroy,
 	.root_create = root_create,
@@ -728,8 +745,10 @@ static int check_expect_stats(struct objagg *objagg,
 	int err;
 
 	stats = objagg_stats_get(objagg);
-	if (IS_ERR(stats))
+	if (IS_ERR(stats)) {
+		*errmsg = "objagg_stats_get() failed.";
 		return PTR_ERR(stats);
+	}
 	err = __check_expect_stats(stats, expect_stats, errmsg);
 	objagg_stats_put(stats);
 	return err;
@@ -769,7 +788,6 @@ static int test_delta_action_item(struct world *world,
 	if (err)
 		goto errout;
 
-	errmsg = NULL;
 	err = check_expect_stats(objagg, &action_item->expect_stats, &errmsg);
 	if (err) {
 		pr_err("Key %u: Stats: %s\n", action_item->key_id, errmsg);
@@ -793,7 +811,7 @@ static int test_delta(void)
 	int i;
 	int err;
 
-	objagg = objagg_create(&delta_ops, &world);
+	objagg = objagg_create(&delta_ops, NULL, &world);
 	if (IS_ERR(objagg))
 		return PTR_ERR(objagg);
 
@@ -815,6 +833,170 @@ err_do_action_item:
 	return err;
 }
 
+struct hints_case {
+	const unsigned int *key_ids;
+	size_t key_ids_count;
+	struct expect_stats expect_stats;
+	struct expect_stats expect_stats_hints;
+};
+
+static const unsigned int hints_case_key_ids[] = {
+	1, 7, 3, 5, 3, 1, 30, 8, 8, 5, 6, 8,
+};
+
+static const struct hints_case hints_case = {
+	.key_ids = hints_case_key_ids,
+	.key_ids_count = ARRAY_SIZE(hints_case_key_ids),
+	.expect_stats =
+		EXPECT_STATS(7, ROOT(1, 2, 7), ROOT(7, 1, 4), ROOT(30, 1, 1),
+				DELTA(8, 3), DELTA(3, 2),
+				DELTA(5, 2), DELTA(6, 1)),
+	.expect_stats_hints =
+		EXPECT_STATS(7, ROOT(3, 2, 9), ROOT(1, 2, 2), ROOT(30, 1, 1),
+				DELTA(8, 3), DELTA(5, 2),
+				DELTA(6, 1), DELTA(7, 1)),
+};
+
+static void __pr_debug_stats(const struct objagg_stats *stats)
+{
+	int i;
+
+	for (i = 0; i < stats->stats_info_count; i++)
+		pr_debug("Stat index %d key %u: u %d, d %d, %s\n", i,
+			 obj_to_key_id(stats->stats_info[i].objagg_obj),
+			 stats->stats_info[i].stats.user_count,
+			 stats->stats_info[i].stats.delta_user_count,
+			 stats->stats_info[i].is_root ? "root" : "noroot");
+}
+
+static void pr_debug_stats(struct objagg *objagg)
+{
+	const struct objagg_stats *stats;
+
+	stats = objagg_stats_get(objagg);
+	if (IS_ERR(stats))
+		return;
+	__pr_debug_stats(stats);
+	objagg_stats_put(stats);
+}
+
+static void pr_debug_hints_stats(struct objagg_hints *objagg_hints)
+{
+	const struct objagg_stats *stats;
+
+	stats = objagg_hints_stats_get(objagg_hints);
+	if (IS_ERR(stats))
+		return;
+	__pr_debug_stats(stats);
+	objagg_stats_put(stats);
+}
+
+static int check_expect_hints_stats(struct objagg_hints *objagg_hints,
+				    const struct expect_stats *expect_stats,
+				    const char **errmsg)
+{
+	const struct objagg_stats *stats;
+	int err;
+
+	stats = objagg_hints_stats_get(objagg_hints);
+	if (IS_ERR(stats))
+		return PTR_ERR(stats);
+	err = __check_expect_stats(stats, expect_stats, errmsg);
+	objagg_stats_put(stats);
+	return err;
+}
+
+static int test_hints_case(const struct hints_case *hints_case)
+{
+	struct objagg_obj *objagg_obj;
+	struct objagg_hints *hints;
+	struct world world2 = {};
+	struct world world = {};
+	struct objagg *objagg2;
+	struct objagg *objagg;
+	const char *errmsg;
+	int i;
+	int err;
+
+	objagg = objagg_create(&delta_ops, NULL, &world);
+	if (IS_ERR(objagg))
+		return PTR_ERR(objagg);
+
+	for (i = 0; i < hints_case->key_ids_count; i++) {
+		objagg_obj = world_obj_get(&world, objagg,
+					   hints_case->key_ids[i]);
+		if (IS_ERR(objagg_obj)) {
+			err = PTR_ERR(objagg_obj);
+			goto err_world_obj_get;
+		}
+	}
+
+	pr_debug_stats(objagg);
+	err = check_expect_stats(objagg, &hints_case->expect_stats, &errmsg);
+	if (err) {
+		pr_err("Stats: %s\n", errmsg);
+		goto err_check_expect_stats;
+	}
+
+	hints = objagg_hints_get(objagg, OBJAGG_OPT_ALGO_SIMPLE_GREEDY);
+	if (IS_ERR(hints)) {
+		err = PTR_ERR(hints);
+		goto err_hints_get;
+	}
+
+	pr_debug_hints_stats(hints);
+	err = check_expect_hints_stats(hints, &hints_case->expect_stats_hints,
+				       &errmsg);
+	if (err) {
+		pr_err("Hints stats: %s\n", errmsg);
+		goto err_check_expect_hints_stats;
+	}
+
+	objagg2 = objagg_create(&delta_ops, hints, &world2);
+	if (IS_ERR(objagg2))
+		return PTR_ERR(objagg2);
+
+	for (i = 0; i < hints_case->key_ids_count; i++) {
+		objagg_obj = world_obj_get(&world2, objagg2,
+					   hints_case->key_ids[i]);
+		if (IS_ERR(objagg_obj)) {
+			err = PTR_ERR(objagg_obj);
+			goto err_world2_obj_get;
+		}
+	}
+
+	pr_debug_stats(objagg2);
+	err = check_expect_stats(objagg2, &hints_case->expect_stats_hints,
+				 &errmsg);
+	if (err) {
+		pr_err("Stats2: %s\n", errmsg);
+		goto err_check_expect_stats2;
+	}
+
+	err = 0;
+
+err_check_expect_stats2:
+err_world2_obj_get:
+	for (i--; i >= 0; i--)
+		world_obj_put(&world2, objagg, hints_case->key_ids[i]);
+	objagg_hints_put(hints);
+	objagg_destroy(objagg2);
+	i = hints_case->key_ids_count;
+err_check_expect_hints_stats:
+err_hints_get:
+err_check_expect_stats:
+err_world_obj_get:
+	for (i--; i >= 0; i--)
+		world_obj_put(&world, objagg, hints_case->key_ids[i]);
+
+	objagg_destroy(objagg);
+	return err;
+}
+static int test_hints(void)
+{
+	return test_hints_case(&hints_case);
+}
+
 static int __init test_objagg_init(void)
 {
 	int err;
@@ -822,7 +1004,10 @@ static int __init test_objagg_init(void)
 	err = test_nodelta();
 	if (err)
 		return err;
-	return test_delta();
+	err = test_delta();
+	if (err)
+		return err;
+	return test_hints();
 }
 
 static void __exit test_objagg_exit(void)

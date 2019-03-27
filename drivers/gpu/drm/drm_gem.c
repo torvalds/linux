@@ -171,6 +171,10 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	kref_init(&obj->refcount);
 	obj->handle_count = 0;
 	obj->size = size;
+	reservation_object_init(&obj->_resv);
+	if (!obj->resv)
+		obj->resv = &obj->_resv;
+
 	drm_vma_node_reset(&obj->vma_node);
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
@@ -688,6 +692,44 @@ drm_gem_object_lookup(struct drm_file *filp, u32 handle)
 EXPORT_SYMBOL(drm_gem_object_lookup);
 
 /**
+ * drm_gem_reservation_object_wait - Wait on GEM object's reservation's objects
+ * shared and/or exclusive fences.
+ * @filep: DRM file private date
+ * @handle: userspace handle
+ * @wait_all: if true, wait on all fences, else wait on just exclusive fence
+ * @timeout: timeout value in jiffies or zero to return immediately
+ *
+ * Returns:
+ *
+ * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
+ * greater than 0 on success.
+ */
+long drm_gem_reservation_object_wait(struct drm_file *filep, u32 handle,
+				    bool wait_all, unsigned long timeout)
+{
+	long ret;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(filep, handle);
+	if (!obj) {
+		DRM_DEBUG("Failed to look up GEM BO %d\n", handle);
+		return -EINVAL;
+	}
+
+	ret = reservation_object_wait_timeout_rcu(obj->resv, wait_all,
+						  true, timeout);
+	if (ret == 0)
+		ret = -ETIME;
+	else if (ret > 0)
+		ret = 0;
+
+	drm_gem_object_put_unlocked(obj);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_reservation_object_wait);
+
+/**
  * drm_gem_close_ioctl - implementation of the GEM_CLOSE ioctl
  * @dev: drm_device
  * @data: ioctl data
@@ -851,6 +893,7 @@ drm_gem_object_release(struct drm_gem_object *obj)
 	if (obj->filp)
 		fput(obj->filp);
 
+	reservation_object_fini(&obj->_resv);
 	drm_gem_free_mmap_offset(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
@@ -1190,3 +1233,81 @@ void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
 		obj->dev->driver->gem_prime_vunmap(obj, vaddr);
 }
 EXPORT_SYMBOL(drm_gem_vunmap);
+
+/**
+ * drm_gem_lock_reservations - Sets up the ww context and acquires
+ * the lock on an array of GEM objects.
+ *
+ * Once you've locked your reservations, you'll want to set up space
+ * for your shared fences (if applicable), submit your job, then
+ * drm_gem_unlock_reservations().
+ *
+ * @objs: drm_gem_objects to lock
+ * @count: Number of objects in @objs
+ * @acquire_ctx: struct ww_acquire_ctx that will be initialized as
+ * part of tracking this set of locked reservations.
+ */
+int
+drm_gem_lock_reservations(struct drm_gem_object **objs, int count,
+			  struct ww_acquire_ctx *acquire_ctx)
+{
+	int contended = -1;
+	int i, ret;
+
+	ww_acquire_init(acquire_ctx, &reservation_ww_class);
+
+retry:
+	if (contended != -1) {
+		struct drm_gem_object *obj = objs[contended];
+
+		ret = ww_mutex_lock_slow_interruptible(&obj->resv->lock,
+						       acquire_ctx);
+		if (ret) {
+			ww_acquire_done(acquire_ctx);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < count; i++) {
+		if (i == contended)
+			continue;
+
+		ret = ww_mutex_lock_interruptible(&objs[i]->resv->lock,
+						  acquire_ctx);
+		if (ret) {
+			int j;
+
+			for (j = 0; j < i; j++)
+				ww_mutex_unlock(&objs[j]->resv->lock);
+
+			if (contended != -1 && contended >= i)
+				ww_mutex_unlock(&objs[contended]->resv->lock);
+
+			if (ret == -EDEADLK) {
+				contended = i;
+				goto retry;
+			}
+
+			ww_acquire_done(acquire_ctx);
+			return ret;
+		}
+	}
+
+	ww_acquire_done(acquire_ctx);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_lock_reservations);
+
+void
+drm_gem_unlock_reservations(struct drm_gem_object **objs, int count,
+			    struct ww_acquire_ctx *acquire_ctx)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		ww_mutex_unlock(&objs[i]->resv->lock);
+
+	ww_acquire_fini(acquire_ctx);
+}
+EXPORT_SYMBOL(drm_gem_unlock_reservations);

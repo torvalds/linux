@@ -27,10 +27,7 @@
 #define GAS_INITIAL_REQ			0x0a
 #define GAS_INITIAL_RSP			0x0b
 
-#define INVALID_CHANNEL			0
-
-#define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
-#define SCAN_RESULT_EXPIRE		(40 * HZ)
+#define WILC_INVALID_CHANNEL		0
 
 static const struct ieee80211_txrx_stypes
 	wilc_wfi_cfg80211_mgmt_types[NUM_NL80211_IFTYPES] = {
@@ -65,124 +62,15 @@ static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
 
-struct p2p_mgmt_data {
+struct wilc_p2p_mgmt_data {
 	int size;
 	u8 *buff;
 };
 
-static u8 wlan_channel = INVALID_CHANNEL;
-static u8 curr_channel;
-static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
-static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
+static const u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
+static const u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 
-#define AGING_TIME	(9 * 1000)
-#define DURING_IP_TIME_OUT	15000
-
-static void clear_shadow_scan(struct wilc_priv *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->scanned_cnt; i++) {
-		kfree(priv->scanned_shadow[i].ies);
-		priv->scanned_shadow[i].ies = NULL;
-
-		kfree(priv->scanned_shadow[i].join_params);
-		priv->scanned_shadow[i].join_params = NULL;
-	}
-	priv->scanned_cnt = 0;
-}
-
-static u32 get_rssi_avg(struct network_info *network_info)
-{
-	u8 i;
-	int rssi_v = 0;
-	u8 num_rssi = (network_info->rssi_history.full) ?
-		       NUM_RSSI : (network_info->rssi_history.index);
-
-	for (i = 0; i < num_rssi; i++)
-		rssi_v += network_info->rssi_history.samples[i];
-
-	rssi_v /= num_rssi;
-	return rssi_v;
-}
-
-static void refresh_scan(struct wilc_priv *priv, bool direct_scan)
-{
-	struct wiphy *wiphy = priv->dev->ieee80211_ptr->wiphy;
-	int i;
-
-	for (i = 0; i < priv->scanned_cnt; i++) {
-		struct network_info *network_info;
-		s32 freq;
-		struct ieee80211_channel *channel;
-		int rssi;
-		struct cfg80211_bss *bss;
-
-		network_info = &priv->scanned_shadow[i];
-
-		if (!memcmp("DIRECT-", network_info->ssid, 7) && !direct_scan)
-			continue;
-
-		freq = ieee80211_channel_to_frequency((s32)network_info->ch,
-						      NL80211_BAND_2GHZ);
-		channel = ieee80211_get_channel(wiphy, freq);
-		rssi = get_rssi_avg(network_info);
-		bss = cfg80211_inform_bss(wiphy,
-					  channel,
-					  CFG80211_BSS_FTYPE_UNKNOWN,
-					  network_info->bssid,
-					  network_info->tsf,
-					  network_info->cap_info,
-					  network_info->beacon_period,
-					  (const u8 *)network_info->ies,
-					  (size_t)network_info->ies_len,
-					  (s32)rssi * 100,
-					  GFP_KERNEL);
-		cfg80211_put_bss(wiphy, bss);
-	}
-}
-
-static void reset_shadow_found(struct wilc_priv *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->scanned_cnt; i++)
-		priv->scanned_shadow[i].found = 0;
-}
-
-static void update_scan_time(struct wilc_priv *priv)
-{
-	int i;
-
-	for (i = 0; i < priv->scanned_cnt; i++)
-		priv->scanned_shadow[i].time_scan = jiffies;
-}
-
-static void remove_network_from_shadow(struct timer_list *t)
-{
-	struct wilc_priv *priv = from_timer(priv, t, aging_timer);
-	unsigned long now = jiffies;
-	int i, j;
-
-	for (i = 0; i < priv->scanned_cnt; i++) {
-		if (!time_after(now, priv->scanned_shadow[i].time_scan +
-				(unsigned long)(SCAN_RESULT_EXPIRE)))
-			continue;
-		kfree(priv->scanned_shadow[i].ies);
-		priv->scanned_shadow[i].ies = NULL;
-
-		kfree(priv->scanned_shadow[i].join_params);
-
-		for (j = i; (j < priv->scanned_cnt - 1); j++)
-			priv->scanned_shadow[j] = priv->scanned_shadow[j + 1];
-
-		priv->scanned_cnt--;
-	}
-
-	if (priv->scanned_cnt != 0)
-		mod_timer(&priv->aging_timer,
-			  jiffies + msecs_to_jiffies(AGING_TIME));
-}
+#define WILC_IP_TIMEOUT_MS		15000
 
 static void clear_during_ip(struct timer_list *t)
 {
@@ -191,151 +79,36 @@ static void clear_during_ip(struct timer_list *t)
 	vif->obtaining_ip = false;
 }
 
-static int is_network_in_shadow(struct network_info *nw_info,
-				struct wilc_priv *priv)
-{
-	int state = -1;
-	int i;
-
-	if (priv->scanned_cnt == 0) {
-		mod_timer(&priv->aging_timer,
-			  jiffies + msecs_to_jiffies(AGING_TIME));
-		state = -1;
-	} else {
-		for (i = 0; i < priv->scanned_cnt; i++) {
-			if (memcmp(priv->scanned_shadow[i].bssid,
-				   nw_info->bssid, 6) == 0) {
-				state = i;
-				break;
-			}
-		}
-	}
-	return state;
-}
-
-static void add_network_to_shadow(struct network_info *nw_info,
-				  struct wilc_priv *priv, void *join_params)
-{
-	int ap_found = is_network_in_shadow(nw_info, priv);
-	u32 ap_index = 0;
-	u8 rssi_index = 0;
-	struct network_info *shadow_nw_info;
-
-	if (priv->scanned_cnt >= MAX_NUM_SCANNED_NETWORKS_SHADOW)
-		return;
-
-	if (ap_found == -1) {
-		ap_index = priv->scanned_cnt;
-		priv->scanned_cnt++;
-	} else {
-		ap_index = ap_found;
-	}
-	shadow_nw_info = &priv->scanned_shadow[ap_index];
-	rssi_index = shadow_nw_info->rssi_history.index;
-	shadow_nw_info->rssi_history.samples[rssi_index++] = nw_info->rssi;
-	if (rssi_index == NUM_RSSI) {
-		rssi_index = 0;
-		shadow_nw_info->rssi_history.full = true;
-	}
-	shadow_nw_info->rssi_history.index = rssi_index;
-	shadow_nw_info->rssi = nw_info->rssi;
-	shadow_nw_info->cap_info = nw_info->cap_info;
-	shadow_nw_info->ssid_len = nw_info->ssid_len;
-	memcpy(shadow_nw_info->ssid, nw_info->ssid, nw_info->ssid_len);
-	memcpy(shadow_nw_info->bssid, nw_info->bssid, ETH_ALEN);
-	shadow_nw_info->beacon_period = nw_info->beacon_period;
-	shadow_nw_info->dtim_period = nw_info->dtim_period;
-	shadow_nw_info->ch = nw_info->ch;
-	shadow_nw_info->tsf = nw_info->tsf;
-	if (ap_found != -1)
-		kfree(shadow_nw_info->ies);
-	shadow_nw_info->ies = kmemdup(nw_info->ies, nw_info->ies_len,
-				      GFP_KERNEL);
-	if (shadow_nw_info->ies)
-		shadow_nw_info->ies_len = nw_info->ies_len;
-	else
-		shadow_nw_info->ies_len = 0;
-	shadow_nw_info->time_scan = jiffies;
-	shadow_nw_info->time_scan_cached = jiffies;
-	shadow_nw_info->found = 1;
-	if (ap_found != -1)
-		kfree(shadow_nw_info->join_params);
-	shadow_nw_info->join_params = join_params;
-}
-
 static void cfg_scan_result(enum scan_event scan_event,
-			    struct network_info *network_info,
-			    void *user_void, void *join_params)
+			    struct wilc_rcvd_net_info *info, void *user_void)
 {
-	struct wilc_priv *priv;
-	struct wiphy *wiphy;
-	s32 freq;
-	struct ieee80211_channel *channel;
-	struct cfg80211_bss *bss = NULL;
+	struct wilc_priv *priv = user_void;
 
-	priv = user_void;
 	if (!priv->cfg_scanning)
 		return;
 
 	if (scan_event == SCAN_EVENT_NETWORK_FOUND) {
-		wiphy = priv->dev->ieee80211_ptr->wiphy;
+		s32 freq;
+		struct ieee80211_channel *channel;
+		struct cfg80211_bss *bss;
+		struct wiphy *wiphy = priv->dev->ieee80211_ptr->wiphy;
 
-		if (!wiphy || !network_info)
+		if (!wiphy || !info)
 			return;
 
-		if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
-		    (((s32)network_info->rssi * 100) < 0 ||
-		    ((s32)network_info->rssi * 100) > 100))
-			return;
-
-		freq = ieee80211_channel_to_frequency((s32)network_info->ch,
+		freq = ieee80211_channel_to_frequency((s32)info->ch,
 						      NL80211_BAND_2GHZ);
 		channel = ieee80211_get_channel(wiphy, freq);
-
 		if (!channel)
 			return;
 
-		if (network_info->new_network) {
-			if (priv->rcvd_ch_cnt >= MAX_NUM_SCANNED_NETWORKS)
-				return;
-
-			priv->rcvd_ch_cnt++;
-
-			add_network_to_shadow(network_info, priv, join_params);
-
-			if (memcmp("DIRECT-", network_info->ssid, 7))
-				return;
-
-			bss = cfg80211_inform_bss(wiphy,
-						  channel,
-						  CFG80211_BSS_FTYPE_UNKNOWN,
-						  network_info->bssid,
-						  network_info->tsf,
-						  network_info->cap_info,
-						  network_info->beacon_period,
-						  (const u8 *)network_info->ies,
-						  (size_t)network_info->ies_len,
-						  (s32)network_info->rssi * 100,
-						  GFP_KERNEL);
+		bss = cfg80211_inform_bss_frame(wiphy, channel, info->mgmt,
+						info->frame_len,
+						(s32)info->rssi * 100,
+						GFP_KERNEL);
+		if (!bss)
 			cfg80211_put_bss(wiphy, bss);
-		} else {
-			u32 i;
-
-			for (i = 0; i < priv->rcvd_ch_cnt; i++) {
-				if (memcmp(priv->scanned_shadow[i].bssid,
-					   network_info->bssid, 6) == 0)
-					break;
-			}
-
-			if (i >= priv->rcvd_ch_cnt)
-				return;
-
-			priv->scanned_shadow[i].rssi = network_info->rssi;
-			priv->scanned_shadow[i].time_scan = jiffies;
-		}
 	} else if (scan_event == SCAN_EVENT_DONE) {
-		refresh_scan(priv, false);
-
 		mutex_lock(&priv->scan_req_lock);
 
 		if (priv->scan_req) {
@@ -344,7 +117,6 @@ static void cfg_scan_result(enum scan_event scan_event,
 			};
 
 			cfg80211_scan_done(priv->scan_req, &info);
-			priv->rcvd_ch_cnt = 0;
 			priv->cfg_scanning = false;
 			priv->scan_req = NULL;
 		}
@@ -357,9 +129,6 @@ static void cfg_scan_result(enum scan_event scan_event,
 				.aborted = false,
 			};
 
-			update_scan_time(priv);
-			refresh_scan(priv, false);
-
 			cfg80211_scan_done(priv->scan_req, &info);
 			priv->cfg_scanning = false;
 			priv->scan_req = NULL;
@@ -368,21 +137,7 @@ static void cfg_scan_result(enum scan_event scan_event,
 	}
 }
 
-static inline bool wilc_cfg_scan_time_expired(struct wilc_priv *priv, int i)
-{
-	unsigned long now = jiffies;
-
-	if (time_after(now, priv->scanned_shadow[i].time_scan_cached +
-		       (unsigned long)(nl80211_SCAN_RESULT_EXPIRE - (1 * HZ))))
-		return true;
-	else
-		return false;
-}
-
-static void cfg_connect_result(enum conn_event conn_disconn_evt,
-			       struct connect_info *conn_info,
-			       u8 mac_status,
-			       struct disconnect_info *disconn_info,
+static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 			       void *priv_data)
 {
 	struct wilc_priv *priv = priv_data;
@@ -390,48 +145,27 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 	struct host_if_drv *wfi_drv = priv->hif_drv;
-	u8 null_bssid[ETH_ALEN] = {0};
+	struct wilc_conn_info *conn_info = &wfi_drv->conn_info;
 
 	vif->connecting = false;
 
 	if (conn_disconn_evt == CONN_DISCONN_EVENT_CONN_RESP) {
-		u16 connect_status;
-
-		connect_status = conn_info->status;
+		u16 connect_status = conn_info->status;
 
 		if (mac_status == WILC_MAC_STATUS_DISCONNECTED &&
-		    conn_info->status == WLAN_STATUS_SUCCESS) {
+		    connect_status == WLAN_STATUS_SUCCESS) {
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-			wilc_wlan_set_bssid(priv->dev, null_bssid,
-					    WILC_STATION_MODE);
+			wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
-			if (!wfi_drv->p2p_connect)
-				wlan_channel = INVALID_CHANNEL;
+			if (vif->iftype != WILC_CLIENT_MODE)
+				wl->sta_ch = WILC_INVALID_CHANNEL;
 
 			netdev_err(dev, "Unspecified failure\n");
 		}
 
-		if (connect_status == WLAN_STATUS_SUCCESS) {
-			bool scan_refresh = false;
-			u32 i;
-
+		if (connect_status == WLAN_STATUS_SUCCESS)
 			memcpy(priv->associated_bss, conn_info->bssid,
 			       ETH_ALEN);
-
-			for (i = 0; i < priv->scanned_cnt; i++) {
-				if (memcmp(priv->scanned_shadow[i].bssid,
-					   conn_info->bssid,
-					   ETH_ALEN) == 0) {
-					if (wilc_cfg_scan_time_expired(priv, i))
-						scan_refresh = true;
-
-					break;
-				}
-			}
-
-			if (scan_refresh)
-				refresh_scan(priv, true);
-		}
 
 		cfg80211_connect_result(dev, conn_info->bssid,
 					conn_info->req_ies,
@@ -440,23 +174,24 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 					conn_info->resp_ies_len, connect_status,
 					GFP_KERNEL);
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
+		u16 reason = 0;
+
 		vif->obtaining_ip = false;
 		priv->p2p.local_random = 0x01;
 		priv->p2p.recv_random = 0x00;
 		priv->p2p.is_wilc_ie = false;
 		eth_zero_addr(priv->associated_bss);
-		wilc_wlan_set_bssid(priv->dev, null_bssid, WILC_STATION_MODE);
+		wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
-		if (!wfi_drv->p2p_connect)
-			wlan_channel = INVALID_CHANNEL;
+		if (vif->iftype != WILC_CLIENT_MODE)
+			wl->sta_ch = WILC_INVALID_CHANNEL;
+
 		if (wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
-			disconn_info->reason = 3;
+			reason = 3;
 		else if (!wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
-			disconn_info->reason = 1;
+			reason = 1;
 
-		cfg80211_disconnected(dev, disconn_info->reason,
-				      disconn_info->ie, disconn_info->ie_len,
-				      false, GFP_KERNEL);
+		cfg80211_disconnected(dev, reason, NULL, 0, false, GFP_KERNEL);
 	}
 }
 
@@ -470,7 +205,7 @@ static int set_channel(struct wiphy *wiphy,
 
 	channelnum = ieee80211_frequency_to_channel(chandef->chan->center_freq);
 
-	curr_channel = channelnum;
+	vif->wilc->op_ch = channelnum;
 	result = wilc_set_mac_chnl_num(vif, channelnum);
 
 	if (result != 0)
@@ -481,22 +216,23 @@ static int set_channel(struct wiphy *wiphy,
 
 static inline int
 wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
-			     struct hidden_network *ntwk)
+			     struct wilc_probe_ssid *search)
 {
 	int i;
 	int slot_id = 0;
 
-	ntwk->net_info = kcalloc(request->n_ssids, sizeof(*ntwk->net_info),
-				 GFP_KERNEL);
-	if (!ntwk->net_info)
+	search->ssid_info = kcalloc(request->n_ssids,
+				    sizeof(*search->ssid_info), GFP_KERNEL);
+	if (!search->ssid_info)
 		goto out;
 
-	ntwk->n_ssids = request->n_ssids;
+	search->n_ssids = request->n_ssids;
 
 	for (i = 0; i < request->n_ssids; i++) {
 		if (request->ssids[i].ssid_len > 0) {
-			struct hidden_net_info *info = &ntwk->net_info[slot_id];
+			struct wilc_probe_ssid_info *info;
 
+			info = &search->ssid_info[slot_id];
 			info->ssid = kmemdup(request->ssids[i].ssid,
 					     request->ssids[i].ssid_len,
 					     GFP_KERNEL);
@@ -506,7 +242,7 @@ wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
 			info->ssid_len = request->ssids[i].ssid_len;
 			slot_id++;
 		} else {
-			ntwk->n_ssids -= 1;
+			search->n_ssids -= 1;
 		}
 	}
 	return 0;
@@ -514,9 +250,9 @@ wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
 out_free:
 
 	for (i = 0; i < slot_id; i++)
-		kfree(ntwk->net_info[i].ssid);
+		kfree(search->ssid_info[i].ssid);
 
-	kfree(ntwk->net_info);
+	kfree(search->ssid_info);
 out:
 
 	return -ENOMEM;
@@ -528,46 +264,41 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 	u32 i;
 	int ret = 0;
-	u8 scan_ch_list[MAX_NUM_SCANNED_NETWORKS];
-	struct hidden_network hidden_ntwk;
+	u8 scan_ch_list[WILC_MAX_NUM_SCANNED_CH];
+	struct wilc_probe_ssid probe_ssid;
+
+	if (request->n_channels > WILC_MAX_NUM_SCANNED_CH) {
+		netdev_err(priv->dev, "Requested scanned channels over\n");
+		return -EINVAL;
+	}
 
 	priv->scan_req = request;
-
-	priv->rcvd_ch_cnt = 0;
-
-	reset_shadow_found(priv);
-
 	priv->cfg_scanning = true;
-	if (request->n_channels <= MAX_NUM_SCANNED_NETWORKS) {
-		for (i = 0; i < request->n_channels; i++) {
-			u16 freq = request->channels[i]->center_freq;
+	for (i = 0; i < request->n_channels; i++) {
+		u16 freq = request->channels[i]->center_freq;
 
-			scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
+		scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
+	}
+
+	if (request->n_ssids >= 1) {
+		if (wilc_wfi_cfg_alloc_fill_ssid(request, &probe_ssid)) {
+			ret = -ENOMEM;
+			goto out;
 		}
 
-		if (request->n_ssids >= 1) {
-			if (wilc_wfi_cfg_alloc_fill_ssid(request,
-							 &hidden_ntwk)) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
-					WILC_FW_ACTIVE_SCAN, scan_ch_list,
-					request->n_channels,
-					(const u8 *)request->ie,
-					request->ie_len, cfg_scan_result,
-					(void *)priv, &hidden_ntwk);
-		} else {
-			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
-					WILC_FW_ACTIVE_SCAN, scan_ch_list,
-					request->n_channels,
-					(const u8 *)request->ie,
-					request->ie_len, cfg_scan_result,
-					(void *)priv, NULL);
-		}
+		ret = wilc_scan(vif, WILC_FW_USER_SCAN,
+				WILC_FW_ACTIVE_SCAN, scan_ch_list,
+				request->n_channels,
+				(const u8 *)request->ie,
+				request->ie_len, cfg_scan_result,
+				(void *)priv, &probe_ssid);
 	} else {
-		netdev_err(priv->dev, "Requested scanned channels over\n");
+		ret = wilc_scan(vif, WILC_FW_USER_SCAN,
+				WILC_FW_ACTIVE_SCAN, scan_ch_list,
+				request->n_channels,
+				(const u8 *)request->ie,
+				request->ie_len, cfg_scan_result,
+				(void *)priv, NULL);
 	}
 
 out:
@@ -585,53 +316,16 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 	struct host_if_drv *wfi_drv = priv->hif_drv;
-	struct network_info *nw_info;
 	int ret;
 	u32 i;
-	u32 sel_bssi_idx = UINT_MAX;
 	u8 security = WILC_FW_SEC_NO;
 	enum authtype auth_type = WILC_FW_AUTH_ANY;
 	u32 cipher_group;
+	struct cfg80211_bss *bss;
+	void *join_params;
+	u8 ch;
 
 	vif->connecting = true;
-
-	if (!(strncmp(sme->ssid, "DIRECT-", 7)))
-		wfi_drv->p2p_connect = 1;
-	else
-		wfi_drv->p2p_connect = 0;
-
-	for (i = 0; i < priv->scanned_cnt; i++) {
-		if (sme->ssid_len == priv->scanned_shadow[i].ssid_len &&
-		    memcmp(priv->scanned_shadow[i].ssid,
-			   sme->ssid,
-			   sme->ssid_len) == 0) {
-			if (!sme->bssid) {
-				if (sel_bssi_idx == UINT_MAX ||
-				    priv->scanned_shadow[i].rssi >
-				    priv->scanned_shadow[sel_bssi_idx].rssi)
-					sel_bssi_idx = i;
-			} else {
-				if (memcmp(priv->scanned_shadow[i].bssid,
-					   sme->bssid,
-					   ETH_ALEN) == 0) {
-					sel_bssi_idx = i;
-					break;
-				}
-			}
-		}
-	}
-
-	if (sel_bssi_idx < priv->scanned_cnt) {
-		nw_info = &priv->scanned_shadow[sel_bssi_idx];
-	} else {
-		ret = -ENOENT;
-		goto out_error;
-	}
-
-	if (ether_addr_equal_unaligned(vif->bssid, nw_info->bssid)) {
-		ret = -EALREADY;
-		goto out_error;
-	}
 
 	memset(priv->wep_key, 0, sizeof(priv->wep_key));
 	memset(priv->wep_key_len, 0, sizeof(priv->wep_key_len));
@@ -706,30 +400,64 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			auth_type = WILC_FW_AUTH_IEEE8021;
 	}
 
-	curr_channel = nw_info->ch;
-
-	if (!wfi_drv->p2p_connect)
-		wlan_channel = nw_info->ch;
-
-	wilc_wlan_set_bssid(dev, nw_info->bssid, WILC_STATION_MODE);
-
-	ret = wilc_set_join_req(vif, nw_info->bssid, sme->ssid,
-				sme->ssid_len, sme->ie, sme->ie_len,
-				cfg_connect_result, (void *)priv,
-				security, auth_type,
-				nw_info->ch,
-				nw_info->join_params);
-	if (ret) {
-		u8 null_bssid[ETH_ALEN] = {0};
-
-		netdev_err(dev, "wilc_set_join_req(): Error\n");
-		ret = -ENOENT;
-		if (!wfi_drv->p2p_connect)
-			wlan_channel = INVALID_CHANNEL;
-		wilc_wlan_set_bssid(dev, null_bssid, WILC_STATION_MODE);
+	if (wfi_drv->usr_scan_req.scan_result) {
+		netdev_err(vif->ndev, "%s: Scan in progress\n", __func__);
+		ret = -EBUSY;
 		goto out_error;
 	}
+
+	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid, sme->ssid,
+			       sme->ssid_len, IEEE80211_BSS_TYPE_ANY,
+			       IEEE80211_PRIVACY(sme->privacy));
+	if (!bss) {
+		ret = -EINVAL;
+		goto out_error;
+	}
+
+	if (ether_addr_equal_unaligned(vif->bssid, bss->bssid)) {
+		ret = -EALREADY;
+		goto out_put_bss;
+	}
+
+	join_params = wilc_parse_join_bss_param(bss, &sme->crypto);
+	if (!join_params) {
+		netdev_err(dev, "%s: failed to construct join param\n",
+			   __func__);
+		ret = -EINVAL;
+		goto out_put_bss;
+	}
+
+	ch = ieee80211_frequency_to_channel(bss->channel->center_freq);
+	vif->wilc->op_ch = ch;
+	if (vif->iftype != WILC_CLIENT_MODE)
+		vif->wilc->sta_ch = ch;
+
+	wilc_wlan_set_bssid(dev, bss->bssid, WILC_STATION_MODE);
+
+	wfi_drv->conn_info.security = security;
+	wfi_drv->conn_info.auth_type = auth_type;
+	wfi_drv->conn_info.ch = ch;
+	wfi_drv->conn_info.conn_result = cfg_connect_result;
+	wfi_drv->conn_info.arg = priv;
+	wfi_drv->conn_info.param = join_params;
+
+	ret = wilc_set_join_req(vif, bss->bssid, sme->ie, sme->ie_len);
+	if (ret) {
+		netdev_err(dev, "wilc_set_join_req(): Error\n");
+		ret = -ENOENT;
+		if (vif->iftype != WILC_CLIENT_MODE)
+			vif->wilc->sta_ch = WILC_INVALID_CHANNEL;
+		wilc_wlan_set_bssid(dev, NULL, WILC_STATION_MODE);
+		wfi_drv->conn_info.conn_result = NULL;
+		kfree(join_params);
+		goto out_put_bss;
+	}
+	kfree(join_params);
+	cfg80211_put_bss(wiphy, bss);
 	return 0;
+
+out_put_bss:
+	cfg80211_put_bss(wiphy, bss);
 
 out_error:
 	vif->connecting = false;
@@ -742,9 +470,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 	struct wilc *wilc = vif->wilc;
-	struct host_if_drv *wfi_drv;
 	int ret;
-	u8 null_bssid[ETH_ALEN] = {0};
 
 	vif->connecting = false;
 
@@ -757,15 +483,14 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	wfi_drv = (struct host_if_drv *)priv->hif_drv;
-	if (!wfi_drv->p2p_connect)
-		wlan_channel = INVALID_CHANNEL;
-	wilc_wlan_set_bssid(priv->dev, null_bssid, WILC_STATION_MODE);
+	if (vif->iftype != WILC_CLIENT_MODE)
+		wilc->sta_ch = WILC_INVALID_CHANNEL;
+	wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
 	priv->p2p.local_random = 0x01;
 	priv->p2p.recv_random = 0x00;
 	priv->p2p.is_wilc_ie = false;
-	wfi_drv->p2p_timeout = 0;
+	priv->hif_drv->p2p_timeout = 0;
 
 	ret = wilc_disconnect(vif);
 	if (ret != 0) {
@@ -1210,7 +935,7 @@ static int flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 }
 
 static inline void wilc_wfi_cfg_parse_ch_attr(u8 *buf, u8 ch_list_attr_idx,
-					      u8 op_ch_attr_idx)
+					      u8 op_ch_attr_idx, u8 sta_ch)
 {
 	int i = 0;
 	int j = 0;
@@ -1221,7 +946,7 @@ static inline void wilc_wfi_cfg_parse_ch_attr(u8 *buf, u8 ch_list_attr_idx,
 		for (i = ch_list_attr_idx + 3; i < limit; i++) {
 			if (buf[i] == 0x51) {
 				for (j = i + 2; j < ((i + 2) + buf[i + 1]); j++)
-					buf[j] = wlan_channel;
+					buf[j] = sta_ch;
 				break;
 			}
 		}
@@ -1229,11 +954,11 @@ static inline void wilc_wfi_cfg_parse_ch_attr(u8 *buf, u8 ch_list_attr_idx,
 
 	if (op_ch_attr_idx) {
 		buf[op_ch_attr_idx + 6] = 0x51;
-		buf[op_ch_attr_idx + 7] = wlan_channel;
+		buf[op_ch_attr_idx + 7] = sta_ch;
 	}
 }
 
-static void wilc_wfi_cfg_parse_rx_action(u8 *buf, u32 len)
+static void wilc_wfi_cfg_parse_rx_action(u8 *buf, u32 len, u8 sta_ch)
 {
 	u32 index = 0;
 	u8 op_channel_attr_index = 0;
@@ -1249,13 +974,13 @@ static void wilc_wfi_cfg_parse_rx_action(u8 *buf, u32 len)
 			op_channel_attr_index = index;
 		index += buf[index + 1] + 3;
 	}
-	if (wlan_channel != INVALID_CHANNEL)
+	if (sta_ch != WILC_INVALID_CHANNEL)
 		wilc_wfi_cfg_parse_ch_attr(buf, channel_list_attr_index,
-					   op_channel_attr_index);
+					   op_channel_attr_index, sta_ch);
 }
 
 static void wilc_wfi_cfg_parse_tx_action(u8 *buf, u32 len, bool oper_ch,
-					 u8 iftype)
+					 u8 iftype, u8 sta_ch)
 {
 	u32 index = 0;
 	u8 op_channel_attr_index = 0;
@@ -1274,9 +999,9 @@ static void wilc_wfi_cfg_parse_tx_action(u8 *buf, u32 len, bool oper_ch,
 			op_channel_attr_index = index;
 		index += buf[index + 1] + 3;
 	}
-	if (wlan_channel != INVALID_CHANNEL && oper_ch)
+	if (sta_ch != WILC_INVALID_CHANNEL && oper_ch)
 		wilc_wfi_cfg_parse_ch_attr(buf, channel_list_attr_index,
-					   op_channel_attr_index);
+					   op_channel_attr_index, sta_ch);
 }
 
 static void wilc_wfi_cfg_parse_rx_vendor_spec(struct wilc_priv *priv, u8 *buff,
@@ -1311,7 +1036,8 @@ static void wilc_wfi_cfg_parse_rx_vendor_spec(struct wilc_priv *priv, u8 *buff,
 			if (buff[i] == P2PELEM_ATTR_ID &&
 			    !(memcmp(p2p_oui, &buff[i + 2], 4))) {
 				wilc_wfi_cfg_parse_rx_action(&buff[i + 6],
-							     size - (i + 6));
+							     size - (i + 6),
+							     vif->wilc->sta_ch);
 				break;
 			}
 		}
@@ -1322,6 +1048,8 @@ void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 {
 	struct wilc_priv *priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	struct host_if_drv *wfi_drv = priv->hif_drv;
+	struct wilc_vif *vif = netdev_priv(dev);
+	struct wilc *wl = vif->wilc;
 	u32 header, pkt_offset;
 	s32 freq;
 	__le16 fc;
@@ -1342,7 +1070,7 @@ void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 		return;
 	}
 
-	freq = ieee80211_channel_to_frequency(curr_channel, NL80211_BAND_2GHZ);
+	freq = ieee80211_channel_to_frequency(wl->op_ch, NL80211_BAND_2GHZ);
 
 	fc = ((struct ieee80211_hdr *)buff)->frame_control;
 	if (!ieee80211_is_action(fc)) {
@@ -1387,33 +1115,18 @@ void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 
 static void wilc_wfi_mgmt_tx_complete(void *priv, int status)
 {
-	struct p2p_mgmt_data *pv_data = priv;
+	struct wilc_p2p_mgmt_data *pv_data = priv;
 
 	kfree(pv_data->buff);
 	kfree(pv_data);
 }
 
-static void wilc_wfi_remain_on_channel_ready(void *priv_data)
-{
-	struct wilc_priv *priv;
-
-	priv = priv_data;
-
-	priv->p2p_listen_state = true;
-
-	cfg80211_ready_on_channel(priv->wdev,
-				  priv->remain_on_ch_params.listen_cookie,
-				  priv->remain_on_ch_params.listen_ch,
-				  priv->remain_on_ch_params.listen_duration,
-				  GFP_KERNEL);
-}
-
-static void wilc_wfi_remain_on_channel_expired(void *data, u32 session_id)
+static void wilc_wfi_remain_on_channel_expired(void *data, u64 cookie)
 {
 	struct wilc_priv *priv = data;
 	struct wilc_wfi_p2p_listen_params *params = &priv->remain_on_ch_params;
 
-	if (session_id != params->listen_session_id)
+	if (cookie != params->listen_cookie)
 		return;
 
 	priv->p2p_listen_state = false;
@@ -1430,24 +1143,36 @@ static int remain_on_channel(struct wiphy *wiphy,
 	int ret = 0;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
+	u64 id;
 
 	if (wdev->iftype == NL80211_IFTYPE_AP) {
 		netdev_dbg(vif->ndev, "Required while in AP mode\n");
 		return ret;
 	}
 
-	curr_channel = chan->hw_value;
+	id = ++priv->inc_roc_cookie;
+	if (id == 0)
+		id = ++priv->inc_roc_cookie;
+
+	ret = wilc_remain_on_channel(vif, id, duration, chan->hw_value,
+				     wilc_wfi_remain_on_channel_expired,
+				     (void *)priv);
+	if (ret)
+		return ret;
+
+	vif->wilc->op_ch = chan->hw_value;
 
 	priv->remain_on_ch_params.listen_ch = chan;
-	priv->remain_on_ch_params.listen_cookie = *cookie;
+	priv->remain_on_ch_params.listen_cookie = id;
+	*cookie = id;
+	priv->p2p_listen_state = true;
 	priv->remain_on_ch_params.listen_duration = duration;
-	priv->remain_on_ch_params.listen_session_id++;
 
-	return wilc_remain_on_channel(vif,
-				priv->remain_on_ch_params.listen_session_id,
-				duration, chan->hw_value,
-				wilc_wfi_remain_on_channel_expired,
-				wilc_wfi_remain_on_channel_ready, (void *)priv);
+	cfg80211_ready_on_channel(wdev, *cookie, chan, duration, GFP_KERNEL);
+	mod_timer(&vif->hif_drv->remain_on_ch_timer,
+		  jiffies + msecs_to_jiffies(duration));
+
+	return ret;
 }
 
 static int cancel_remain_on_channel(struct wiphy *wiphy,
@@ -1457,12 +1182,14 @@ static int cancel_remain_on_channel(struct wiphy *wiphy,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
-	return wilc_listen_state_expired(vif,
-			priv->remain_on_ch_params.listen_session_id);
+	if (cookie != priv->remain_on_ch_params.listen_cookie)
+		return -ENOENT;
+
+	return wilc_listen_state_expired(vif, cookie);
 }
 
 static void wilc_wfi_cfg_tx_vendor_spec(struct wilc_priv *priv,
-					struct p2p_mgmt_data *mgmt_tx,
+					struct wilc_p2p_mgmt_data *mgmt_tx,
 					struct cfg80211_mgmt_tx_params *params,
 					u8 iftype, u32 buf_len)
 {
@@ -1470,6 +1197,7 @@ static void wilc_wfi_cfg_tx_vendor_spec(struct wilc_priv *priv,
 	size_t len = params->len;
 	u32 i;
 	u8 subtype = buf[P2P_PUB_ACTION_SUBTYPE];
+	struct wilc_vif *vif = netdev_priv(priv->dev);
 
 	if (subtype == GO_NEG_REQ || subtype == GO_NEG_RSP) {
 		if (priv->p2p.local_random == 1 &&
@@ -1494,7 +1222,8 @@ static void wilc_wfi_cfg_tx_vendor_spec(struct wilc_priv *priv,
 				oper_ch = true;
 
 			wilc_wfi_cfg_parse_tx_action(tx_buff, len - (i + 6),
-						     oper_ch, iftype);
+						     oper_ch, iftype,
+						     vif->wilc->sta_ch);
 
 			break;
 		}
@@ -1520,14 +1249,14 @@ static int mgmt_tx(struct wiphy *wiphy,
 	const u8 *buf = params->buf;
 	size_t len = params->len;
 	const struct ieee80211_mgmt *mgmt;
-	struct p2p_mgmt_data *mgmt_tx;
+	struct wilc_p2p_mgmt_data *mgmt_tx;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct host_if_drv *wfi_drv = priv->hif_drv;
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	u32 buf_len = len + sizeof(p2p_vendor_spec) + sizeof(priv->p2p.local_random);
 	int ret = 0;
 
-	*cookie = (unsigned long)buf;
+	*cookie = prandom_u32();
 	priv->tx_cookie = *cookie;
 	mgmt = (const struct ieee80211_mgmt *)buf;
 
@@ -1552,7 +1281,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		wilc_set_mac_chnl_num(vif, chan->hw_value);
-		curr_channel = chan->hw_value;
+		vif->wilc->op_ch = chan->hw_value;
 		goto out_txq_add_pkt;
 	}
 
@@ -1563,7 +1292,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 		if (buf[ACTION_SUBTYPE_ID] != PUBLIC_ACT_VENDORSPEC ||
 		    buf[P2P_PUB_ACTION_SUBTYPE] != GO_NEG_CONF) {
 			wilc_set_mac_chnl_num(vif, chan->hw_value);
-			curr_channel = chan->hw_value;
+			vif->wilc->op_ch = chan->hw_value;
 		}
 		switch (buf[ACTION_SUBTYPE_ID]) {
 		case GAS_INITIAL_REQ:
@@ -1755,7 +1484,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_P2P_GO:
 		vif->obtaining_ip = true;
 		mod_timer(&vif->during_ip_timer,
-			  jiffies + msecs_to_jiffies(DURING_IP_TIME_OUT));
+			  jiffies + msecs_to_jiffies(WILC_IP_TIMEOUT_MS));
 		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
@@ -1805,9 +1534,8 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	int ret;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
-	u8 null_bssid[ETH_ALEN] = {0};
 
-	wilc_wlan_set_bssid(dev, null_bssid, WILC_AP_MODE);
+	wilc_wlan_set_bssid(dev, NULL, WILC_AP_MODE);
 
 	ret = wilc_del_beacon(vif);
 
@@ -1884,7 +1612,8 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 	struct net_device *new_ifc;
 
 	if (type == NL80211_IFTYPE_MONITOR) {
-		new_ifc = wilc_wfi_init_mon_interface(name, vif->ndev);
+		new_ifc = wilc_wfi_init_mon_interface(vif->wilc, name,
+						      vif->ndev);
 		if (new_ifc) {
 			vif = netdev_priv(priv->wdev->netdev);
 			vif->monitor_flag = 1;
@@ -2102,7 +1831,6 @@ int wilc_init_host_int(struct net_device *net)
 	struct wilc_priv *priv = wdev_priv(net->ieee80211_ptr);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
-	timer_setup(&priv->aging_timer, remove_network_from_shadow, 0);
 	timer_setup(&vif->during_ip_timer, clear_during_ip, 0);
 
 	priv->p2p_listen_state = false;
@@ -2126,8 +1854,6 @@ void wilc_deinit_host_int(struct net_device *net)
 	mutex_destroy(&priv->scan_req_lock);
 	ret = wilc_deinit(vif);
 
-	del_timer_sync(&priv->aging_timer);
-	clear_shadow_scan(priv);
 	del_timer_sync(&vif->during_ip_timer);
 
 	if (ret)

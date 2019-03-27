@@ -228,7 +228,7 @@ static void put_clock_desc(struct posix_clock_desc *cd)
 	fput(cd->fp);
 }
 
-static int pc_clock_adjtime(clockid_t id, struct timex *tx)
+static int pc_clock_adjtime(clockid_t id, struct __kernel_timex *tx)
 {
 	struct posix_clock_desc cd;
 	int err;

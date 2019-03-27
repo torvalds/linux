@@ -2230,7 +2230,7 @@ int bnx2x_vf_free(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		rc = bnx2x_vf_close(bp, vf);
 		if (rc)
 			goto op_err;
-		/* Fallthrough to release resources */
+		/* Fall through - to release resources */
 	case VF_ACQUIRED:
 		DP(BNX2X_MSG_IOV, "about to free resources\n");
 		bnx2x_vf_free_resc(bp, vf);

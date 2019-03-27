@@ -25,3 +25,6 @@ extern phys_addr_t phys_initrd_start;
 extern unsigned long phys_initrd_size;
 
 extern unsigned int real_root_dev;
+
+extern char __initramfs_start[];
+extern unsigned long __initramfs_size;

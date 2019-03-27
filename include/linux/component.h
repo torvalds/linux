@@ -98,7 +98,7 @@ void component_match_add_typed(struct device *master,
 	int (*compare_typed)(struct device *, int, void *), void *compare_data);
 
 /**
- * component_match_add - add a compent match
+ * component_match_add - add a component match entry
  * @master: device with the aggregate driver
  * @matchptr: pointer to the list of component matches
  * @compare: compare function to match against all components

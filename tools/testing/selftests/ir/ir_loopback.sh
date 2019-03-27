@@ -4,6 +4,11 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+if [ $UID != 0 ]; then
+	echo "Please run ir_loopback test as root [SKIP]"
+	exit $ksft_skip
+fi
+
 if ! /sbin/modprobe -q -n rc-loopback; then
         echo "ir_loopback: module rc-loopback is not found [SKIP]"
         exit $ksft_skip

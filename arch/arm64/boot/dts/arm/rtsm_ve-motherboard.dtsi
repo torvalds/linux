@@ -86,7 +86,7 @@
 				mmci@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
-					interrupts = <9 10>;
+					interrupts = <9>, <10>;
 					cd-gpios = <&v2m_sysreg 0 0>;
 					wp-gpios = <&v2m_sysreg 1 0>;
 					max-frequency = <12000000>;
@@ -167,6 +167,12 @@
 					clock-names = "timclken1", "timclken2", "apb_pclk";
 				};
 
+				virtio-block@130000 {
+					compatible = "virtio,mmio";
+					reg = <0x130000 0x200>;
+					interrupts = <42>;
+				};
+
 				rtc@170000 {
 					compatible = "arm,pl031", "arm,primecell";
 					reg = <0x170000 0x1000>;
@@ -192,12 +198,6 @@
 							arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
 						};
 					};
-				};
-
-				virtio-block@130000 {
-					compatible = "virtio,mmio";
-					reg = <0x130000 0x200>;
-					interrupts = <42>;
 				};
 			};
 

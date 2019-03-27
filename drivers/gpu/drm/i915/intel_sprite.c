@@ -1837,9 +1837,9 @@ static const u32 icl_plane_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
-	DRM_FORMAT_Y410,
-	DRM_FORMAT_Y412,
-	DRM_FORMAT_Y416,
+	DRM_FORMAT_XVYU2101010,
+	DRM_FORMAT_XVYU12_16161616,
+	DRM_FORMAT_XVYU16161616,
 };
 
 static const u32 icl_hdr_plane_formats[] = {
@@ -1862,9 +1862,9 @@ static const u32 icl_hdr_plane_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
-	DRM_FORMAT_Y410,
-	DRM_FORMAT_Y412,
-	DRM_FORMAT_Y416,
+	DRM_FORMAT_XVYU2101010,
+	DRM_FORMAT_XVYU12_16161616,
+	DRM_FORMAT_XVYU16161616,
 };
 
 static const u32 skl_planar_formats[] = {
@@ -1922,9 +1922,9 @@ static const u32 icl_planar_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
-	DRM_FORMAT_Y410,
-	DRM_FORMAT_Y412,
-	DRM_FORMAT_Y416,
+	DRM_FORMAT_XVYU2101010,
+	DRM_FORMAT_XVYU12_16161616,
+	DRM_FORMAT_XVYU16161616,
 };
 
 static const u32 icl_hdr_planar_formats[] = {
@@ -1951,9 +1951,9 @@ static const u32 icl_hdr_planar_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
-	DRM_FORMAT_Y410,
-	DRM_FORMAT_Y412,
-	DRM_FORMAT_Y416,
+	DRM_FORMAT_XVYU2101010,
+	DRM_FORMAT_XVYU12_16161616,
+	DRM_FORMAT_XVYU16161616,
 };
 
 static const u64 skl_plane_format_modifiers_noccs[] = {
@@ -2101,9 +2101,9 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_Y210:
 	case DRM_FORMAT_Y212:
 	case DRM_FORMAT_Y216:
-	case DRM_FORMAT_Y410:
-	case DRM_FORMAT_Y412:
-	case DRM_FORMAT_Y416:
+	case DRM_FORMAT_XVYU2101010:
+	case DRM_FORMAT_XVYU12_16161616:
+	case DRM_FORMAT_XVYU16161616:
 		if (modifier == I915_FORMAT_MOD_Yf_TILED)
 			return true;
 		/* fall through */

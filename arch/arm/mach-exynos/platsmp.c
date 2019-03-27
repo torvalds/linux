@@ -28,6 +28,9 @@
 
 extern void exynos4_secondary_startup(void);
 
+/* XXX exynos_pen_release is cargo culted code - DO NOT COPY XXX */
+volatile int exynos_pen_release = -1;
+
 #ifdef CONFIG_HOTPLUG_CPU
 static inline void cpu_leave_lowpower(u32 core_id)
 {
@@ -57,7 +60,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 
 		wfi();
 
-		if (pen_release == core_id) {
+		if (exynos_pen_release == core_id) {
 			/*
 			 * OK, proper wakeup, we're done
 			 */
@@ -228,15 +231,17 @@ void exynos_core_restart(u32 core_id)
 }
 
 /*
- * Write pen_release in a way that is guaranteed to be visible to all
- * observers, irrespective of whether they're taking part in coherency
+ * XXX CARGO CULTED CODE - DO NOT COPY XXX
+ *
+ * Write exynos_pen_release in a way that is guaranteed to be visible to
+ * all observers, irrespective of whether they're taking part in coherency
  * or not.  This is necessary for the hotplug code to work reliably.
  */
-static void write_pen_release(int val)
+static void exynos_write_pen_release(int val)
 {
-	pen_release = val;
+	exynos_pen_release = val;
 	smp_wmb();
-	sync_cache_w(&pen_release);
+	sync_cache_w(&exynos_pen_release);
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -247,7 +252,7 @@ static void exynos_secondary_init(unsigned int cpu)
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	write_pen_release(-1);
+	exynos_write_pen_release(-1);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -322,12 +327,12 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/*
 	 * The secondary processor is waiting to be released from
 	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
+	 * that it has been released by resetting exynos_pen_release.
 	 *
-	 * Note that "pen_release" is the hardware CPU core ID, whereas
+	 * Note that "exynos_pen_release" is the hardware CPU core ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	write_pen_release(core_id);
+	exynos_write_pen_release(core_id);
 
 	if (!exynos_cpu_power_state(core_id)) {
 		exynos_cpu_power_up(core_id);
@@ -336,9 +341,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		/* wait max 10 ms until cpu1 is on */
 		while (exynos_cpu_power_state(core_id)
 		       != S5P_CORE_LOCAL_PWR_EN) {
-			if (timeout-- == 0)
+			if (timeout == 0)
 				break;
-
+			timeout--;
 			mdelay(1);
 		}
 
@@ -376,13 +381,13 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		else
 			arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
-		if (pen_release == -1)
+		if (exynos_pen_release == -1)
 			break;
 
 		udelay(10);
 	}
 
-	if (pen_release != -1)
+	if (exynos_pen_release != -1)
 		ret = -ETIMEDOUT;
 
 	/*
@@ -392,7 +397,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 fail:
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? ret : 0;
+	return exynos_pen_release != -1 ? ret : 0;
 }
 
 static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)

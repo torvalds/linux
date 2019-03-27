@@ -132,7 +132,7 @@ static struct platform_device smc91x_device = {
 /*
  * SPI host and devices
  */
-static struct pxa2xx_spi_master pxa_ssp_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
 };
 

@@ -107,7 +107,7 @@ static void madera_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			 MADERA_GPIO1_CTRL_1 + reg_offset, ret);
 }
 
-static struct gpio_chip madera_gpio_chip = {
+static const struct gpio_chip madera_gpio_chip = {
 	.label			= "madera",
 	.owner			= THIS_MODULE,
 	.request		= gpiochip_generic_request,

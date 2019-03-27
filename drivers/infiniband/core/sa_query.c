@@ -2342,9 +2342,7 @@ static void ib_sa_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	sa_dev = kzalloc(sizeof *sa_dev +
-			 (e - s + 1) * sizeof (struct ib_sa_port),
-			 GFP_KERNEL);
+	sa_dev = kzalloc(struct_size(sa_dev, port, e - s + 1), GFP_KERNEL);
 	if (!sa_dev)
 		return;
 

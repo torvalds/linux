@@ -1,0 +1,17 @@
+Milbeaut SoCs Timer Controller
+
+Required properties:
+
+- compatible : should be "socionext,milbeaut-timer".
+- reg : Specifies base physical address and size of the registers.
+- interrupts : The interrupt of the first timer.
+- clocks: phandle to the input clk.
+
+Example:
+
+timer {
+	compatible = "socionext,milbeaut-timer";
+	reg = <0x1e000050 0x20>
+	interrupts = <0 91 4>;
+	clocks = <&clk 4>;
+};

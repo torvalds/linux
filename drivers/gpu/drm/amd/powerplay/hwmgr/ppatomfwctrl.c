@@ -489,15 +489,16 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 }
 
 int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
-					       uint8_t id, uint32_t *frequency)
+					       uint8_t clk_id, uint8_t syspll_id,
+					       uint32_t *frequency)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 	struct atom_get_smu_clock_info_parameters_v3_1   parameters;
 	struct atom_get_smu_clock_info_output_parameters_v3_1 *output;
 	uint32_t ix;
 
-	parameters.clk_id = id;
-	parameters.syspll_id = 0;
+	parameters.clk_id = clk_id;
+	parameters.syspll_id = syspll_id;
 	parameters.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
 	parameters.dfsdid = 0;
 
@@ -530,20 +531,23 @@ static void pp_atomfwctrl_copy_vbios_bootup_values_3_2(struct pp_hwmgr *hwmgr,
 	boot_values->ulSocClk   = 0;
 	boot_values->ulDCEFClk   = 0;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_SOCCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_SOCCLK_ID, SMU11_SYSPLL0_ID, &frequency))
 		boot_values->ulSocClk   = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCEFCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCEFCLK_ID, SMU11_SYSPLL0_ID, &frequency))
 		boot_values->ulDCEFClk  = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_ECLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_ECLK_ID, SMU11_SYSPLL0_ID, &frequency))
 		boot_values->ulEClk     = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_VCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_VCLK_ID, SMU11_SYSPLL0_ID, &frequency))
 		boot_values->ulVClk     = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCLK_ID, SMU11_SYSPLL0_ID, &frequency))
 		boot_values->ulDClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL1_0_FCLK_ID, SMU11_SYSPLL1_2_ID, &frequency))
+		boot_values->ulFClk     = frequency;
 }
 
 static void pp_atomfwctrl_copy_vbios_bootup_values_3_1(struct pp_hwmgr *hwmgr,
@@ -563,19 +567,19 @@ static void pp_atomfwctrl_copy_vbios_bootup_values_3_1(struct pp_hwmgr *hwmgr,
 	boot_values->ulSocClk   = 0;
 	boot_values->ulDCEFClk   = 0;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, 0, &frequency))
 		boot_values->ulSocClk   = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, 0, &frequency))
 		boot_values->ulDCEFClk  = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_ECLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_ECLK_ID, 0, &frequency))
 		boot_values->ulEClk     = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_VCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_VCLK_ID, 0, &frequency))
 		boot_values->ulVClk     = frequency;
 
-	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCLK_ID, &frequency))
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCLK_ID, 0, &frequency))
 		boot_values->ulDClk     = frequency;
 }
 

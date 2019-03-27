@@ -369,3 +369,15 @@ Legacy CRTC/Modeset Helper Functions Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
    :export:
+
+SHMEM GEM Helper Reference
+==========================
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_shmem_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_shmem_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_shmem_helper.c
+   :export:

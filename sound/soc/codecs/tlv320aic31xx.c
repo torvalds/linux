@@ -1274,8 +1274,9 @@ static int aic31xx_codec_probe(struct snd_soc_component *component)
 		aic31xx->disable_nb[i].nb.notifier_call =
 			aic31xx_regulator_event;
 		aic31xx->disable_nb[i].aic31xx = aic31xx;
-		ret = regulator_register_notifier(aic31xx->supplies[i].consumer,
-						  &aic31xx->disable_nb[i].nb);
+		ret = devm_regulator_register_notifier(
+						aic31xx->supplies[i].consumer,
+						&aic31xx->disable_nb[i].nb);
 		if (ret) {
 			dev_err(component->dev,
 				"Failed to request regulator notifier: %d\n",
@@ -1298,19 +1299,8 @@ static int aic31xx_codec_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static void aic31xx_codec_remove(struct snd_soc_component *component)
-{
-	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++)
-		regulator_unregister_notifier(aic31xx->supplies[i].consumer,
-					      &aic31xx->disable_nb[i].nb);
-}
-
 static const struct snd_soc_component_driver soc_codec_driver_aic31xx = {
 	.probe			= aic31xx_codec_probe,
-	.remove			= aic31xx_codec_remove,
 	.set_bias_level		= aic31xx_set_bias_level,
 	.controls		= common31xx_snd_controls,
 	.num_controls		= ARRAY_SIZE(common31xx_snd_controls),

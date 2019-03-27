@@ -1056,6 +1056,9 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 			mmc->f_max = 48000000;
 	}
 
+	if (!mmc_can_gpio_ro(mmc))
+		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+
 	pltfm_host->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(pltfm_host->clk)) {
 		ret = PTR_ERR(pltfm_host->clk);
@@ -1097,7 +1100,6 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 		goto err_put_sync;
 	}
 
-	host->mmc_host_ops.get_ro = mmc_gpio_get_ro;
 	host->mmc_host_ops.start_signal_voltage_switch =
 					sdhci_omap_start_signal_voltage_switch;
 	host->mmc_host_ops.set_ios = sdhci_omap_set_ios;

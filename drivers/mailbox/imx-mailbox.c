@@ -187,8 +187,8 @@ static int imx_mu_startup(struct mbox_chan *chan)
 		return 0;
 	}
 
-	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED, cp->irq_desc,
-			  chan);
+	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED |
+			  IRQF_NO_SUSPEND, cp->irq_desc, chan);
 	if (ret) {
 		dev_err(priv->dev,
 			"Unable to acquire IRQ %d\n", priv->irq);

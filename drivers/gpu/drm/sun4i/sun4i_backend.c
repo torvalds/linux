@@ -720,33 +720,22 @@ static int sun4i_backend_free_sat(struct device *dev) {
  */
 static int sun4i_backend_of_get_id(struct device_node *node)
 {
-	struct device_node *port, *ep;
-	int ret = -EINVAL;
+	struct device_node *ep, *remote;
+	struct of_endpoint of_ep;
 
-	/* input is port 0 */
-	port = of_graph_get_port_by_id(node, 0);
-	if (!port)
+	/* Input port is 0, and we want the first endpoint. */
+	ep = of_graph_get_endpoint_by_regs(node, 0, -1);
+	if (!ep)
 		return -EINVAL;
 
-	/* try finding an upstream endpoint */
-	for_each_available_child_of_node(port, ep) {
-		struct device_node *remote;
-		u32 reg;
+	remote = of_graph_get_remote_endpoint(ep);
+	of_node_put(ep);
+	if (!remote)
+		return -EINVAL;
 
-		remote = of_graph_get_remote_endpoint(ep);
-		if (!remote)
-			continue;
-
-		ret = of_property_read_u32(remote, "reg", &reg);
-		if (ret)
-			continue;
-
-		ret = reg;
-	}
-
-	of_node_put(port);
-
-	return ret;
+	of_graph_parse_endpoint(remote, &of_ep);
+	of_node_put(remote);
+	return of_ep.id;
 }
 
 /* TODO: This needs to take multiple pipelines into account */

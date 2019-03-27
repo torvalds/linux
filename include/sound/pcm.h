@@ -30,6 +30,7 @@
 #include <linux/mm.h>
 #include <linux/bitops.h>
 #include <linux/pm_qos.h>
+#include <linux/refcount.h>
 
 #define snd_pcm_substream_chip(substream) ((substream)->private_data)
 #define snd_pcm_chip(pcm) ((pcm)->private_data)
@@ -439,7 +440,7 @@ struct snd_pcm_group {		/* keep linked substreams */
 	spinlock_t lock;
 	struct mutex mutex;
 	struct list_head substreams;
-	int count;
+	refcount_t refs;
 };
 
 struct pid;
@@ -470,7 +471,6 @@ struct snd_pcm_substream {
 	struct snd_pcm_group self_group;	/* fake group for non linked substream (with substream lock inside) */
 	struct snd_pcm_group *group;		/* pointer to current group */
 	/* -- assigned files -- */
-	void *file;
 	int ref_count;
 	atomic_t mmap_count;
 	unsigned int f_flags;
@@ -482,15 +482,6 @@ struct snd_pcm_substream {
 #endif
 #ifdef CONFIG_SND_VERBOSE_PROCFS
 	struct snd_info_entry *proc_root;
-	struct snd_info_entry *proc_info_entry;
-	struct snd_info_entry *proc_hw_params_entry;
-	struct snd_info_entry *proc_sw_params_entry;
-	struct snd_info_entry *proc_status_entry;
-	struct snd_info_entry *proc_prealloc_entry;
-	struct snd_info_entry *proc_prealloc_max_entry;
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	struct snd_info_entry *proc_xrun_injection_entry;
-#endif
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
 	/* misc flags */
 	unsigned int hw_opened: 1;
@@ -512,10 +503,8 @@ struct snd_pcm_str {
 #endif
 #ifdef CONFIG_SND_VERBOSE_PROCFS
 	struct snd_info_entry *proc_root;
-	struct snd_info_entry *proc_info_entry;
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	unsigned int xrun_debug;	/* 0 = disabled, 1 = verbose, 2 = stacktrace */
-	struct snd_info_entry *proc_xrun_debug_entry;
 #endif
 #endif
 	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
@@ -538,6 +527,7 @@ struct snd_pcm {
 	void (*private_free) (struct snd_pcm *pcm);
 	bool internal; /* pcm is for internal use only */
 	bool nonatomic; /* whole PCM operations are in non-atomic context */
+	bool no_device_suspend; /* don't invoke device PM suspend */
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	struct snd_pcm_oss oss;
 #endif
@@ -581,13 +571,8 @@ int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t status);
 int snd_pcm_drain_done(struct snd_pcm_substream *substream);
 int snd_pcm_stop_xrun(struct snd_pcm_substream *substream);
 #ifdef CONFIG_PM
-int snd_pcm_suspend(struct snd_pcm_substream *substream);
 int snd_pcm_suspend_all(struct snd_pcm *pcm);
 #else
-static inline int snd_pcm_suspend(struct snd_pcm_substream *substream)
-{
-	return 0;
-}
 static inline int snd_pcm_suspend_all(struct snd_pcm *pcm)
 {
 	return 0;
@@ -765,7 +750,7 @@ static inline snd_pcm_uframes_t snd_pcm_playback_avail(struct snd_pcm_runtime *r
 }
 
 /**
- * snd_pcm_playback_avail - Get the available (readable) space for capture
+ * snd_pcm_capture_avail - Get the available (readable) space for capture
  * @runtime: PCM runtime instance
  *
  * Result is between 0 ... (boundary - 1)
@@ -1200,12 +1185,12 @@ static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
  *  Memory
  */
 
-int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream);
-int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm);
-int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
+void snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream);
+void snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm);
+void snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 				  int type, struct device *data,
 				  size_t size, size_t max);
-int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
+void snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 					  int type, void *data,
 					  size_t size, size_t max);
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size);

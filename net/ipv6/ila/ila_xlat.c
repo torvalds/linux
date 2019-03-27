@@ -383,12 +383,9 @@ int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info)
 	struct rhashtable_iter iter;
 	struct ila_map *ila;
 	spinlock_t *lock;
-	int ret;
+	int ret = 0;
 
-	ret = rhashtable_walk_init(&ilan->xlat.rhash_table, &iter, GFP_KERNEL);
-	if (ret)
-		goto done;
-
+	rhashtable_walk_enter(&ilan->xlat.rhash_table, &iter);
 	rhashtable_walk_start(&iter);
 
 	for (;;) {
@@ -509,23 +506,17 @@ int ila_xlat_nl_dump_start(struct netlink_callback *cb)
 	struct net *net = sock_net(cb->skb->sk);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_dump_iter *iter;
-	int ret;
 
 	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
 		return -ENOMEM;
 
-	ret = rhashtable_walk_init(&ilan->xlat.rhash_table, &iter->rhiter,
-				   GFP_KERNEL);
-	if (ret) {
-		kfree(iter);
-		return ret;
-	}
+	rhashtable_walk_enter(&ilan->xlat.rhash_table, &iter->rhiter);
 
 	iter->skip = 0;
 	cb->args[0] = (long)iter;
 
-	return ret;
+	return 0;
 }
 
 int ila_xlat_nl_dump_done(struct netlink_callback *cb)

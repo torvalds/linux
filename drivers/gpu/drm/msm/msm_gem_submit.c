@@ -173,7 +173,7 @@ static void submit_unlock_unpin_bo(struct msm_gem_submit *submit,
 		msm_gem_unpin_iova(&msm_obj->base, submit->gpu->aspace);
 
 	if (submit->bos[i].flags & BO_LOCKED)
-		ww_mutex_unlock(&msm_obj->resv->lock);
+		ww_mutex_unlock(&msm_obj->base.resv->lock);
 
 	if (backoff && !(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
@@ -196,7 +196,7 @@ retry:
 		contended = i;
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
-			ret = ww_mutex_lock_interruptible(&msm_obj->resv->lock,
+			ret = ww_mutex_lock_interruptible(&msm_obj->base.resv->lock,
 					&submit->ticket);
 			if (ret)
 				goto fail;
@@ -218,7 +218,7 @@ fail:
 	if (ret == -EDEADLK) {
 		struct msm_gem_object *msm_obj = submit->bos[contended].obj;
 		/* we lost out in a seqno race, lock and retry.. */
-		ret = ww_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
+		ret = ww_mutex_lock_slow_interruptible(&msm_obj->base.resv->lock,
 				&submit->ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
@@ -244,7 +244,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 			 * strange place to call it.  OTOH this is a
 			 * convenient can-fail point to hook it in.
 			 */
-			ret = reservation_object_reserve_shared(msm_obj->resv,
+			ret = reservation_object_reserve_shared(msm_obj->base.resv,
 								1);
 			if (ret)
 				return ret;

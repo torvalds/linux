@@ -107,6 +107,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
 	drm_dev_unplug(dev);
+	drm_dev_put(dev);
 }
 
 /*

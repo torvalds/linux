@@ -87,6 +87,9 @@ static int __integrity_init_keyring(const unsigned int id, key_perm_t perm,
 		pr_info("Can't allocate %s keyring (%d)\n",
 			keyring_name[id], err);
 		keyring[id] = NULL;
+	} else {
+		if (id == INTEGRITY_KEYRING_PLATFORM)
+			set_platform_trusted_keys(keyring[id]);
 	}
 
 	return err;
