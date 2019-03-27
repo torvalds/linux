@@ -238,7 +238,7 @@ int ocxl_context_detach(struct ocxl_context *ctx)
 	}
 	rc = ocxl_link_remove_pe(ctx->afu->fn->link, ctx->pasid);
 	if (rc) {
-		dev_warn(&ctx->afu->dev,
+		dev_warn(&dev->dev,
 			"Couldn't remove PE entry cleanly: %d\n", rc);
 	}
 	return 0;

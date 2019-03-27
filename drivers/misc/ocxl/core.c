@@ -13,16 +13,6 @@ static void ocxl_fn_put(struct ocxl_fn *fn)
 	put_device(&fn->dev);
 }
 
-struct ocxl_afu *ocxl_afu_get(struct ocxl_afu *afu)
-{
-	return (get_device(&afu->dev) == NULL) ? NULL : afu;
-}
-
-void ocxl_afu_put(struct ocxl_afu *afu)
-{
-	put_device(&afu->dev);
-}
-
 static struct ocxl_afu *alloc_afu(struct ocxl_fn *fn)
 {
 	struct ocxl_afu *afu;
@@ -31,6 +21,7 @@ static struct ocxl_afu *alloc_afu(struct ocxl_fn *fn)
 	if (!afu)
 		return NULL;
 
+	kref_init(&afu->kref);
 	mutex_init(&afu->contexts_lock);
 	mutex_init(&afu->afu_control_lock);
 	idr_init(&afu->contexts_idr);
@@ -39,32 +30,26 @@ static struct ocxl_afu *alloc_afu(struct ocxl_fn *fn)
 	return afu;
 }
 
-static void free_afu(struct ocxl_afu *afu)
+static void free_afu(struct kref *kref)
 {
+	struct ocxl_afu *afu = container_of(kref, struct ocxl_afu, kref);
+
 	idr_destroy(&afu->contexts_idr);
 	ocxl_fn_put(afu->fn);
 	kfree(afu);
 }
 
-static void free_afu_dev(struct device *dev)
+void ocxl_afu_get(struct ocxl_afu *afu)
 {
-	struct ocxl_afu *afu = to_ocxl_afu(dev);
-
-	ocxl_unregister_afu(afu);
-	free_afu(afu);
+	kref_get(&afu->kref);
 }
+EXPORT_SYMBOL_GPL(ocxl_afu_get);
 
-static int set_afu_device(struct ocxl_afu *afu, const char *location)
+void ocxl_afu_put(struct ocxl_afu *afu)
 {
-	struct ocxl_fn *fn = afu->fn;
-	int rc;
-
-	afu->dev.parent = &fn->dev;
-	afu->dev.release = free_afu_dev;
-	rc = dev_set_name(&afu->dev, "%s.%s.%hhu", afu->config.name, location,
-		afu->config.idx);
-	return rc;
+	kref_put(&afu->kref, free_afu);
 }
+EXPORT_SYMBOL_GPL(ocxl_afu_put);
 
 static int assign_afu_actag(struct ocxl_afu *afu)
 {
@@ -233,27 +218,25 @@ static int configure_afu(struct ocxl_afu *afu, u8 afu_idx, struct pci_dev *dev)
 	if (rc)
 		return rc;
 
-	rc = set_afu_device(afu, dev_name(&dev->dev));
-	if (rc)
-		return rc;
-
 	rc = assign_afu_actag(afu);
 	if (rc)
 		return rc;
 
 	rc = assign_afu_pasid(afu);
-	if (rc) {
-		reclaim_afu_actag(afu);
-		return rc;
-	}
+	if (rc)
+		goto err_free_actag;
 
 	rc = map_mmio_areas(afu);
-	if (rc) {
-		reclaim_afu_pasid(afu);
-		reclaim_afu_actag(afu);
-		return rc;
-	}
+	if (rc)
+		goto err_free_pasid;
+
 	return 0;
+
+err_free_pasid:
+	reclaim_afu_pasid(afu);
+err_free_actag:
+	reclaim_afu_actag(afu);
+	return rc;
 }
 
 static void deconfigure_afu(struct ocxl_afu *afu)
@@ -265,16 +248,8 @@ static void deconfigure_afu(struct ocxl_afu *afu)
 
 static int activate_afu(struct pci_dev *dev, struct ocxl_afu *afu)
 {
-	int rc;
-
 	ocxl_config_set_afu_state(dev, afu->config.dvsec_afu_control_pos, 1);
-	/*
-	 * Char device creation is the last step, as processes can
-	 * call our driver immediately, so all our inits must be finished.
-	 */
-	rc = ocxl_create_cdev(afu);
-	if (rc)
-		return rc;
+
 	return 0;
 }
 
@@ -282,11 +257,10 @@ static void deactivate_afu(struct ocxl_afu *afu)
 {
 	struct pci_dev *dev = to_pci_dev(afu->fn->dev.parent);
 
-	ocxl_destroy_cdev(afu);
 	ocxl_config_set_afu_state(dev, afu->config.dvsec_afu_control_pos, 0);
 }
 
-int init_afu(struct pci_dev *dev, struct ocxl_fn *fn, u8 afu_idx)
+static int init_afu(struct pci_dev *dev, struct ocxl_fn *fn, u8 afu_idx)
 {
 	int rc;
 	struct ocxl_afu *afu;
@@ -297,41 +271,29 @@ int init_afu(struct pci_dev *dev, struct ocxl_fn *fn, u8 afu_idx)
 
 	rc = configure_afu(afu, afu_idx, dev);
 	if (rc) {
-		free_afu(afu);
+		ocxl_afu_put(afu);
 		return rc;
 	}
 
-	rc = ocxl_register_afu(afu);
-	if (rc)
-		goto err;
-
-	rc = ocxl_sysfs_add_afu(afu);
-	if (rc)
-		goto err;
-
 	rc = activate_afu(dev, afu);
-	if (rc)
-		goto err_sys;
+	if (rc) {
+		deconfigure_afu(afu);
+		ocxl_afu_put(afu);
+		return rc;
+	}
 
 	list_add_tail(&afu->list, &fn->afu_list);
-	return 0;
 
-err_sys:
-	ocxl_sysfs_remove_afu(afu);
-err:
-	deconfigure_afu(afu);
-	device_unregister(&afu->dev);
-	return rc;
+	return 0;
 }
 
-void remove_afu(struct ocxl_afu *afu)
+static void remove_afu(struct ocxl_afu *afu)
 {
 	list_del(&afu->list);
 	ocxl_context_detach_all(afu);
 	deactivate_afu(afu);
-	ocxl_sysfs_remove_afu(afu);
 	deconfigure_afu(afu);
-	device_unregister(&afu->dev);
+	ocxl_afu_put(afu); // matches the implicit get in alloc_afu
 }
 
 static struct ocxl_fn *alloc_function(void)
@@ -358,7 +320,7 @@ static void free_function(struct ocxl_fn *fn)
 
 static void free_function_dev(struct device *dev)
 {
-	struct ocxl_fn *fn = to_ocxl_function(dev);
+	struct ocxl_fn *fn = container_of(dev, struct ocxl_fn, dev);
 
 	free_function(fn);
 }
@@ -372,7 +334,6 @@ static int set_function_device(struct ocxl_fn *fn, struct pci_dev *dev)
 	rc = dev_set_name(&fn->dev, "ocxlfn.%s", dev_name(&dev->dev));
 	if (rc)
 		return rc;
-	pci_set_drvdata(dev, fn);
 	return 0;
 }
 
@@ -490,7 +451,7 @@ static void deconfigure_function(struct ocxl_fn *fn)
 	pci_disable_device(dev);
 }
 
-struct ocxl_fn *init_function(struct pci_dev *dev)
+static struct ocxl_fn *init_function(struct pci_dev *dev)
 {
 	struct ocxl_fn *fn;
 	int rc;
@@ -514,8 +475,100 @@ struct ocxl_fn *init_function(struct pci_dev *dev)
 	return fn;
 }
 
-void remove_function(struct ocxl_fn *fn)
+// Device detection & initialisation
+
+struct ocxl_fn *ocxl_function_open(struct pci_dev *dev)
 {
+	int rc, afu_count = 0;
+	u8 afu;
+	struct ocxl_fn *fn;
+
+	if (!radix_enabled()) {
+		dev_err(&dev->dev, "Unsupported memory model (hash)\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	fn = init_function(dev);
+	if (IS_ERR(fn)) {
+		dev_err(&dev->dev, "function init failed: %li\n",
+			PTR_ERR(fn));
+		return fn;
+	}
+
+	for (afu = 0; afu <= fn->config.max_afu_index; afu++) {
+		rc = ocxl_config_check_afu_index(dev, &fn->config, afu);
+		if (rc > 0) {
+			rc = init_afu(dev, fn, afu);
+			if (rc) {
+				dev_err(&dev->dev,
+					"Can't initialize AFU index %d\n", afu);
+				continue;
+			}
+			afu_count++;
+		}
+	}
+	dev_info(&dev->dev, "%d AFU(s) configured\n", afu_count);
+	return fn;
+}
+EXPORT_SYMBOL_GPL(ocxl_function_open);
+
+struct list_head *ocxl_function_afu_list(struct ocxl_fn *fn)
+{
+	return &fn->afu_list;
+}
+EXPORT_SYMBOL_GPL(ocxl_function_afu_list);
+
+struct ocxl_afu *ocxl_function_fetch_afu(struct ocxl_fn *fn, u8 afu_idx)
+{
+	struct ocxl_afu *afu;
+
+	list_for_each_entry(afu, &fn->afu_list, list) {
+		if (afu->config.idx == afu_idx)
+			return afu;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ocxl_function_fetch_afu);
+
+const struct ocxl_fn_config *ocxl_function_config(struct ocxl_fn *fn)
+{
+	return &fn->config;
+}
+EXPORT_SYMBOL_GPL(ocxl_function_config);
+
+void ocxl_function_close(struct ocxl_fn *fn)
+{
+	struct ocxl_afu *afu, *tmp;
+
+	list_for_each_entry_safe(afu, tmp, &fn->afu_list, list) {
+		remove_afu(afu);
+	}
+
 	deconfigure_function(fn);
 	device_unregister(&fn->dev);
 }
+EXPORT_SYMBOL_GPL(ocxl_function_close);
+
+// AFU Metadata
+
+struct ocxl_afu_config *ocxl_afu_config(struct ocxl_afu *afu)
+{
+	return &afu->config;
+}
+EXPORT_SYMBOL_GPL(ocxl_afu_config);
+
+void ocxl_afu_set_private(struct ocxl_afu *afu, void *private)
+{
+	afu->private = private;
+}
+EXPORT_SYMBOL_GPL(ocxl_afu_set_private);
+
+void *ocxl_afu_get_private(struct ocxl_afu *afu)
+{
+	if (afu)
+		return afu->private;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ocxl_afu_get_private);

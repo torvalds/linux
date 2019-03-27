@@ -16,11 +16,7 @@
 
 #define OCXL_AFU_NAME_SZ      (24+1)  /* add 1 for NULL termination */
 
-/*
- * The following 2 structures are a fairly generic way of representing
- * the configuration data for a function and AFU, as read from the
- * configuration space.
- */
+
 struct ocxl_afu_config {
 	u8 idx;
 	int dvsec_afu_control_pos; /* offset of AFU control DVSEC */
@@ -49,12 +45,108 @@ struct ocxl_fn_config {
 	s8 max_afu_index;
 };
 
-/*
- * Read the configuration space of a function and fill in a
- * ocxl_fn_config structure with all the function details
+// These are opaque outside the ocxl driver
+struct ocxl_afu;
+struct ocxl_fn;
+
+// Device detection & initialisation
+
+/**
+ * Open an OpenCAPI function on an OpenCAPI device
+ *
+ * @dev: The PCI device that contains the function
+ *
+ * Returns an opaque pointer to the function, or an error pointer (check with IS_ERR)
  */
-int ocxl_config_read_function(struct pci_dev *dev,
-				struct ocxl_fn_config *fn);
+struct ocxl_fn *ocxl_function_open(struct pci_dev *dev);
+
+/**
+ * Get the list of AFUs associated with a PCI function device
+ *
+ * Returns a list of struct ocxl_afu *
+ *
+ * @fn: The OpenCAPI function containing the AFUs
+ */
+struct list_head *ocxl_function_afu_list(struct ocxl_fn *fn);
+
+/**
+ * Fetch an AFU instance from an OpenCAPI function
+ *
+ * @fn: The OpenCAPI function to get the AFU from
+ * @afu_idx: The index of the AFU to get
+ *
+ * If successful, the AFU should be released with ocxl_afu_put()
+ *
+ * Returns a pointer to the AFU, or NULL on error
+ */
+struct ocxl_afu *ocxl_function_fetch_afu(struct ocxl_fn *fn, u8 afu_idx);
+
+/**
+ * Take a reference to an AFU
+ *
+ * @afu: The AFU to increment the reference count on
+ */
+void ocxl_afu_get(struct ocxl_afu *afu);
+
+/**
+ * Release a reference to an AFU
+ *
+ * @afu: The AFU to decrement the reference count on
+ */
+void ocxl_afu_put(struct ocxl_afu *afu);
+
+
+/**
+ * Get the configuration information for an OpenCAPI function
+ *
+ * @fn: The OpenCAPI function to get the config for
+ *
+ * Returns the function config, or NULL on error
+ */
+const struct ocxl_fn_config *ocxl_function_config(struct ocxl_fn *fn);
+
+/**
+ * Close an OpenCAPI function
+ *
+ * This will free any AFUs previously retrieved from the function, and
+ * detach and associated contexts. The contexts must by freed by the caller.
+ *
+ * @fn: The OpenCAPI function to close
+ *
+ */
+void ocxl_function_close(struct ocxl_fn *fn);
+
+// AFU Metadata
+
+/**
+ * Get a pointer to the config for an AFU
+ *
+ * @afu: a pointer to the AFU to get the config for
+ *
+ * Returns a pointer to the AFU config
+ */
+struct ocxl_afu_config *ocxl_afu_config(struct ocxl_afu *afu);
+
+/**
+ * Assign opaque hardware specific information to an OpenCAPI AFU.
+ *
+ * @dev: The PCI device associated with the OpenCAPI device
+ * @private: the opaque hardware specific information to assign to the driver
+ */
+void ocxl_afu_set_private(struct ocxl_afu *afu, void *private);
+
+/**
+ * Fetch the hardware specific information associated with an external OpenCAPI
+ * AFU. This may be consumed by an external OpenCAPI driver.
+ *
+ * @afu: The AFU
+ *
+ * Returns the opaque pointer associated with the device, or NULL if not set
+ */
+void *ocxl_afu_get_private(struct ocxl_afu *dev);
+
+
+// Functions left here are for compatibility with the cxlflash driver
 
 /*
  * Read the configuration space of a function for the AFU specified by
@@ -140,6 +232,13 @@ int ocxl_config_set_TL(struct pci_dev *dev, int tl_dvsec);
  */
 int ocxl_config_terminate_pasid(struct pci_dev *dev,
 				int afu_control_offset, int pasid);
+
+/*
+ * Read the configuration space of a function and fill in a
+ * ocxl_fn_config structure with all the function details
+ */
+int ocxl_config_read_function(struct pci_dev *dev,
+				struct ocxl_fn_config *fn);
 
 /*
  * Set up the opencapi link for the function.

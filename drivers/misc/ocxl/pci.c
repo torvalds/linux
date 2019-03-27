@@ -16,47 +16,45 @@ MODULE_DEVICE_TABLE(pci, ocxl_pci_tbl);
 
 static int ocxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int rc, afu_count = 0;
-	u8 afu;
+	int rc;
+	struct ocxl_afu *afu, *tmp;
 	struct ocxl_fn *fn;
+	struct list_head *afu_list;
 
-	if (!radix_enabled()) {
-		dev_err(&dev->dev, "Unsupported memory model (hash)\n");
-		return -ENODEV;
-	}
-
-	fn = init_function(dev);
-	if (IS_ERR(fn)) {
-		dev_err(&dev->dev, "function init failed: %li\n",
-			PTR_ERR(fn));
+	fn = ocxl_function_open(dev);
+	if (IS_ERR(fn))
 		return PTR_ERR(fn);
-	}
 
-	for (afu = 0; afu <= fn->config.max_afu_index; afu++) {
-		rc = ocxl_config_check_afu_index(dev, &fn->config, afu);
-		if (rc > 0) {
-			rc = init_afu(dev, fn, afu);
-			if (rc) {
-				dev_err(&dev->dev,
-					"Can't initialize AFU index %d\n", afu);
-				continue;
-			}
-			afu_count++;
+	pci_set_drvdata(dev, fn);
+
+	afu_list = ocxl_function_afu_list(fn);
+
+	list_for_each_entry_safe(afu, tmp, afu_list, list) {
+		// Cleanup handled within ocxl_file_register_afu()
+		rc = ocxl_file_register_afu(afu);
+		if (rc) {
+			dev_err(&dev->dev, "Failed to register AFU '%s' index %d",
+					afu->config.name, afu->config.idx);
 		}
 	}
-	dev_info(&dev->dev, "%d AFU(s) configured\n", afu_count);
+
 	return 0;
 }
 
-static void ocxl_remove(struct pci_dev *dev)
+void ocxl_remove(struct pci_dev *dev)
 {
-	struct ocxl_afu *afu, *tmp;
-	struct ocxl_fn *fn = pci_get_drvdata(dev);
+	struct ocxl_fn *fn;
+	struct ocxl_afu *afu;
+	struct list_head *afu_list;
 
-	list_for_each_entry_safe(afu, tmp, &fn->afu_list, list) {
-		remove_afu(afu);
+	fn = pci_get_drvdata(dev);
+	afu_list = ocxl_function_afu_list(fn);
+
+	list_for_each_entry(afu, afu_list, list) {
+		ocxl_file_unregister_afu(afu);
 	}
-	remove_function(fn);
+
+	ocxl_function_close(fn);
 }
 
 struct pci_driver ocxl_pci_driver = {

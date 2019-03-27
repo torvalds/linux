@@ -11,9 +11,6 @@
 #define MAX_IRQ_PER_LINK	2000
 #define MAX_IRQ_PER_CONTEXT	MAX_IRQ_PER_LINK
 
-#define to_ocxl_function(d) container_of(d, struct ocxl_fn, dev)
-#define to_ocxl_afu(d) container_of(d, struct ocxl_afu, dev)
-
 extern struct pci_driver ocxl_pci_driver;
 
 struct ocxl_fn {
@@ -30,11 +27,17 @@ struct ocxl_fn {
 	void *link;
 };
 
-struct ocxl_afu {
-	struct ocxl_fn *fn;
-	struct list_head list;
+struct ocxl_file_info {
+	struct ocxl_afu *afu;
 	struct device dev;
 	struct cdev cdev;
+	struct bin_attribute attr_global_mmio;
+};
+
+struct ocxl_afu {
+	struct kref kref;
+	struct ocxl_fn *fn;
+	struct list_head list;
 	struct ocxl_afu_config config;
 	int pasid_base;
 	int pasid_count; /* opened contexts */
@@ -48,7 +51,7 @@ struct ocxl_afu {
 	u64 irq_base_offset;
 	void __iomem *global_mmio_ptr;
 	u64 pp_mmio_start;
-	struct bin_attribute attr_global_mmio;
+	void *private;
 };
 
 enum ocxl_context_status {
@@ -91,13 +94,10 @@ struct ocxl_process_element {
 	__be32 software_state;
 };
 
-struct ocxl_afu *ocxl_afu_get(struct ocxl_afu *afu);
-void ocxl_afu_put(struct ocxl_afu *afu);
-
 int ocxl_create_cdev(struct ocxl_afu *afu);
 void ocxl_destroy_cdev(struct ocxl_afu *afu);
-int ocxl_register_afu(struct ocxl_afu *afu);
-void ocxl_unregister_afu(struct ocxl_afu *afu);
+int ocxl_file_register_afu(struct ocxl_afu *afu);
+void ocxl_file_unregister_afu(struct ocxl_afu *afu);
 
 int ocxl_file_init(void);
 void ocxl_file_exit(void);
@@ -140,8 +140,8 @@ int ocxl_context_detach(struct ocxl_context *ctx);
 void ocxl_context_detach_all(struct ocxl_afu *afu);
 void ocxl_context_free(struct ocxl_context *ctx);
 
-int ocxl_sysfs_add_afu(struct ocxl_afu *afu);
-void ocxl_sysfs_remove_afu(struct ocxl_afu *afu);
+int ocxl_sysfs_register_afu(struct ocxl_file_info *info);
+void ocxl_sysfs_unregister_afu(struct ocxl_file_info *info);
 
 int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset);
 int ocxl_afu_irq_free(struct ocxl_context *ctx, u64 irq_offset);
@@ -149,10 +149,5 @@ void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
 int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
 			int eventfd);
 u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
-
-struct ocxl_fn *init_function(struct pci_dev *dev);
-void remove_function(struct ocxl_fn *fn);
-int init_afu(struct pci_dev *dev, struct ocxl_fn *fn, u8 afu_idx);
-void remove_afu(struct ocxl_afu *afu);
 
 #endif /* _OCXL_INTERNAL_H_ */
