@@ -1904,6 +1904,9 @@ static ssize_t disk_events_poll_msecs_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
+	if (!disk->ev)
+		return sprintf(buf, "-1\n");
+
 	return sprintf(buf, "%ld\n", disk->ev->poll_msecs);
 }
 
@@ -1919,6 +1922,9 @@ static ssize_t disk_events_poll_msecs_store(struct device *dev,
 
 	if (intv < 0 && intv != -1)
 		return -EINVAL;
+
+	if (!disk->ev)
+		return -ENODEV;
 
 	disk_block_events(disk);
 	disk->ev->poll_msecs = intv;
@@ -1984,7 +1990,7 @@ static void disk_alloc_events(struct gendisk *disk)
 {
 	struct disk_events *ev;
 
-	if (!disk->fops->check_events)
+	if (!disk->fops->check_events || !disk->events)
 		return;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -2006,13 +2012,13 @@ static void disk_alloc_events(struct gendisk *disk)
 
 static void disk_add_events(struct gendisk *disk)
 {
-	if (!disk->ev)
-		return;
-
 	/* FIXME: error handling */
 	if (sysfs_create_files(&disk_to_dev(disk)->kobj, disk_events_attrs) < 0)
 		pr_warn("%s: failed to create sysfs files for events\n",
 			disk->disk_name);
+
+	if (!disk->ev)
+		return;
 
 	mutex_lock(&disk_events_mutex);
 	list_add_tail(&disk->ev->node, &disk_events);
@@ -2027,14 +2033,13 @@ static void disk_add_events(struct gendisk *disk)
 
 static void disk_del_events(struct gendisk *disk)
 {
-	if (!disk->ev)
-		return;
+	if (disk->ev) {
+		disk_block_events(disk);
 
-	disk_block_events(disk);
-
-	mutex_lock(&disk_events_mutex);
-	list_del_init(&disk->ev->node);
-	mutex_unlock(&disk_events_mutex);
+		mutex_lock(&disk_events_mutex);
+		list_del_init(&disk->ev->node);
+		mutex_unlock(&disk_events_mutex);
+	}
 
 	sysfs_remove_files(&disk_to_dev(disk)->kobj, disk_events_attrs);
 }
