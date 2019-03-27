@@ -1704,7 +1704,7 @@ static __poll_t devx_async_cmd_event_poll(struct file *filp,
 	return pollflags;
 }
 
-const struct file_operations devx_async_cmd_event_fops = {
+static const struct file_operations devx_async_cmd_event_fops = {
 	.owner	 = THIS_MODULE,
 	.read	 = devx_async_cmd_event_read,
 	.poll    = devx_async_cmd_event_poll,
