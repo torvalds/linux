@@ -376,8 +376,6 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
  * The 'start address' is the logical address of the *new* root node
  * for root replace operations, or the logical address of the affected
  * block for all other operations.
- *
- * Note: must be called with write lock for fs_info::tree_mod_log_lock.
  */
 static noinline int
 __tree_mod_log_insert(struct btrfs_fs_info *fs_info, struct tree_mod_elem *tm)
@@ -386,6 +384,8 @@ __tree_mod_log_insert(struct btrfs_fs_info *fs_info, struct tree_mod_elem *tm)
 	struct rb_node **new;
 	struct rb_node *parent = NULL;
 	struct tree_mod_elem *cur;
+
+	lockdep_assert_held_write(&fs_info->tree_mod_log_lock);
 
 	tm->seq = btrfs_inc_tree_mod_seq(fs_info);
 
