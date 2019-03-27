@@ -1231,14 +1231,6 @@ again:
 	mutex_unlock(&uuid_mutex);
 }
 
-static void free_device_rcu(struct rcu_head *head)
-{
-	struct btrfs_device *device;
-
-	device = container_of(head, struct btrfs_device, rcu);
-	btrfs_free_device(device);
-}
-
 static void btrfs_close_bdev(struct btrfs_device *device)
 {
 	if (!device->bdev)
@@ -1286,7 +1278,8 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 	list_replace_rcu(&device->dev_list, &new_device->dev_list);
 	new_device->fs_devices = device->fs_devices;
 
-	call_rcu(&device->rcu, free_device_rcu);
+	synchronize_rcu();
+	btrfs_free_device(device);
 }
 
 static int close_fs_devices(struct btrfs_fs_devices *fs_devices)
@@ -2243,7 +2236,8 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 		btrfs_scratch_superblocks(device->bdev, device->name->str);
 
 	btrfs_close_bdev(device);
-	call_rcu(&device->rcu, free_device_rcu);
+	synchronize_rcu();
+	btrfs_free_device(device);
 
 	if (cur_devices->open_devices == 0) {
 		while (fs_devices) {
@@ -2311,7 +2305,8 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 	}
 
 	btrfs_close_bdev(srcdev);
-	call_rcu(&srcdev->rcu, free_device_rcu);
+	synchronize_rcu();
+	btrfs_free_device(srcdev);
 
 	/* if this is no devs we rather delete the fs_devices */
 	if (!fs_devices->num_devices) {
@@ -2369,7 +2364,8 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev)
 	btrfs_scratch_superblocks(tgtdev->bdev, tgtdev->name->str);
 
 	btrfs_close_bdev(tgtdev);
-	call_rcu(&tgtdev->rcu, free_device_rcu);
+	synchronize_rcu();
+	btrfs_free_device(tgtdev);
 }
 
 static struct btrfs_device *btrfs_find_device_by_path(

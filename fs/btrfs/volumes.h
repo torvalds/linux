@@ -118,7 +118,6 @@ struct btrfs_device {
 	struct scrub_ctx *scrub_ctx;
 
 	struct btrfs_work work;
-	struct rcu_head rcu;
 
 	/* readahead state */
 	atomic_t reada_in_flight;
