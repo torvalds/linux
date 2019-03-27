@@ -38,6 +38,8 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_connector *connector = conn_state->connector;
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
 	void *port = to_intel_connector(connector)->port;
 	struct drm_atomic_state *state = pipe_config->base.state;
 	struct drm_crtc *crtc = pipe_config->base.crtc;
@@ -62,6 +64,14 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		DRM_DEBUG_KMS("Setting pipe bpp to %d\n",
 			      bpp);
 	}
+
+	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+		pipe_config->has_audio =
+			drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port);
+	else
+		pipe_config->has_audio =
+			intel_conn_state->force_audio == HDMI_AUDIO_ON;
+
 	/*
 	 * for MST we always configure max link bw - the spec doesn't
 	 * seem to suggest we should do otherwise.
@@ -73,9 +83,6 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->pipe_bpp = bpp;
 
 	pipe_config->port_clock = intel_dp_max_link_rate(intel_dp);
-
-	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port))
-		pipe_config->has_audio = true;
 
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
@@ -496,6 +503,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	if (ret)
 		goto err;
 
+	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 
 	return connector;
