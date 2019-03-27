@@ -99,8 +99,8 @@ typedef struct ip
 
 typedef struct die_header
 {
-	uint32_t die_id;
-	uint32_t num_ips;
+	uint16_t die_id;
+	uint16_t num_ips;
 } die_header;
 
 typedef struct ip_structure
