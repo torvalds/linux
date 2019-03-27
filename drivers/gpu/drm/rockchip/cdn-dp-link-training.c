@@ -69,7 +69,13 @@ static int cdn_dp_set_pattern(struct cdn_dp_device *dp, uint8_t dp_train_pat)
 		return ret;
 	}
 
-	if (drm_dp_enhanced_frame_cap(dp->dpcd))
+	if (drm_dp_enhanced_frame_cap(dp->dpcd) ||
+	    /*
+	     * A setting of 1 indicates that this is an eDP device that uses
+	     * only Enhanced Framing, independently of the setting by the
+	     * source of ENHANCED_FRAME_EN
+	     */
+	    dp->dpcd[DP_EDP_CONFIGURATION_CAP] & DP_FRAMING_CHANGE_CAP)
 		ret = cdn_dp_reg_write(dp, DPTX_ENHNCD, 1);
 	else
 		ret = cdn_dp_reg_write(dp, DPTX_ENHNCD, 0);
