@@ -1549,8 +1549,7 @@ static bool contains_pending_extent(struct btrfs_device *device, u64 *start,
  * But if we don't find suitable free space, it is used to store the size of
  * the max free space.
  */
-int find_free_dev_extent_start(struct btrfs_transaction *transaction,
-			       struct btrfs_device *device, u64 num_bytes,
+int find_free_dev_extent_start(struct btrfs_device *device, u64 num_bytes,
 			       u64 search_start, u64 *start, u64 *len)
 {
 	struct btrfs_fs_info *fs_info = device->fs_info;
@@ -1706,13 +1705,11 @@ out:
 	return ret;
 }
 
-int find_free_dev_extent(struct btrfs_trans_handle *trans,
-			 struct btrfs_device *device, u64 num_bytes,
+int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *len)
 {
 	/* FIXME use last free of some kind */
-	return find_free_dev_extent_start(trans->transaction, device,
-					  num_bytes, 0, start, len);
+	return find_free_dev_extent_start(device, num_bytes, 0, start, len);
 }
 
 static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
@@ -5025,7 +5022,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		if (total_avail == 0)
 			continue;
 
-		ret = find_free_dev_extent(trans, device,
+		ret = find_free_dev_extent(device,
 					   max_stripe_size * dev_stripes,
 					   &dev_offset, &max_avail);
 		if (ret && ret != -ENOSPC)

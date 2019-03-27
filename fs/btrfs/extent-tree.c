@@ -9915,12 +9915,10 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group_cache *cache)
  */
 int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
-	struct btrfs_root *root = fs_info->extent_root;
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_space_info *space_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;
-	struct btrfs_trans_handle *trans;
 	u64 min_free;
 	u64 dev_min = 1;
 	u64 dev_nr = 0;
@@ -10019,13 +10017,6 @@ int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 		min_free = div64_u64(min_free, dev_min);
 	}
 
-	/* We need to do this so that we can look at pending chunks */
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		goto out;
-	}
-
 	mutex_lock(&fs_info->chunk_mutex);
 	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
 		u64 dev_offset;
@@ -10036,7 +10027,7 @@ int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 		 */
 		if (device->total_bytes > device->bytes_used + min_free &&
 		    !test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state)) {
-			ret = find_free_dev_extent(trans, device, min_free,
+			ret = find_free_dev_extent(device, min_free,
 						   &dev_offset, NULL);
 			if (!ret)
 				dev_nr++;
@@ -10052,7 +10043,6 @@ int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 			   "no space to allocate a new chunk for block group %llu",
 			   block_group->key.objectid);
 	mutex_unlock(&fs_info->chunk_mutex);
-	btrfs_end_transaction(trans);
 out:
 	btrfs_put_block_group(block_group);
 	return ret;
@@ -11304,34 +11294,14 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 
 	while (1) {
 		struct btrfs_fs_info *fs_info = device->fs_info;
-		struct btrfs_transaction *trans;
 		u64 bytes;
 
 		ret = mutex_lock_interruptible(&fs_info->chunk_mutex);
 		if (ret)
 			break;
 
-		ret = down_read_killable(&fs_info->commit_root_sem);
-		if (ret) {
-			mutex_unlock(&fs_info->chunk_mutex);
-			break;
-		}
-
-		spin_lock(&fs_info->trans_lock);
-		trans = fs_info->running_transaction;
-		if (trans)
-			refcount_inc(&trans->use_count);
-		spin_unlock(&fs_info->trans_lock);
-
-		if (!trans)
-			up_read(&fs_info->commit_root_sem);
-
-		ret = find_free_dev_extent_start(trans, device, range->minlen,
-						 start, &start, &len);
-		if (trans) {
-			up_read(&fs_info->commit_root_sem);
-			btrfs_put_transaction(trans);
-		}
+		ret = find_free_dev_extent_start(device, range->minlen, start,
+						 &start, &len);
 
 		if (ret) {
 			mutex_unlock(&fs_info->chunk_mutex);
