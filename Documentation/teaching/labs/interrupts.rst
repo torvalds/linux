@@ -56,7 +56,7 @@ For IRQs to be useful device drivers must implement handlers, i.e. a
 particular sequence of code that handles the interrupt. Because in
 many situations the number of interrupts available is limited, a
 device driver must behave in an orderly fashion with interruptions:
-interrupts must be required before being used and released when they
+interrupts must be requested before being used and released when they
 are no longer needed. In addition, in some situations, device drivers
 must share an interrupt or synchronize with interrupts. All of these will be
 discussed further.
