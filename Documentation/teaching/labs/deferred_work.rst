@@ -193,14 +193,14 @@ A particular type of deferred work, very often used, are timers. They
 are defined by :c:type:`struct timer_list`. They run in interrupt
 context and are implemented on top of softirqs.
 
-To be used, a timer must first be initialized by calling :c:func:`setup_timer`:
+To be used, a timer must first be initialized by calling :c:func:`timer_setup`:
 
 .. code-block:: c
 
    #include <linux / sched.h>
 
-   void setup_timer(struct timer_list * timer,
-		    void (*function)(unsigned long),
+   void timer_setup(struct timer_list * timer,
+		    void (*function)(struct timer_list *),
 		    unsigned long data);
 
 The above function initializes the internal fields of the structure
@@ -270,12 +270,12 @@ timeout is:
 
    #include <linux/sched.h>
 
-   void timer_function(unsigned long arg);
+   void timer_function(struct timer_list *);
 
    struct timer_list timer ;
    unsigned long seconds = 1;
 
-   setup_timer(&timer, timer_function, 0);
+   timer_setup(&timer, timer_function, 0);
    mod_timer(&timer, jiffies + seconds * HZ);
 
 And to stop it:
