@@ -300,11 +300,11 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 					for (k = 0; k < num_base_address; k++) {
 						/*
-						 * convert the endianness and unit (in dword) of base addresses in place,
+						 * convert the endianness of base addresses in place,
 						 * so that we don't need to convert them when accessing adev->reg_offset.
 						 */
-						ip->base_address[k] = le32_to_cpu(ip->base_address[k]) >> 2;
-						DRM_DEBUG("\t0x%08x\n", ip->base_address[k] << 2);
+						ip->base_address[k] = le32_to_cpu(ip->base_address[k]);
+						DRM_DEBUG("\t0x%08x\n", ip->base_address[k]);
 					}
 
 					adev->reg_offset[hw_ip][ip->number_instance] =
