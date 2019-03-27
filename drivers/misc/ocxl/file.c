@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/sched/signal.h>
+#include <linux/eventfd.h>
 #include <linux/uaccess.h>
 #include <uapi/misc/ocxl.h>
 #include <asm/reg.h>
@@ -183,11 +184,27 @@ static long afu_ioctl_get_features(struct ocxl_context *ctx,
 			x == OCXL_IOCTL_GET_FEATURES ? "GET_FEATURES" :	\
 			"UNKNOWN")
 
+static irqreturn_t irq_handler(void *private)
+{
+	struct eventfd_ctx *ev_ctx = private;
+
+	eventfd_signal(ev_ctx, 1);
+	return IRQ_HANDLED;
+}
+
+static void irq_free(void *private)
+{
+	struct eventfd_ctx *ev_ctx = private;
+
+	eventfd_ctx_put(ev_ctx);
+}
+
 static long afu_ioctl(struct file *file, unsigned int cmd,
 		unsigned long args)
 {
 	struct ocxl_context *ctx = file->private_data;
 	struct ocxl_ioctl_irq_fd irq_fd;
+	struct eventfd_ctx *ev_ctx;
 	int irq_id;
 	u64 irq_offset;
 	long rc;
@@ -239,7 +256,10 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 		if (irq_fd.reserved)
 			return -EINVAL;
 		irq_id = ocxl_irq_offset_to_id(ctx, irq_fd.irq_offset);
-		rc = ocxl_afu_irq_set_fd(ctx, irq_id, irq_fd.eventfd);
+		ev_ctx = eventfd_ctx_fdget(irq_fd.eventfd);
+		if (!ev_ctx)
+			return -EFAULT;
+		rc = ocxl_irq_set_handler(ctx, irq_id, irq_handler, irq_free, ev_ctx);
 		break;
 
 	case OCXL_IOCTL_GET_METADATA:

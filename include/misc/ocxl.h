@@ -155,6 +155,52 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr,
  */
 int ocxl_context_detach(struct ocxl_context *ctx);
 
+// AFU IRQs
+
+/**
+ * Allocate an IRQ associated with an AFU context
+ * @ctx: the AFU context
+ * @irq_id: out, the IRQ ID
+ *
+ * Returns 0 on success, negative on failure
+ */
+extern int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id);
+
+/**
+ * Frees an IRQ associated with an AFU context
+ * @ctx: the AFU context
+ * @irq_id: the IRQ ID
+ *
+ * Returns 0 on success, negative on failure
+ */
+extern int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
+
+/**
+ * Gets the address of the trigger page for an IRQ
+ * This can then be provided to an AFU which will write to that
+ * page to trigger the IRQ.
+ * @ctx: The AFU context that the IRQ is associated with
+ * @irq_id: The IRQ ID
+ *
+ * returns the trigger page address, or 0 if the IRQ is not valid
+ */
+extern u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
+
+/**
+ * Provide a callback to be called when an IRQ is triggered
+ * @ctx: The AFU context that the IRQ is associated with
+ * @irq_id: The IRQ ID
+ * @handler: the callback to be called when the IRQ is triggered
+ * @free_private: the callback to be called when the IRQ is freed (may be NULL)
+ * @private: Private data to be passed to the callbacks
+ *
+ * Returns 0 on success, negative on failure
+ */
+int ocxl_irq_set_handler(struct ocxl_context *ctx, int irq_id,
+		irqreturn_t (*handler)(void *private),
+		void (*free_private)(void *private),
+		void *private);
+
 // AFU Metadata
 
 /**
