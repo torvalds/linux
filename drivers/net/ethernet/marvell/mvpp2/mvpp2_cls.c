@@ -478,7 +478,7 @@ static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv,
 	/* We point on the first lookup in the sequence for the flow, that is
 	 * the C2 lookup.
 	 */
-	le.data |= MVPP2_CLS_LKP_FLOW_PTR(MVPP2_FLOW_C2_ENTRY(flow->flow_id));
+	le.data |= MVPP2_CLS_LKP_FLOW_PTR(MVPP2_CLS_FLT_FIRST(flow->flow_id));
 
 	/* CLS is always enabled, RSS is enabled/disabled in C2 lookup */
 	le.data |= MVPP2_CLS_LKP_TBL_LOOKUP_EN_MASK;
@@ -536,7 +536,7 @@ static void mvpp2_cls_flow_init(struct mvpp2 *priv,
 
 	/* C2 lookup */
 	memset(&fe, 0, sizeof(fe));
-	fe.index = MVPP2_FLOW_C2_ENTRY(flow->flow_id);
+	fe.index = MVPP2_CLS_FLT_C2_RSS_ENTRY(flow->flow_id);
 
 	mvpp2_cls_flow_eng_set(&fe, MVPP22_CLS_ENGINE_C2);
 	mvpp2_cls_flow_port_id_sel(&fe, true);
@@ -553,7 +553,7 @@ static void mvpp2_cls_flow_init(struct mvpp2 *priv,
 	/* C3Hx lookups */
 	for (i = 0; i < MVPP2_MAX_PORTS; i++) {
 		memset(&fe, 0, sizeof(fe));
-		fe.index = MVPP2_PORT_FLOW_HASH_ENTRY(i, flow->flow_id);
+		fe.index = MVPP2_CLS_FLT_HASH_ENTRY(i, flow->flow_id);
 
 		mvpp2_cls_flow_port_id_sel(&fe, true);
 		mvpp2_cls_flow_pri_set(&fe, i + 1);
@@ -661,8 +661,7 @@ static int mvpp2_port_rss_hash_opts_set(struct mvpp2_port *port, int flow_type,
 		if (!flow)
 			return -EINVAL;
 
-		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
-							flow->flow_id);
+		flow_index = MVPP2_CLS_FLT_HASH_ENTRY(port->id, flow->flow_id);
 
 		mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 
@@ -747,8 +746,7 @@ static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 		if (!flow)
 			return 0;
 
-		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
-							flow->flow_id);
+		flow_index = MVPP2_CLS_FLT_HASH_ENTRY(port->id, flow->flow_id);
 
 		mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 

@@ -150,7 +150,7 @@ static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
 	if (!f)
 		return -EINVAL;
 
-	flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(entry->port->id, f->flow_id);
+	flow_index = MVPP2_CLS_FLT_HASH_ENTRY(entry->port->id, f->flow_id);
 
 	mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 
@@ -175,7 +175,7 @@ static int mvpp2_dbgfs_port_flow_engine_show(struct seq_file *s, void *unused)
 	if (!f)
 		return -EINVAL;
 
-	flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(entry->port->id, f->flow_id);
+	flow_index = MVPP2_CLS_FLT_HASH_ENTRY(entry->port->id, f->flow_id);
 
 	mvpp2_cls_flow_read(port->priv, flow_index, &fe);
 

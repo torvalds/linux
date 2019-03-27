@@ -177,12 +177,13 @@ struct mvpp2_cls_flow {
 	struct mvpp2_prs_result_info prs_ri;
 };
 
-
-#define MVPP2_ENTRIES_PER_FLOW			(MVPP2_MAX_PORTS + 1)
-#define MVPP2_FLOW_C2_ENTRY(id)			((((id) - MVPP2_FL_START) * \
-						 MVPP2_ENTRIES_PER_FLOW) + 1)
-#define MVPP2_PORT_FLOW_HASH_ENTRY(port, id)	(MVPP2_FLOW_C2_ENTRY(id) + \
-						 1 + (port))
+#define MVPP2_CLS_FLT_ENTRIES_PER_FLOW		(MVPP2_MAX_PORTS + 1)
+#define MVPP2_CLS_FLT_FIRST(id)			(((id) - MVPP2_FL_START) * \
+						 MVPP2_CLS_FLT_ENTRIES_PER_FLOW)
+#define MVPP2_CLS_FLT_C2_RSS_ENTRY(id)		(MVPP2_CLS_FLT_FIRST(id))
+#define MVPP2_CLS_FLT_HASH_ENTRY(port, id)	(MVPP2_CLS_FLT_C2_RSS_ENTRY(id) + (port) + 1)
+#define MVPP2_CLS_FLT_LAST(id)			(MVPP2_CLS_FLT_FIRST(id) + \
+						 MVPP2_CLS_FLT_ENTRIES_PER_FLOW - 1)
 
 /* Iterate on each classifier flow id. Sets 'i' to be the index of the first
  * entry in the cls_flows table for each different flow_id.
