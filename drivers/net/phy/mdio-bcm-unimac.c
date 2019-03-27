@@ -92,10 +92,7 @@ static int unimac_mdio_poll(void *wait_func_data)
 		usleep_range(1000, 2000);
 	} while (--timeout);
 
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return -ETIMEDOUT;
 }
 
 static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
