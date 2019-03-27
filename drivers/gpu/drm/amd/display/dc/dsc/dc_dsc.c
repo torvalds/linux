@@ -311,19 +311,18 @@ static void get_dsc_bandwidth_range(
  *
  * Returns:
  *     - 'true' if DSC was required by policy and was successfully applied
- *     - 'false' if DSC was not necessary (e.g. if uncompressed stream fits 'target_bandwidth'),
+ *     - 'false' if DSC was not necessary (e.g. if uncompressed stream fits 'target_bandwidth_kbps'),
  *        or if it couldn't be applied based on DSC policy.
  */
 static bool decide_dsc_target_bpp_x16(
 		const struct dc_dsc_policy *policy,
 		const struct dsc_enc_caps *dsc_common_caps,
-		const int target_bandwidth,
+		const int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		int *target_bpp_x16)
 {
 	bool should_use_dsc = false;
 	struct dc_dsc_bw_range range;
-	float target_bandwidth_kbps = target_bandwidth * 0.97f; // 3% overhead for FEC
 
 	memset(&range, 0, sizeof(range));
 
