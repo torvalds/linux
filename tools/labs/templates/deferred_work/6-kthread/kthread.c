@@ -28,7 +28,7 @@ int my_thread_f(void *data)
 	/* TODO: Wait for command to remove module on wq_stop_thread queue. */
 	wait_event_interruptible(wq_stop_thread, atomic_read(&flag_stop_thread) != 0);
 
-	/* TODO: set flag to makr kernel thead termination */
+	/* TODO: set flag to mark kernel thread termination */
 	atomic_set(&flag_thread_terminated, 1);
 	/* TODO: notify the unload process that we have exited */
 	wake_up_interruptible(&wq_thread_terminated);
