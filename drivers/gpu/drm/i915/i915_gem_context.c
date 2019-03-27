@@ -94,6 +94,9 @@
 #include "intel_lrc_reg.h"
 #include "intel_workarounds.h"
 
+#define I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE (1 << 1)
+#define I915_CONTEXT_PARAM_VM 0x9
+
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
 static struct i915_global_gem_context {
@@ -412,6 +415,8 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	BUILD_BUG_ON(I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE &
+		     ~I915_CONTEXT_CREATE_FLAGS_UNKNOWN);
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE &&
 	    !HAS_EXECLISTS(dev_priv))
 		return ERR_PTR(-EINVAL);
@@ -971,6 +976,8 @@ static int get_ppgtt(struct i915_gem_context *ctx,
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
 
+	return -EINVAL; /* nothing to see here; please move along */
+
 	if (!ctx->ppgtt)
 		return -ENODEV;
 
@@ -1070,6 +1077,8 @@ static int set_ppgtt(struct i915_gem_context *ctx,
 	struct drm_i915_file_private *file_priv = ctx->file_priv;
 	struct i915_hw_ppgtt *ppgtt, *old;
 	int err;
+
+	return -EINVAL; /* nothing to see here; please move along */
 
 	if (args->size)
 		return -EINVAL;
