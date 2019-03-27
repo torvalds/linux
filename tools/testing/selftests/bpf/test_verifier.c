@@ -198,7 +198,7 @@ static void bpf_fill_rand_ld_dw(struct bpf_test *self)
 }
 
 /* BPF_SK_LOOKUP contains 13 instructions, if you need to fix up maps */
-#define BPF_SK_LOOKUP							\
+#define BPF_SK_LOOKUP(func)						\
 	/* struct bpf_sock_tuple tuple = {} */				\
 	BPF_MOV64_IMM(BPF_REG_2, 0),					\
 	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -8),			\
@@ -207,13 +207,13 @@ static void bpf_fill_rand_ld_dw(struct bpf_test *self)
 	BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_2, -32),		\
 	BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_2, -40),		\
 	BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_2, -48),		\
-	/* sk = sk_lookup_tcp(ctx, &tuple, sizeof tuple, 0, 0) */	\
+	/* sk = func(ctx, &tuple, sizeof tuple, 0, 0) */		\
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),				\
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -48),				\
 	BPF_MOV64_IMM(BPF_REG_3, sizeof(struct bpf_sock_tuple)),	\
 	BPF_MOV64_IMM(BPF_REG_4, 0),					\
 	BPF_MOV64_IMM(BPF_REG_5, 0),					\
-	BPF_EMIT_CALL(BPF_FUNC_sk_lookup_tcp)
+	BPF_EMIT_CALL(BPF_FUNC_ ## func)
 
 /* BPF_DIRECT_PKT_R2 contains 7 instructions, it initializes default return
  * value into 0 and does necessary preparation for direct packet access

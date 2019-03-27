@@ -159,6 +159,11 @@ static struct bpf_sock *(*bpf_sk_lookup_tcp)(void *ctx,
 					     int size, unsigned long long netns_id,
 					     unsigned long long flags) =
 	(void *) BPF_FUNC_sk_lookup_tcp;
+static struct bpf_sock *(*bpf_skc_lookup_tcp)(void *ctx,
+					     struct bpf_sock_tuple *tuple,
+					     int size, unsigned long long netns_id,
+					     unsigned long long flags) =
+	(void *) BPF_FUNC_skc_lookup_tcp;
 static struct bpf_sock *(*bpf_sk_lookup_udp)(void *ctx,
 					     struct bpf_sock_tuple *tuple,
 					     int size, unsigned long long netns_id,
@@ -184,6 +189,9 @@ static struct bpf_sock *(*bpf_get_listener_sock)(struct bpf_sock *sk) =
 	(void *) BPF_FUNC_get_listener_sock;
 static int (*bpf_skb_ecn_set_ce)(void *ctx) =
 	(void *) BPF_FUNC_skb_ecn_set_ce;
+static int (*bpf_tcp_check_syncookie)(struct bpf_sock *sk,
+	    void *ip, int ip_len, void *tcp, int tcp_len) =
+	(void *) BPF_FUNC_tcp_check_syncookie;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
@@ -274,6 +282,9 @@ static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
 #elif defined(__TARGET_ARCH_s930x)
 	#define bpf_target_s930x
 	#define bpf_target_defined
+#elif defined(__TARGET_ARCH_arm)
+	#define bpf_target_arm
+	#define bpf_target_defined
 #elif defined(__TARGET_ARCH_arm64)
 	#define bpf_target_arm64
 	#define bpf_target_defined
@@ -296,6 +307,8 @@ static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
 	#define bpf_target_x86
 #elif defined(__s390x__)
 	#define bpf_target_s930x
+#elif defined(__arm__)
+	#define bpf_target_arm
 #elif defined(__aarch64__)
 	#define bpf_target_arm64
 #elif defined(__mips__)
@@ -332,6 +345,19 @@ static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
 #define PT_REGS_RC(x) ((x)->gprs[2])
 #define PT_REGS_SP(x) ((x)->gprs[15])
 #define PT_REGS_IP(x) ((x)->psw.addr)
+
+#elif defined(bpf_target_arm)
+
+#define PT_REGS_PARM1(x) ((x)->uregs[0])
+#define PT_REGS_PARM2(x) ((x)->uregs[1])
+#define PT_REGS_PARM3(x) ((x)->uregs[2])
+#define PT_REGS_PARM4(x) ((x)->uregs[3])
+#define PT_REGS_PARM5(x) ((x)->uregs[4])
+#define PT_REGS_RET(x) ((x)->uregs[14])
+#define PT_REGS_FP(x) ((x)->uregs[11]) /* Works only with CONFIG_FRAME_POINTER */
+#define PT_REGS_RC(x) ((x)->uregs[0])
+#define PT_REGS_SP(x) ((x)->uregs[13])
+#define PT_REGS_IP(x) ((x)->uregs[12])
 
 #elif defined(bpf_target_arm64)
 
