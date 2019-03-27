@@ -66,10 +66,11 @@ static int set_afu_device(struct ocxl_afu *afu, const char *location)
 	return rc;
 }
 
-static int assign_afu_actag(struct ocxl_afu *afu, struct pci_dev *dev)
+static int assign_afu_actag(struct ocxl_afu *afu)
 {
 	struct ocxl_fn *fn = afu->fn;
 	int actag_count, actag_offset;
+	struct pci_dev *pci_dev = to_pci_dev(fn->dev.parent);
 
 	/*
 	 * if there were not enough actags for the function, each afu
@@ -79,16 +80,16 @@ static int assign_afu_actag(struct ocxl_afu *afu, struct pci_dev *dev)
 		fn->actag_enabled / fn->actag_supported;
 	actag_offset = ocxl_actag_afu_alloc(fn, actag_count);
 	if (actag_offset < 0) {
-		dev_err(&afu->dev, "Can't allocate %d actags for AFU: %d\n",
+		dev_err(&pci_dev->dev, "Can't allocate %d actags for AFU: %d\n",
 			actag_count, actag_offset);
 		return actag_offset;
 	}
 	afu->actag_base = fn->actag_base + actag_offset;
 	afu->actag_enabled = actag_count;
 
-	ocxl_config_set_afu_actag(dev, afu->config.dvsec_afu_control_pos,
+	ocxl_config_set_afu_actag(pci_dev, afu->config.dvsec_afu_control_pos,
 				afu->actag_base, afu->actag_enabled);
-	dev_dbg(&afu->dev, "actag base=%d enabled=%d\n",
+	dev_dbg(&pci_dev->dev, "actag base=%d enabled=%d\n",
 		afu->actag_base, afu->actag_enabled);
 	return 0;
 }
@@ -103,10 +104,11 @@ static void reclaim_afu_actag(struct ocxl_afu *afu)
 	ocxl_actag_afu_free(afu->fn, start_offset, size);
 }
 
-static int assign_afu_pasid(struct ocxl_afu *afu, struct pci_dev *dev)
+static int assign_afu_pasid(struct ocxl_afu *afu)
 {
 	struct ocxl_fn *fn = afu->fn;
 	int pasid_count, pasid_offset;
+	struct pci_dev *pci_dev = to_pci_dev(fn->dev.parent);
 
 	/*
 	 * We only support the case where the function configuration
@@ -115,7 +117,7 @@ static int assign_afu_pasid(struct ocxl_afu *afu, struct pci_dev *dev)
 	pasid_count = 1 << afu->config.pasid_supported_log;
 	pasid_offset = ocxl_pasid_afu_alloc(fn, pasid_count);
 	if (pasid_offset < 0) {
-		dev_err(&afu->dev, "Can't allocate %d PASIDs for AFU: %d\n",
+		dev_err(&pci_dev->dev, "Can't allocate %d PASIDs for AFU: %d\n",
 			pasid_count, pasid_offset);
 		return pasid_offset;
 	}
@@ -123,10 +125,10 @@ static int assign_afu_pasid(struct ocxl_afu *afu, struct pci_dev *dev)
 	afu->pasid_count = 0;
 	afu->pasid_max = pasid_count;
 
-	ocxl_config_set_afu_pasid(dev, afu->config.dvsec_afu_control_pos,
+	ocxl_config_set_afu_pasid(pci_dev, afu->config.dvsec_afu_control_pos,
 				afu->pasid_base,
 				afu->config.pasid_supported_log);
-	dev_dbg(&afu->dev, "PASID base=%d, enabled=%d\n",
+	dev_dbg(&pci_dev->dev, "PASID base=%d, enabled=%d\n",
 		afu->pasid_base, pasid_count);
 	return 0;
 }
@@ -172,9 +174,10 @@ static void release_fn_bar(struct ocxl_fn *fn, int bar)
 	WARN_ON(fn->bar_used[idx] < 0);
 }
 
-static int map_mmio_areas(struct ocxl_afu *afu, struct pci_dev *dev)
+static int map_mmio_areas(struct ocxl_afu *afu)
 {
 	int rc;
+	struct pci_dev *pci_dev = to_pci_dev(afu->fn->dev.parent);
 
 	rc = reserve_fn_bar(afu->fn, afu->config.global_mmio_bar);
 	if (rc)
@@ -187,10 +190,10 @@ static int map_mmio_areas(struct ocxl_afu *afu, struct pci_dev *dev)
 	}
 
 	afu->global_mmio_start =
-		pci_resource_start(dev, afu->config.global_mmio_bar) +
+		pci_resource_start(pci_dev, afu->config.global_mmio_bar) +
 		afu->config.global_mmio_offset;
 	afu->pp_mmio_start =
-		pci_resource_start(dev, afu->config.pp_mmio_bar) +
+		pci_resource_start(pci_dev, afu->config.pp_mmio_bar) +
 		afu->config.pp_mmio_offset;
 
 	afu->global_mmio_ptr = ioremap(afu->global_mmio_start,
@@ -198,7 +201,7 @@ static int map_mmio_areas(struct ocxl_afu *afu, struct pci_dev *dev)
 	if (!afu->global_mmio_ptr) {
 		release_fn_bar(afu->fn, afu->config.pp_mmio_bar);
 		release_fn_bar(afu->fn, afu->config.global_mmio_bar);
-		dev_err(&dev->dev, "Error mapping global mmio area\n");
+		dev_err(&pci_dev->dev, "Error mapping global mmio area\n");
 		return -ENOMEM;
 	}
 
@@ -234,17 +237,17 @@ static int configure_afu(struct ocxl_afu *afu, u8 afu_idx, struct pci_dev *dev)
 	if (rc)
 		return rc;
 
-	rc = assign_afu_actag(afu, dev);
+	rc = assign_afu_actag(afu);
 	if (rc)
 		return rc;
 
-	rc = assign_afu_pasid(afu, dev);
+	rc = assign_afu_pasid(afu);
 	if (rc) {
 		reclaim_afu_actag(afu);
 		return rc;
 	}
 
-	rc = map_mmio_areas(afu, dev);
+	rc = map_mmio_areas(afu);
 	if (rc) {
 		reclaim_afu_pasid(afu);
 		reclaim_afu_actag(afu);
@@ -331,7 +334,7 @@ void remove_afu(struct ocxl_afu *afu)
 	device_unregister(&afu->dev);
 }
 
-static struct ocxl_fn *alloc_function(struct pci_dev *dev)
+static struct ocxl_fn *alloc_function(void)
 {
 	struct ocxl_fn *fn;
 
@@ -342,6 +345,7 @@ static struct ocxl_fn *alloc_function(struct pci_dev *dev)
 	INIT_LIST_HEAD(&fn->afu_list);
 	INIT_LIST_HEAD(&fn->pasid_list);
 	INIT_LIST_HEAD(&fn->actag_list);
+
 	return fn;
 }
 
@@ -491,7 +495,7 @@ struct ocxl_fn *init_function(struct pci_dev *dev)
 	struct ocxl_fn *fn;
 	int rc;
 
-	fn = alloc_function(dev);
+	fn = alloc_function();
 	if (!fn)
 		return ERR_PTR(-ENOMEM);
 
