@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include "rdma_core.h"
 #include "uverbs.h"
 #include <rdma/uverbs_std_types.h>
 
