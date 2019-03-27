@@ -179,9 +179,11 @@ struct mvpp2_cls_flow {
 #define MVPP2_N_FLOWS	52
 
 #define MVPP2_ENTRIES_PER_FLOW			(MVPP2_MAX_PORTS + 1)
-#define MVPP2_FLOW_C2_ENTRY(id)			((id) * MVPP2_ENTRIES_PER_FLOW)
-#define MVPP2_PORT_FLOW_HASH_ENTRY(port, id)	((id) * MVPP2_ENTRIES_PER_FLOW + \
-						(port) + 1)
+#define MVPP2_FLOW_C2_ENTRY(id)			((((id) - MVPP2_FL_START) * \
+						 MVPP2_ENTRIES_PER_FLOW) + 1)
+#define MVPP2_PORT_FLOW_HASH_ENTRY(port, id)	(MVPP2_FLOW_C2_ENTRY(id) + \
+						 1 + (port))
+
 struct mvpp2_cls_flow_entry {
 	u32 index;
 	u32 data[MVPP2_CLS_FLOWS_TBL_DATA_WORDS];
