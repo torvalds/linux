@@ -667,6 +667,8 @@ common mistakes:
        if (e)
 	   list_del(&events->lh);
        spin_unlock(&events_lock);
+
+       return e
    }
 
    int my_thread_f(void *data)
