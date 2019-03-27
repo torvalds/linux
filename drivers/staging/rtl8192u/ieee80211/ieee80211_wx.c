@@ -195,7 +195,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	if (iwe.u.data.length)
 	    start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 
-	if (ieee->wpa_enabled && network->wpa_ie_len){
+	if (ieee->wpa_enabled && network->wpa_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 	//	printk("WPA IE\n");
 		u8 *p = buf;
@@ -210,7 +210,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
 
-	if (ieee->wpa_enabled && network->rsn_ie_len){
+	if (ieee->wpa_enabled && network->rsn_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 		u8 *p = buf;
@@ -766,15 +766,13 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	case IW_AUTH_80211_AUTH_ALG:
 		//printk("======>%s():data->value is %d\n",__func__,data->value);
 	//	ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM)?1:0;
-		if(data->value & IW_AUTH_ALG_SHARED_KEY){
+		if (data->value & IW_AUTH_ALG_SHARED_KEY) {
 			ieee->open_wep = 0;
 			ieee->auth_mode = 1;
-		}
-		else if(data->value & IW_AUTH_ALG_OPEN_SYSTEM){
+		} else if (data->value & IW_AUTH_ALG_OPEN_SYSTEM) {
 			ieee->open_wep = 1;
 			ieee->auth_mode = 0;
-		}
-		else if(data->value & IW_AUTH_ALG_LEAP){
+		} else if (data->value & IW_AUTH_ALG_LEAP) {
 			ieee->open_wep = 1;
 			ieee->auth_mode = 2;
 		}
