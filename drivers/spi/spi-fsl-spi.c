@@ -367,7 +367,7 @@ static int fsl_spi_do_one_msg(struct spi_master *master,
 	struct spi_transfer *t, *first;
 	unsigned int cs_change;
 	const int nsecs = 50;
-	int status;
+	int status, last_bpw;
 
 	/* Don't allow changes if CS is active */
 	cs_change = 1;
@@ -375,21 +375,22 @@ static int fsl_spi_do_one_msg(struct spi_master *master,
 		if (cs_change)
 			first = t;
 		cs_change = t->cs_change;
-		if ((first->bits_per_word != t->bits_per_word) ||
-			(first->speed_hz != t->speed_hz)) {
+		if (first->speed_hz != t->speed_hz) {
 			dev_err(&spi->dev,
-				"bits_per_word/speed_hz cannot change while CS is active\n");
+				"speed_hz cannot change while CS is active\n");
 			return -EINVAL;
 		}
 	}
 
+	last_bpw = -1;
 	cs_change = 1;
 	status = -EINVAL;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (cs_change)
+		if (cs_change || last_bpw != t->bits_per_word)
 			status = fsl_spi_setup_transfer(spi, t);
 		if (status < 0)
 			break;
+		last_bpw = t->bits_per_word;
 
 		if (cs_change) {
 			fsl_spi_chipselect(spi, BITBANG_CS_ACTIVE);
