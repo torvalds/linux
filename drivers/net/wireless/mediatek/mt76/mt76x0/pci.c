@@ -234,7 +234,7 @@ mt76x0e_remove(struct pci_dev *pdev)
 
 	mt76_unregister_device(mdev);
 	mt76x0e_cleanup(dev);
-	ieee80211_free_hw(mdev->hw);
+	mt76_free_device(mdev);
 }
 
 static const struct pci_device_id mt76x0e_device_table[] = {

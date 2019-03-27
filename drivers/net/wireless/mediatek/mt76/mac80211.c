@@ -369,9 +369,15 @@ void mt76_unregister_device(struct mt76_dev *dev)
 
 	mt76_tx_status_check(dev, NULL, true);
 	ieee80211_unregister_hw(hw);
-	mt76_tx_free(dev);
 }
 EXPORT_SYMBOL_GPL(mt76_unregister_device);
+
+void mt76_free_device(struct mt76_dev *dev)
+{
+	mt76_tx_free(dev);
+	ieee80211_free_hw(dev->hw);
+}
+EXPORT_SYMBOL_GPL(mt76_free_device);
 
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
 {

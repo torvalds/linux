@@ -605,6 +605,7 @@ struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
 int mt76_register_device(struct mt76_dev *dev, bool vht,
 			 struct ieee80211_rate *rates, int n_rates);
 void mt76_unregister_device(struct mt76_dev *dev);
+void mt76_free_device(struct mt76_dev *dev);
 
 struct dentry *mt76_register_debugfs(struct mt76_dev *dev);
 void mt76_seq_puts_array(struct seq_file *file, const char *str,

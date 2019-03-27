@@ -107,7 +107,7 @@ mt76pci_remove(struct pci_dev *pdev)
 
 	mt76_unregister_device(mdev);
 	mt76x2_cleanup(dev);
-	ieee80211_free_hw(mdev->hw);
+	mt76_free_device(mdev);
 }
 
 MODULE_DEVICE_TABLE(pci, mt76pci_device_table);
