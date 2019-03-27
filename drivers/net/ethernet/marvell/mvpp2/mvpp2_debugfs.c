@@ -23,6 +23,11 @@ struct mvpp2_dbgfs_flow_entry {
 	struct mvpp2 *priv;
 };
 
+struct mvpp2_dbgfs_flow_tbl_entry {
+	int id;
+	struct mvpp2 *priv;
+};
+
 struct mvpp2_dbgfs_port_flow_entry {
 	struct mvpp2_port *port;
 	struct mvpp2_dbgfs_flow_entry *dbg_fe;
@@ -31,6 +36,9 @@ struct mvpp2_dbgfs_port_flow_entry {
 struct mvpp2_dbgfs_entries {
 	/* Entries for Header Parser debug info */
 	struct mvpp2_dbgfs_prs_entry prs_entries[MVPP2_PRS_TCAM_SRAM_SIZE];
+
+	/* Entries for Classifier Flow Table debug info */
+	struct mvpp2_dbgfs_flow_tbl_entry flt_entries[MVPP2_CLS_FLOWS_TBL_SIZE];
 
 	/* Entries for Classifier flows debug info */
 	struct mvpp2_dbgfs_flow_entry flow_entries[MVPP2_N_PRS_FLOWS];
@@ -41,10 +49,9 @@ struct mvpp2_dbgfs_entries {
 
 static int mvpp2_dbgfs_flow_flt_hits_show(struct seq_file *s, void *unused)
 {
-	struct mvpp2_dbgfs_flow_entry *entry = s->private;
-	int id = MVPP2_FLOW_C2_ENTRY(entry->flow);
+	struct mvpp2_dbgfs_flow_tbl_entry *entry = s->private;
 
-	u32 hits = mvpp2_cls_flow_hits(entry->priv, id);
+	u32 hits = mvpp2_cls_flow_hits(entry->priv, entry->id);
 
 	seq_printf(s, "%u\n", hits);
 
@@ -474,9 +481,6 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 	entry->flow = flow;
 	entry->priv = priv;
 
-	debugfs_create_file("flow_hits", 0444, flow_entry_dir, entry,
-			    &mvpp2_dbgfs_flow_flt_hits_fops);
-
 	debugfs_create_file("dec_hits", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_dec_hits_fops);
 
@@ -575,6 +579,55 @@ static int mvpp2_dbgfs_prs_init(struct dentry *parent, struct mvpp2 *priv)
 	return 0;
 }
 
+static int mvpp2_dbgfs_flow_tbl_entry_init(struct dentry *parent,
+					   struct mvpp2 *priv, int id)
+{
+	struct mvpp2_dbgfs_flow_tbl_entry *entry;
+	struct dentry *flow_tbl_entry_dir;
+	char flow_tbl_entry_name[10];
+
+	if (id >= MVPP2_CLS_FLOWS_TBL_SIZE)
+		return -EINVAL;
+
+	sprintf(flow_tbl_entry_name, "%03d", id);
+
+	flow_tbl_entry_dir = debugfs_create_dir(flow_tbl_entry_name, parent);
+	if (!flow_tbl_entry_dir)
+		return -ENOMEM;
+
+	entry = &priv->dbgfs_entries->flt_entries[id];
+
+	entry->id = id;
+	entry->priv = priv;
+
+	debugfs_create_file("hits", 0444, flow_tbl_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_flt_hits_fops);
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_cls_init(struct dentry *parent, struct mvpp2 *priv)
+{
+	struct dentry *cls_dir, *flow_tbl_dir;
+	int i, ret;
+
+	cls_dir = debugfs_create_dir("classifier", parent);
+	if (!cls_dir)
+		return -ENOMEM;
+
+	flow_tbl_dir = debugfs_create_dir("flow_table", cls_dir);
+	if (!flow_tbl_dir)
+		return -ENOMEM;
+
+	for (i = 0; i < MVPP2_CLS_FLOWS_TBL_SIZE; i++) {
+		ret = mvpp2_dbgfs_flow_tbl_entry_init(flow_tbl_dir, priv, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mvpp2_dbgfs_port_init(struct dentry *parent,
 				 struct mvpp2_port *port)
 {
@@ -634,6 +687,10 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
 		goto err;
 
 	ret = mvpp2_dbgfs_prs_init(mvpp2_dir, priv);
+	if (ret)
+		goto err;
+
+	ret = mvpp2_dbgfs_cls_init(mvpp2_dir, priv);
 	if (ret)
 		goto err;
 
