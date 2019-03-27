@@ -8,8 +8,7 @@
 
 u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params);
 u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params);
-bool mlx5e_rx_is_linear_skb(struct mlx5_core_dev *mdev,
-			    struct mlx5e_params *params);
+bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params);
 bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 				  struct mlx5e_params *params);
 u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5e_params *params);

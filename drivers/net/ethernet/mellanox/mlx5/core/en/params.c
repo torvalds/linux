@@ -27,8 +27,7 @@ u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params)
 	return MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(linear_frag_sz);
 }
 
-bool mlx5e_rx_is_linear_skb(struct mlx5_core_dev *mdev,
-			    struct mlx5e_params *params)
+bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params)
 {
 	u32 frag_sz = mlx5e_rx_get_linear_frag_sz(params);
 
@@ -44,7 +43,7 @@ bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 	s8 signed_log_num_strides_param;
 	u8 log_num_strides;
 
-	if (!mlx5e_rx_is_linear_skb(mdev, params))
+	if (!mlx5e_rx_is_linear_skb(params))
 		return false;
 
 	if (order_base_2(frag_sz) > MLX5_MAX_MPWQE_LOG_WQE_STRIDE_SZ)
@@ -98,7 +97,7 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 	linear_rq_headroom += NET_IP_ALIGN;
 
 	is_linear_skb = (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC) ?
-		mlx5e_rx_is_linear_skb(mdev, params) :
+		mlx5e_rx_is_linear_skb(params) :
 		mlx5e_rx_mpwqe_is_linear_skb(mdev, params);
 
 	return is_linear_skb ? linear_rq_headroom : 0;
