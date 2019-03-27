@@ -13002,6 +13002,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	intel_state->active_crtcs = dev_priv->active_crtcs;
 	intel_state->cdclk.logical = dev_priv->cdclk.logical;
 	intel_state->cdclk.actual = dev_priv->cdclk.actual;
+	intel_state->cdclk.pipe = INVALID_PIPE;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		if (new_crtc_state->active)
@@ -13021,6 +13022,8 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
+		enum pipe pipe;
+
 		ret = dev_priv->display.modeset_calc_cdclk(state);
 		if (ret < 0)
 			return ret;
@@ -13037,12 +13040,36 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 				return ret;
 		}
 
+		if (is_power_of_2(intel_state->active_crtcs)) {
+			struct drm_crtc *crtc;
+			struct drm_crtc_state *crtc_state;
+
+			pipe = ilog2(intel_state->active_crtcs);
+			crtc = &intel_get_crtc_for_pipe(dev_priv, pipe)->base;
+			crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+			if (crtc_state && needs_modeset(crtc_state))
+				pipe = INVALID_PIPE;
+		} else {
+			pipe = INVALID_PIPE;
+		}
+
 		/* All pipes must be switched off while we change the cdclk. */
-		if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
-					      &intel_state->cdclk.actual)) {
+		if (pipe != INVALID_PIPE &&
+		    intel_cdclk_needs_cd2x_update(dev_priv,
+						  &dev_priv->cdclk.actual,
+						  &intel_state->cdclk.actual)) {
+			ret = intel_lock_all_pipes(state);
+			if (ret < 0)
+				return ret;
+
+			intel_state->cdclk.pipe = pipe;
+		} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
+						     &intel_state->cdclk.actual)) {
 			ret = intel_modeset_all_pipes(state);
 			if (ret < 0)
 				return ret;
+
+			intel_state->cdclk.pipe = INVALID_PIPE;
 		}
 
 		DRM_DEBUG_KMS("New cdclk calculated to be logical %u kHz, actual %u kHz\n",
@@ -13451,7 +13478,10 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	if (intel_state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
-		intel_set_cdclk(dev_priv, &dev_priv->cdclk.actual);
+		intel_set_cdclk_pre_plane_update(dev_priv,
+						 &intel_state->cdclk.actual,
+						 &dev_priv->cdclk.actual,
+						 intel_state->cdclk.pipe);
 
 		/*
 		 * SKL workaround: bspec recommends we disable the SAGV when we
@@ -13479,6 +13509,12 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.update_crtcs(state);
+
+	if (intel_state->modeset)
+		intel_set_cdclk_post_plane_update(dev_priv,
+						  &intel_state->cdclk.actual,
+						  &dev_priv->cdclk.actual,
+						  intel_state->cdclk.pipe);
 
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
 	 * already, but still need the state for the delayed optimization. To
