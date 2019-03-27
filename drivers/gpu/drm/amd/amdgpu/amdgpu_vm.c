@@ -306,7 +306,7 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 		return;
 
 	vm->bulk_moveable = false;
-	if (bo->tbo.type == ttm_bo_type_kernel)
+	if (bo->tbo.type == ttm_bo_type_kernel && bo->parent)
 		amdgpu_vm_bo_relocated(base);
 	else
 		amdgpu_vm_bo_idle(base);
@@ -660,7 +660,10 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			amdgpu_vm_bo_moved(bo_base);
 		} else {
 			vm->update_funcs->map_table(bo);
-			amdgpu_vm_bo_relocated(bo_base);
+			if (bo->parent)
+				amdgpu_vm_bo_relocated(bo_base);
+			else
+				amdgpu_vm_bo_idle(bo_base);
 		}
 	}
 
@@ -1162,16 +1165,15 @@ uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
  *
  * @param: parameters for the update
  * @vm: requested vm
- * @parent: parent directory
  * @entry: entry to update
  *
  * Makes sure the requested entry in parent is up to date.
  */
 static int amdgpu_vm_update_pde(struct amdgpu_vm_update_params *params,
 				struct amdgpu_vm *vm,
-				struct amdgpu_vm_pt *parent,
 				struct amdgpu_vm_pt *entry)
 {
+	struct amdgpu_vm_pt *parent = amdgpu_vm_pt_parent(entry);
 	struct amdgpu_bo *bo = parent->base.bo, *pbo;
 	uint64_t pde, pt, flags;
 	unsigned level;
@@ -1233,17 +1235,13 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 		return r;
 
 	while (!list_empty(&vm->relocated)) {
-		struct amdgpu_vm_pt *pt, *entry;
+		struct amdgpu_vm_pt *entry;
 
 		entry = list_first_entry(&vm->relocated, struct amdgpu_vm_pt,
 					 base.vm_status);
 		amdgpu_vm_bo_idle(&entry->base);
 
-		pt = amdgpu_vm_pt_parent(entry);
-		if (!pt)
-			continue;
-
-		r = amdgpu_vm_update_pde(&params, vm, pt, entry);
+		r = amdgpu_vm_update_pde(&params, vm, entry);
 		if (r)
 			goto error;
 	}
