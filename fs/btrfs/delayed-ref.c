@@ -957,13 +957,14 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 }
 
 /*
- * this does a simple search for the head node for a given extent.
- * It must be called with the delayed ref spinlock held, and it returns
- * the head node if any where found, or NULL if not.
+ * This does a simple search for the head node for a given extent.  Returns the
+ * head node if found, or NULL if not.
  */
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 bytenr)
 {
+	lockdep_assert_held(&delayed_refs->lock);
+
 	return find_ref_head(delayed_refs, bytenr, false);
 }
 
