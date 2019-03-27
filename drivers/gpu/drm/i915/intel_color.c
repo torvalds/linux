@@ -810,6 +810,27 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static int i9xx_color_check(struct intel_crtc_state *crtc_state)
+{
+	int ret;
+
+	ret = check_luts(crtc_state);
+	if (ret)
+		return ret;
+
+	crtc_state->gamma_enable =
+		crtc_state->base.gamma_lut &&
+		!crtc_state->c8_planes;
+
+	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
+
+	ret = intel_color_add_affected_planes(crtc_state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
 {
 	u32 cgm_mode = 0;
@@ -895,13 +916,15 @@ void intel_color_init(struct intel_crtc *crtc)
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
 	if (HAS_GMCH(dev_priv)) {
-		dev_priv->display.color_check = _intel_color_check;
-		dev_priv->display.color_commit = i9xx_color_commit;
-
-		if (IS_CHERRYVIEW(dev_priv))
+		if (IS_CHERRYVIEW(dev_priv)) {
+			dev_priv->display.color_check = _intel_color_check;
+			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = cherryview_load_luts;
-		else
+		} else {
+			dev_priv->display.color_check = i9xx_color_check;
+			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = i9xx_load_luts;
+		}
 	} else {
 		dev_priv->display.color_check = _intel_color_check;
 
