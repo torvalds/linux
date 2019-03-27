@@ -71,14 +71,6 @@ enum mvpp2_cls_field_id {
 	MVPP22_CLS_FIELD_L4DIP = 0x1e,
 };
 
-enum mvpp2_cls_flow_seq {
-	MVPP2_CLS_FLOW_SEQ_NORMAL = 0,
-	MVPP2_CLS_FLOW_SEQ_FIRST1,
-	MVPP2_CLS_FLOW_SEQ_FIRST2,
-	MVPP2_CLS_FLOW_SEQ_LAST,
-	MVPP2_CLS_FLOW_SEQ_MIDDLE
-};
-
 /* Classifier C2 engine constants */
 #define MVPP22_CLS_C2_TCAM_EN(data)		((data) << 16)
 
