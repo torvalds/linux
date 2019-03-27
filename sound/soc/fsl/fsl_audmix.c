@@ -90,7 +90,7 @@ static int fsl_audmix_state_trans(struct snd_soc_component *comp,
 	struct fsl_audmix *priv = snd_soc_component_get_drvdata(comp);
 	/* Enforce all required TDMs are started */
 	if ((priv->tdms & prm.tdms) != prm.tdms) {
-		dev_dbg(comp->dev, prm.msg);
+		dev_dbg(comp->dev, "%s", prm.msg);
 		return -EINVAL;
 	}
 
