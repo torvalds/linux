@@ -1499,31 +1499,27 @@ nomem:
 static int mmc_spi_remove(struct spi_device *spi)
 {
 	struct mmc_host		*mmc = dev_get_drvdata(&spi->dev);
-	struct mmc_spi_host	*host;
+	struct mmc_spi_host	*host = mmc_priv(mmc);
 
-	if (mmc) {
-		host = mmc_priv(mmc);
+	/* prevent new mmc_detect_change() calls */
+	if (host->pdata && host->pdata->exit)
+		host->pdata->exit(&spi->dev, mmc);
 
-		/* prevent new mmc_detect_change() calls */
-		if (host->pdata && host->pdata->exit)
-			host->pdata->exit(&spi->dev, mmc);
+	mmc_remove_host(mmc);
 
-		mmc_remove_host(mmc);
-
-		if (host->dma_dev) {
-			dma_unmap_single(host->dma_dev, host->ones_dma,
-				MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
-			dma_unmap_single(host->dma_dev, host->data_dma,
-				sizeof(*host->data), DMA_BIDIRECTIONAL);
-		}
-
-		kfree(host->data);
-		kfree(host->ones);
-
-		spi->max_speed_hz = mmc->f_max;
-		mmc_free_host(mmc);
-		mmc_spi_put_pdata(spi);
+	if (host->dma_dev) {
+		dma_unmap_single(host->dma_dev, host->ones_dma,
+			MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
+		dma_unmap_single(host->dma_dev, host->data_dma,
+			sizeof(*host->data), DMA_BIDIRECTIONAL);
 	}
+
+	kfree(host->data);
+	kfree(host->ones);
+
+	spi->max_speed_hz = mmc->f_max;
+	mmc_free_host(mmc);
+	mmc_spi_put_pdata(spi);
 	return 0;
 }
 
