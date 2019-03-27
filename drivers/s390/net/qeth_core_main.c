@@ -1150,13 +1150,16 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 {
+	struct sk_buff *skb;
+
 	/* release may never happen from within CQ tasklet scope */
 	WARN_ON_ONCE(atomic_read(&buf->state) == QETH_QDIO_BUF_IN_CQ);
 
 	if (atomic_read(&buf->state) == QETH_QDIO_BUF_PENDING)
 		qeth_notify_skbs(buf->q, buf, TX_NOTIFY_GENERALERROR);
 
-	__skb_queue_purge(&buf->skb_list);
+	while ((skb = __skb_dequeue(&buf->skb_list)) != NULL)
+		consume_skb(skb);
 }
 
 static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,

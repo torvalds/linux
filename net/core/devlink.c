@@ -3897,6 +3897,11 @@ static int devlink_nl_cmd_info_get_dumpit(struct sk_buff *msg,
 			continue;
 		}
 
+		if (!devlink->ops->info_get) {
+			idx++;
+			continue;
+		}
+
 		mutex_lock(&devlink->lock);
 		err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
 					   NETLINK_CB(cb->skb).portid,
