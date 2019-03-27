@@ -136,7 +136,7 @@ CONFIG_IA32_EMULATION                           policy<{'amd64': 'y'}>
 CONFIG_IA32_AOUT                                policy<{'amd64': 'n'}>
 CONFIG_X86_X32                                  policy<{'amd64': 'y'}>
 #
-CONFIG_IA32_AOUT                                note<AOUT is deprecated> mark<DEPRECATED>
+CONFIG_IA32_AOUT                                mark<ENFORCED> note<LP:#1818552>
 
 # Menu: Boot options
 CONFIG_CMDLINE                                  policy<{'arm64': '"console=ttyAMA0"', 'armhf': '""'}>
@@ -9303,11 +9303,12 @@ CONFIG_BINFMT_SCRIPT                            policy<{'amd64': 'y', 'arm64': '
 CONFIG_BINFMT_FLAT                              policy<{'armhf': 'y'}>
 CONFIG_BINFMT_ZFLAT                             policy<{'armhf': 'y'}>
 CONFIG_BINFMT_SHARED_FLAT                       policy<{'armhf': 'y'}>
-CONFIG_BINFMT_AOUT                              policy<{'i386': 'm'}>
+CONFIG_BINFMT_AOUT                              policy<{'i386': 'n'}>
 CONFIG_BINFMT_MISC                              policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
 CONFIG_COREDUMP                                 policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 #
 CONFIG_BINFMT_SCRIPT                            mark<ENFORCED> note<required if 'init' is a shell script such as in initramfs-tools>
+CONFIG_BINFMT_AOUT                              mark<ENFORCED> note<LP:#1818552>
 
 # Menu: File systems
 CONFIG_EXT2_FS                                  policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>

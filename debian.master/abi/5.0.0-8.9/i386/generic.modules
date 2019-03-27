@@ -523,7 +523,6 @@ bh1750
 bh1770glc
 bh1780
 binder_linux
-binfmt_aout
 binfmt_misc
 block2mtd
 blocklayoutdriver
