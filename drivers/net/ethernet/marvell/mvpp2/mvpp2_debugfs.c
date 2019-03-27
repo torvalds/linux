@@ -28,6 +28,17 @@ struct mvpp2_dbgfs_port_flow_entry {
 	struct mvpp2_dbgfs_flow_entry *dbg_fe;
 };
 
+struct mvpp2_dbgfs_entries {
+	/* Entries for Header Parser debug info */
+	struct mvpp2_dbgfs_prs_entry prs_entries[MVPP2_PRS_TCAM_SRAM_SIZE];
+
+	/* Entries for Classifier flows debug info */
+	struct mvpp2_dbgfs_flow_entry flow_entries[MVPP2_N_PRS_FLOWS];
+
+	/* Entries for per-port flows debug info */
+	struct mvpp2_dbgfs_port_flow_entry port_flow_entries[MVPP2_MAX_PORTS];
+};
+
 static int mvpp2_dbgfs_flow_flt_hits_show(struct seq_file *s, void *unused)
 {
 	struct mvpp2_dbgfs_flow_entry *entry = s->private;
@@ -93,25 +104,7 @@ static int mvpp2_dbgfs_flow_type_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mvpp2_dbgfs_flow_type_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mvpp2_dbgfs_flow_type_show, inode->i_private);
-}
-
-static int mvpp2_dbgfs_flow_type_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct mvpp2_dbgfs_flow_entry *flow_entry = seq->private;
-
-	kfree(flow_entry);
-	return single_release(inode, file);
-}
-
-static const struct file_operations mvpp2_dbgfs_flow_type_fops = {
-	.open = mvpp2_dbgfs_flow_type_open,
-	.read = seq_read,
-	.release = mvpp2_dbgfs_flow_type_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_type);
 
 static int mvpp2_dbgfs_flow_id_show(struct seq_file *s, void *unused)
 {
@@ -153,28 +146,7 @@ static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mvpp2_dbgfs_port_flow_hash_opt_open(struct inode *inode,
-					       struct file *file)
-{
-	return single_open(file, mvpp2_dbgfs_port_flow_hash_opt_show,
-			   inode->i_private);
-}
-
-static int mvpp2_dbgfs_port_flow_hash_opt_release(struct inode *inode,
-						  struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct mvpp2_dbgfs_port_flow_entry *flow_entry = seq->private;
-
-	kfree(flow_entry);
-	return single_release(inode, file);
-}
-
-static const struct file_operations mvpp2_dbgfs_port_flow_hash_opt_fops = {
-	.open = mvpp2_dbgfs_port_flow_hash_opt_open,
-	.read = seq_read,
-	.release = mvpp2_dbgfs_port_flow_hash_opt_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_port_flow_hash_opt);
 
 static int mvpp2_dbgfs_port_flow_engine_show(struct seq_file *s, void *unused)
 {
@@ -456,25 +428,7 @@ static int mvpp2_dbgfs_prs_valid_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mvpp2_dbgfs_prs_valid_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mvpp2_dbgfs_prs_valid_show, inode->i_private);
-}
-
-static int mvpp2_dbgfs_prs_valid_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct mvpp2_dbgfs_prs_entry *entry = seq->private;
-
-	kfree(entry);
-	return single_release(inode, file);
-}
-
-static const struct file_operations mvpp2_dbgfs_prs_valid_fops = {
-	.open = mvpp2_dbgfs_prs_valid_open,
-	.read = seq_read,
-	.release = mvpp2_dbgfs_prs_valid_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_prs_valid);
 
 static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
 				      struct mvpp2_port *port,
@@ -487,10 +441,7 @@ static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
 	if (IS_ERR(port_dir))
 		return PTR_ERR(port_dir);
 
-	/* This will be freed by 'hash_opts' release op */
-	port_entry = kmalloc(sizeof(*port_entry), GFP_KERNEL);
-	if (!port_entry)
-		return -ENOMEM;
+	port_entry = &port->priv->dbgfs_entries->port_flow_entries[port->id];
 
 	port_entry->port = port;
 	port_entry->dbg_fe = entry;
@@ -518,10 +469,7 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 	if (!flow_entry_dir)
 		return -ENOMEM;
 
-	/* This will be freed by 'type' release op */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
+	entry = &priv->dbgfs_entries->flow_entries[flow];
 
 	entry->flow = flow;
 	entry->priv = priv;
@@ -582,10 +530,7 @@ static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 	if (!prs_entry_dir)
 		return -ENOMEM;
 
-	/* The 'valid' entry's ops will free that */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
+	entry = &priv->dbgfs_entries->prs_entries[tid];
 
 	entry->tid = tid;
 	entry->priv = priv;
@@ -663,6 +608,8 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 void mvpp2_dbgfs_cleanup(struct mvpp2 *priv)
 {
 	debugfs_remove_recursive(priv->dbgfs_dir);
+
+	kfree(priv->dbgfs_entries);
 }
 
 void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
@@ -682,6 +629,9 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
 		return;
 
 	priv->dbgfs_dir = mvpp2_dir;
+	priv->dbgfs_entries = kzalloc(sizeof(*priv->dbgfs_entries), GFP_KERNEL);
+	if (!priv->dbgfs_entries)
+		goto err;
 
 	ret = mvpp2_dbgfs_prs_init(mvpp2_dir, priv);
 	if (ret)

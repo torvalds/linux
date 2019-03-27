@@ -714,6 +714,7 @@ enum mvpp2_prs_l3_cast {
 #define MVPP2_DESC_DMA_MASK	DMA_BIT_MASK(40)
 
 /* Definitions */
+struct mvpp2_dbgfs_entries;
 
 /* Shared Packet Processor resources */
 struct mvpp2 {
@@ -775,6 +776,9 @@ struct mvpp2 {
 
 	/* Debugfs root entry */
 	struct dentry *dbgfs_dir;
+
+	/* Debugfs entries private data */
+	struct mvpp2_dbgfs_entries *dbgfs_entries;
 };
 
 struct mvpp2_pcpu_stats {
