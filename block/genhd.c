@@ -1628,12 +1628,11 @@ static unsigned long disk_events_poll_jiffies(struct gendisk *disk)
 
 	/*
 	 * If device-specific poll interval is set, always use it.  If
-	 * the default is being used, poll iff there are events which
-	 * can't be monitored asynchronously.
+	 * the default is being used, poll if the POLL flag is set.
 	 */
 	if (ev->poll_msecs >= 0)
 		intv_msecs = ev->poll_msecs;
-	else if (disk->events & ~disk->async_events)
+	else if (disk->events)
 		intv_msecs = disk_events_dfl_poll_msecs;
 
 	return msecs_to_jiffies(intv_msecs);
@@ -1860,6 +1859,7 @@ static void disk_check_events(struct disk_events *ev,
  *
  * events		: list of all supported events
  * events_async		: list of events which can be detected w/o polling
+ *			  (always empty, only for backwards compatibility)
  * events_poll_msecs	: polling interval, 0: disable, -1: system default
  */
 static ssize_t __disk_events_show(unsigned int events, char *buf)
@@ -1890,9 +1890,7 @@ static ssize_t disk_events_show(struct device *dev,
 static ssize_t disk_events_async_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct gendisk *disk = dev_to_disk(dev);
-
-	return __disk_events_show(disk->async_events, buf);
+	return 0;
 }
 
 static ssize_t disk_events_poll_msecs_show(struct device *dev,

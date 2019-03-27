@@ -185,7 +185,6 @@ struct gendisk {
 	char *(*devnode)(struct gendisk *gd, umode_t *mode);
 
 	unsigned int events;		/* supported events */
-	unsigned int async_events;	/* async events, subset of all */
 
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
