@@ -293,11 +293,12 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 			/* fall through */
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
 			dest_keyring =
-				key_get(cred->user->session_keyring);
+				key_get(READ_ONCE(cred->user->session_keyring));
 			break;
 
 		case KEY_REQKEY_DEFL_USER_KEYRING:
-			dest_keyring = key_get(cred->user->uid_keyring);
+			dest_keyring =
+				key_get(READ_ONCE(cred->user->uid_keyring));
 			break;
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:
