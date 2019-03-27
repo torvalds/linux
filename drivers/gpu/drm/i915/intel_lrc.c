@@ -2313,8 +2313,9 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->park = NULL;
 	engine->unpark = NULL;
 
-	engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
+	if (!intel_vgpu_active(engine->i915))
+		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 	if (engine->preempt_context)
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 }
