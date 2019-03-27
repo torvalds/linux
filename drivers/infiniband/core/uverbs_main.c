@@ -720,7 +720,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			 * then the command request structure starts
 			 * with a '__aligned u64 response' member.
 			 */
-			ret = get_user(response, (const u64 *)buf);
+			ret = get_user(response, (const u64 __user *)buf);
 			if (ret)
 				goto out_unlock;
 
