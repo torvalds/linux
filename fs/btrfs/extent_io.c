@@ -1542,6 +1542,79 @@ out:
 	return ret;
 }
 
+/**
+ * find_first_clear_extent_bit - finds the first range that has @bits not set
+ * and that starts after @start
+ *
+ * @tree - the tree to search
+ * @start - the offset at/after which the found extent should start
+ * @start_ret - records the beginning of the range
+ * @end_ret - records the end of the range (inclusive)
+ * @bits - the set of bits which must be unset
+ *
+ * Since unallocated range is also considered one which doesn't have the bits
+ * set it's possible that @end_ret contains -1, this happens in case the range
+ * spans (last_range_end, end of device]. In this case it's up to the caller to
+ * trim @end_ret to the appropriate size.
+ */
+void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
+				 u64 *start_ret, u64 *end_ret, unsigned bits)
+{
+	struct extent_state *state;
+	struct rb_node *node, *prev = NULL, *next;
+
+	spin_lock(&tree->lock);
+
+	/* Find first extent with bits cleared */
+	while (1) {
+		node = __etree_search(tree, start, &next, &prev, NULL, NULL);
+		if (!node) {
+			node = next;
+			if (!node) {
+				/*
+				 * We are past the last allocated chunk,
+				 * set start at the end of the last extent. The
+				 * device alloc tree should never be empty so
+				 * prev is always set.
+				 */
+				ASSERT(prev);
+				state = rb_entry(prev, struct extent_state, rb_node);
+				*start_ret = state->end + 1;
+				*end_ret = -1;
+				goto out;
+			}
+		}
+		state = rb_entry(node, struct extent_state, rb_node);
+		if (in_range(start, state->start, state->end - state->start + 1) &&
+			(state->state & bits)) {
+			start = state->end + 1;
+		} else {
+			*start_ret = start;
+			break;
+		}
+	}
+
+	/*
+	 * Find the longest stretch from start until an entry which has the
+	 * bits set
+	 */
+	while (1) {
+		state = rb_entry(node, struct extent_state, rb_node);
+		if (state->end >= start && !(state->state & bits)) {
+			*end_ret = state->end;
+		} else {
+			*end_ret = state->start - 1;
+			break;
+		}
+
+		node = rb_next(node);
+		if (!node)
+			break;
+	}
+out:
+	spin_unlock(&tree->lock);
+}
+
 /*
  * find a contiguous range of bytes in the file marked as delalloc, not
  * more than 'max_bytes'.  start and end are used to return the range,
