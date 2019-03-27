@@ -150,6 +150,13 @@ enum {
 	DISK_EVENT_EJECT_REQUEST		= 1 << 1, /* eject requested */
 };
 
+enum {
+	/* Poll even if events_poll_msecs is unset */
+	DISK_EVENT_FLAG_POLL			= 1 << 0,
+	/* Forward events to udev */
+	DISK_EVENT_FLAG_UEVENT			= 1 << 1,
+};
+
 struct disk_part_tbl {
 	struct rcu_head rcu_head;
 	int len;
@@ -184,7 +191,8 @@ struct gendisk {
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 	char *(*devnode)(struct gendisk *gd, umode_t *mode);
 
-	unsigned int events;		/* supported events */
+	unsigned short events;		/* supported events */
+	unsigned short event_flags;	/* flags related to event processing */
 
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
