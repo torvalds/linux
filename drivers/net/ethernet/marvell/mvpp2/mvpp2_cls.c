@@ -454,6 +454,13 @@ static void mvpp2_cls_flow_port_add(struct mvpp2_cls_flow_entry *fe,
 	fe->data[0] |= MVPP2_CLS_FLOW_TBL0_PORT_ID(port);
 }
 
+static void mvpp2_cls_flow_lu_type_set(struct mvpp2_cls_flow_entry *fe,
+				       u8 lu_type)
+{
+	fe->data[1] &= ~MVPP2_CLS_FLOW_TBL1_LU_TYPE(MVPP2_CLS_LU_TYPE_MASK);
+	fe->data[1] |= MVPP2_CLS_FLOW_TBL1_LU_TYPE(lu_type);
+}
+
 /* Initialize the parser entry for the given flow */
 static void mvpp2_cls_flow_prs_init(struct mvpp2 *priv,
 				    struct mvpp2_cls_flow *flow)
@@ -500,6 +507,7 @@ static void mvpp2_cls_flow_init(struct mvpp2 *priv, struct mvpp2_cls_flow *flow)
 	mvpp2_cls_flow_last_set(&fe, 0);
 	mvpp2_cls_flow_pri_set(&fe, 0);
 	mvpp2_cls_flow_seq_set(&fe, MVPP2_CLS_FLOW_SEQ_FIRST1);
+	mvpp2_cls_flow_lu_type_set(&fe, MVPP2_CLS_LU_ALL);
 
 	/* Add all ports */
 	for (i = 0; i < MVPP2_MAX_PORTS; i++)
@@ -793,6 +801,10 @@ static void mvpp2_port_c2_cls_init(struct mvpp2_port *port)
 	pmap = BIT(port->id);
 	c2.tcam[4] = MVPP22_CLS_C2_PORT_ID(pmap);
 	c2.tcam[4] |= MVPP22_CLS_C2_TCAM_EN(MVPP22_CLS_C2_PORT_ID(pmap));
+
+	/* Match on Lookup Type */
+	c2.tcam[4] |= MVPP22_CLS_C2_TCAM_EN(MVPP22_CLS_C2_LU_TYPE(MVPP2_CLS_LU_TYPE_MASK));
+	c2.tcam[4] |= MVPP22_CLS_C2_LU_TYPE(MVPP2_CLS_LU_ALL);
 
 	/* Update RSS status after matching this entry */
 	c2.act = MVPP22_CLS_C2_ACT_RSS_EN(MVPP22_C2_UPD_LOCK);

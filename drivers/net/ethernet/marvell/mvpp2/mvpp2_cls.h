@@ -162,6 +162,13 @@ enum mvpp2_prs_flow {
 	MVPP2_FL_LAST,
 };
 
+enum mvpp2_cls_lu_type {
+	MVPP2_CLS_LU_ALL = 0,
+};
+
+/* LU Type defined for all engines, and specified in the flow table */
+#define MVPP2_CLS_LU_TYPE_MASK			0x3f
+
 struct mvpp2_cls_flow {
 	/* The L2-L4 traffic flow type */
 	int flow_type;
