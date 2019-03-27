@@ -250,7 +250,7 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
  */
 static void rcu_report_exp_rdp(struct rcu_data *rdp)
 {
-	WRITE_ONCE(rdp->deferred_qs, false);
+	WRITE_ONCE(rdp->exp_deferred_qs, false);
 	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
 }
 
@@ -616,7 +616,7 @@ static void rcu_exp_handler(void *unused)
 		    rcu_dynticks_curr_cpu_in_eqs()) {
 			rcu_report_exp_rdp(rdp);
 		} else {
-			rdp->deferred_qs = true;
+			rdp->exp_deferred_qs = true;
 			set_tsk_need_resched(t);
 			set_preempt_need_resched();
 		}
@@ -638,7 +638,7 @@ static void rcu_exp_handler(void *unused)
 	if (t->rcu_read_lock_nesting > 0) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->expmask & rdp->grpmask) {
-			rdp->deferred_qs = true;
+			rdp->exp_deferred_qs = true;
 			t->rcu_read_unlock_special.b.exp_hint = true;
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -661,7 +661,7 @@ static void rcu_exp_handler(void *unused)
 	 *
 	 * Otherwise, force a context switch after the CPU enables everything.
 	 */
-	rdp->deferred_qs = true;
+	rdp->exp_deferred_qs = true;
 	if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
 	    WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs())) {
 		rcu_preempt_deferred_qs(t);
