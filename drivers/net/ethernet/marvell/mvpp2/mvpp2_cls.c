@@ -625,13 +625,10 @@ static int mvpp2_port_rss_hash_opts_set(struct mvpp2_port *port, int flow_type,
 	int i, engine, flow_index;
 	u16 hash_opts;
 
-	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
+	for_each_cls_flow_id_with_type(i, flow_type) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			return -EINVAL;
-
-		if (flow->flow_type != flow_type)
-			continue;
 
 		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
 							flow->flow_id);
@@ -714,13 +711,10 @@ static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
 	int i, flow_index;
 	u16 hash_opts = 0;
 
-	for (i = 0; i < MVPP2_N_PRS_FLOWS; i++) {
+	for_each_cls_flow_id_with_type(i, flow_type) {
 		flow = mvpp2_cls_flow_get(i);
 		if (!flow)
 			return 0;
-
-		if (flow->flow_type != flow_type)
-			continue;
 
 		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
 							flow->flow_id);

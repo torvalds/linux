@@ -192,6 +192,29 @@ struct mvpp2_cls_flow {
 #define MVPP2_PORT_FLOW_HASH_ENTRY(port, id)	(MVPP2_FLOW_C2_ENTRY(id) + \
 						 1 + (port))
 
+/* Iterate on each classifier flow id. Sets 'i' to be the index of the first
+ * entry in the cls_flows table for each different flow_id.
+ * This relies on entries having the same flow_id in the cls_flows table being
+ * contiguous.
+ */
+#define for_each_cls_flow_id(i)						      \
+	for ((i) = 0; (i) < MVPP2_N_PRS_FLOWS; (i)++)			      \
+		if ((i) > 0 &&						      \
+		    cls_flows[(i)].flow_id == cls_flows[(i) - 1].flow_id)       \
+			continue;					      \
+		else
+
+/* Iterate on each classifier flow that has a given flow_type. Sets 'i' to be
+ * the index of the first entry in the cls_flow table for each different flow_id
+ * that has the given flow_type. This allows to operate on all flows that
+ * matches a given ethtool flow type.
+ */
+#define for_each_cls_flow_id_with_type(i, type)				      \
+	for_each_cls_flow_id((i))					      \
+		if (cls_flows[(i)].flow_type != (type))			      \
+			continue;					      \
+		else
+
 struct mvpp2_cls_flow_entry {
 	u32 index;
 	u32 data[MVPP2_CLS_FLOWS_TBL_DATA_WORDS];
