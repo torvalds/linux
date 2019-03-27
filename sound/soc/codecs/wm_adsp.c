@@ -3263,7 +3263,7 @@ static void wm_halo_stop_core(struct wm_adsp *dsp)
 	regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
 			   HALO_CORE_EN, 0);
 
-	/* reset halo core with CORE_SOFT_REEST */
+	/* reset halo core with CORE_SOFT_RESET */
 	regmap_update_bits(dsp->regmap, dsp->base + HALO_CORE_SOFT_RESET,
 			   HALO_CORE_SOFT_RESET_MASK, 1);
 }
