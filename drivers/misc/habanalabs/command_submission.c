@@ -261,7 +261,8 @@ static void cs_timedout(struct work_struct *work)
 	ctx_asid = cs->ctx->asid;
 
 	/* TODO: add information about last signaled seq and last emitted seq */
-	dev_err(hdev->dev, "CS %d.%llu got stuck!\n", ctx_asid, cs->sequence);
+	dev_err(hdev->dev, "User %d command submission %llu got stuck!\n",
+		ctx_asid, cs->sequence);
 
 	cs_put(cs);
 
