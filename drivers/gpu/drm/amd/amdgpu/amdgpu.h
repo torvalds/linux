@@ -161,6 +161,7 @@ extern int amdgpu_ras_enable;
 extern uint amdgpu_ras_mask;
 extern int amdgpu_async_gfx_ring;
 extern int amdgpu_mcbp;
+extern int amdgpu_discovery;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
