@@ -237,7 +237,8 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 
 		if (oldsize != attr->size) {
 			truncate_pagecache(inode, attr->size);
-			inval = true;
+			if (!fc->explicit_inval_data)
+				inval = true;
 		} else if (fc->auto_inval_data) {
 			struct timespec64 new_mtime = {
 				.tv_sec = attr->mtime,
@@ -912,6 +913,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->dont_mask = 1;
 			if (arg->flags & FUSE_AUTO_INVAL_DATA)
 				fc->auto_inval_data = 1;
+			else if (arg->flags & FUSE_EXPLICIT_INVAL_DATA)
+				fc->explicit_inval_data = 1;
 			if (arg->flags & FUSE_DO_READDIRPLUS) {
 				fc->do_readdirplus = 1;
 				if (arg->flags & FUSE_READDIRPLUS_AUTO)
@@ -973,7 +976,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 		FUSE_WRITEBACK_CACHE | FUSE_NO_OPEN_SUPPORT |
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
-		FUSE_NO_OPENDIR_SUPPORT;
+		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
