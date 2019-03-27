@@ -294,19 +294,25 @@ struct ice_vsi {
 /* struct that defines an interrupt vector */
 struct ice_q_vector {
 	struct ice_vsi *vsi;
-	cpumask_t affinity_mask;
-	struct napi_struct napi;
-	struct ice_ring_container rx;
-	struct ice_ring_container tx;
-	struct irq_affinity_notify affinity_notify;
+
 	u16 v_idx;			/* index in the vsi->q_vector array. */
-	u8 num_ring_tx;			/* total number of Tx rings in vector */
 	u8 num_ring_rx;			/* total number of Rx rings in vector */
-	char name[ICE_INT_NAME_STR_LEN];
+	u8 num_ring_tx;			/* total number of Tx rings in vector */
+	u8 itr_countdown;		/* when 0 should adjust adaptive ITR */
 	/* in usecs, need to use ice_intrl_to_usecs_reg() before writing this
 	 * value to the device
 	 */
 	u8 intrl;
+
+	struct napi_struct napi;
+
+	struct ice_ring_container rx;
+	struct ice_ring_container tx;
+
+	cpumask_t affinity_mask;
+	struct irq_affinity_notify affinity_notify;
+
+	char name[ICE_INT_NAME_STR_LEN];
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {

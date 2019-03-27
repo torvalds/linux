@@ -178,6 +178,8 @@
 #define VPINT_ALLOC_PCI_LAST_S			12
 #define VPINT_ALLOC_PCI_LAST_M			ICE_M(0x7FF, 12)
 #define VPINT_ALLOC_PCI_VALID_M			BIT(31)
+#define VPINT_MBX_CTL(_VSI)			(0x0016A000 + ((_VSI) * 4))
+#define VPINT_MBX_CTL_CAUSE_ENA_M		BIT(30)
 #define GLLAN_RCTL_0				0x002941F8
 #define QRX_CONTEXT(_i, _QRX)			(0x00280000 + ((_i) * 8192 + (_QRX) * 4))
 #define QRX_CTRL(_QRX)				(0x00120000 + ((_QRX) * 4))

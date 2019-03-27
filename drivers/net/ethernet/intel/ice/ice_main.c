@@ -260,7 +260,11 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	/* Add mac addresses in the sync list */
 	status = ice_add_mac(hw, &vsi->tmp_sync_list);
 	ice_free_fltr_list(dev, &vsi->tmp_sync_list);
-	if (status) {
+	/* If filter is added successfully or already exists, do not go into
+	 * 'if' condition and report it as error. Instead continue processing
+	 * rest of the function.
+	 */
+	if (status && status != ICE_ERR_ALREADY_EXISTS) {
 		netdev_err(netdev, "Failed to add MAC filters\n");
 		/* If there is no more space for new umac filters, vsi
 		 * should go into promiscuous mode. There should be some
@@ -403,6 +407,10 @@ ice_prepare_for_reset(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 
+	/* already prepared for reset */
+	if (test_bit(__ICE_PREPARED_FOR_RESET, pf->state))
+		return;
+
 	/* Notify VFs of impending reset */
 	if (ice_check_sq_alive(hw, &hw->mailboxq))
 		ice_vc_notify_reset(pf);
@@ -486,8 +494,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 		/* return if no valid reset type requested */
 		if (reset_type == ICE_RESET_INVAL)
 			return;
-		if (!test_bit(__ICE_PREPARED_FOR_RESET, pf->state))
-			ice_prepare_for_reset(pf);
+		ice_prepare_for_reset(pf);
 
 		/* make sure we are ready to rebuild */
 		if (ice_check_reset(&pf->hw)) {
@@ -587,6 +594,9 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		break;
 	case ICE_FC_RX_PAUSE:
 		fc = "RX";
+		break;
+	case ICE_FC_NONE:
+		fc = "None";
 		break;
 	default:
 		fc = "Unknown";
@@ -999,6 +1009,18 @@ static void ice_service_task_stop(struct ice_pf *pf)
 		cancel_work_sync(&pf->serv_task);
 
 	clear_bit(__ICE_SERVICE_SCHED, pf->state);
+}
+
+/**
+ * ice_service_task_restart - restart service task and schedule works
+ * @pf: board private structure
+ *
+ * This function is needed for suspend and resume works (e.g WoL scenario)
+ */
+static void ice_service_task_restart(struct ice_pf *pf)
+{
+	clear_bit(__ICE_SERVICE_DIS, pf->state);
+	ice_service_task_schedule(pf);
 }
 
 /**
@@ -2392,6 +2414,136 @@ static void ice_remove(struct pci_dev *pdev)
 	pci_disable_pcie_error_reporting(pdev);
 }
 
+/**
+ * ice_pci_err_detected - warning that PCI error has been detected
+ * @pdev: PCI device information struct
+ * @err: the type of PCI error
+ *
+ * Called to warn that something happened on the PCI bus and the error handling
+ * is in progress.  Allows the driver to gracefully prepare/handle PCI errors.
+ */
+static pci_ers_result_t
+ice_pci_err_detected(struct pci_dev *pdev, enum pci_channel_state err)
+{
+	struct ice_pf *pf = pci_get_drvdata(pdev);
+
+	if (!pf) {
+		dev_err(&pdev->dev, "%s: unrecoverable device error %d\n",
+			__func__, err);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	if (!test_bit(__ICE_SUSPENDED, pf->state)) {
+		ice_service_task_stop(pf);
+
+		if (!test_bit(__ICE_PREPARED_FOR_RESET, pf->state)) {
+			set_bit(__ICE_PFR_REQ, pf->state);
+			ice_prepare_for_reset(pf);
+		}
+	}
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * ice_pci_err_slot_reset - a PCI slot reset has just happened
+ * @pdev: PCI device information struct
+ *
+ * Called to determine if the driver can recover from the PCI slot reset by
+ * using a register read to determine if the device is recoverable.
+ */
+static pci_ers_result_t ice_pci_err_slot_reset(struct pci_dev *pdev)
+{
+	struct ice_pf *pf = pci_get_drvdata(pdev);
+	pci_ers_result_t result;
+	int err;
+	u32 reg;
+
+	err = pci_enable_device_mem(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset, error %d\n",
+			err);
+		result = PCI_ERS_RESULT_DISCONNECT;
+	} else {
+		pci_set_master(pdev);
+		pci_restore_state(pdev);
+		pci_save_state(pdev);
+		pci_wake_from_d3(pdev, false);
+
+		/* Check for life */
+		reg = rd32(&pf->hw, GLGEN_RTRIG);
+		if (!reg)
+			result = PCI_ERS_RESULT_RECOVERED;
+		else
+			result = PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	err = pci_cleanup_aer_uncorrect_error_status(pdev);
+	if (err)
+		dev_dbg(&pdev->dev,
+			"pci_cleanup_aer_uncorrect_error_status failed, error %d\n",
+			err);
+		/* non-fatal, continue */
+
+	return result;
+}
+
+/**
+ * ice_pci_err_resume - restart operations after PCI error recovery
+ * @pdev: PCI device information struct
+ *
+ * Called to allow the driver to bring things back up after PCI error and/or
+ * reset recovery have finished
+ */
+static void ice_pci_err_resume(struct pci_dev *pdev)
+{
+	struct ice_pf *pf = pci_get_drvdata(pdev);
+
+	if (!pf) {
+		dev_err(&pdev->dev,
+			"%s failed, device is unrecoverable\n", __func__);
+		return;
+	}
+
+	if (test_bit(__ICE_SUSPENDED, pf->state)) {
+		dev_dbg(&pdev->dev, "%s failed to resume normal operations!\n",
+			__func__);
+		return;
+	}
+
+	ice_do_reset(pf, ICE_RESET_PFR);
+	ice_service_task_restart(pf);
+	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
+}
+
+/**
+ * ice_pci_err_reset_prepare - prepare device driver for PCI reset
+ * @pdev: PCI device information struct
+ */
+static void ice_pci_err_reset_prepare(struct pci_dev *pdev)
+{
+	struct ice_pf *pf = pci_get_drvdata(pdev);
+
+	if (!test_bit(__ICE_SUSPENDED, pf->state)) {
+		ice_service_task_stop(pf);
+
+		if (!test_bit(__ICE_PREPARED_FOR_RESET, pf->state)) {
+			set_bit(__ICE_PFR_REQ, pf->state);
+			ice_prepare_for_reset(pf);
+		}
+	}
+}
+
+/**
+ * ice_pci_err_reset_done - PCI reset done, device driver reset can begin
+ * @pdev: PCI device information struct
+ */
+static void ice_pci_err_reset_done(struct pci_dev *pdev)
+{
+	ice_pci_err_resume(pdev);
+}
+
 /* ice_pci_tbl - PCI Device ID Table
  *
  * Wildcard entries (PCI_ANY_ID) should come last
@@ -2409,12 +2561,21 @@ static const struct pci_device_id ice_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ice_pci_tbl);
 
+static const struct pci_error_handlers ice_pci_err_handler = {
+	.error_detected = ice_pci_err_detected,
+	.slot_reset = ice_pci_err_slot_reset,
+	.reset_prepare = ice_pci_err_reset_prepare,
+	.reset_done = ice_pci_err_reset_done,
+	.resume = ice_pci_err_resume
+};
+
 static struct pci_driver ice_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = ice_pci_tbl,
 	.probe = ice_probe,
 	.remove = ice_remove,
 	.sriov_configure = ice_sriov_configure,
+	.err_handler = &ice_pci_err_handler
 };
 
 /**
